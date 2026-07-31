@@ -1,0 +1,23 @@
+<svg viewBox="0 0 270 54" xmlns="http://www.w3.org/2000/svg">
+  <!-- Geometric square frame icon (48×48 at offset 3,3) -->
+  <!-- Main trapezoid faces -->
+  <polygon points="3,3 51,3 38,16 16,16" fill="#d8703c"/>
+  <polygon points="51,3 51,51 38,38 38,16" fill="#b05830"/>
+  <polygon points="3,51 51,51 38,38 16,38" fill="#a04828"/>
+  <polygon points="3,3 3,51 16,38 16,16" fill="#cc6838"/>
+  <!-- Corner triangles for faceted look -->
+  <polygon points="3,3 16,16 3,16" fill="#e07848"/>
+  <polygon points="51,3 38,16 51,16" fill="#a04828"/>
+  <polygon points="51,51 38,38 51,38" fill="#904020"/>
+  <polygon points="3,51 16,38 3,38" fill="#be6030"/>
+  <!-- White inner window -->
+  <rect x="16" y="16" width="22" height="22" fill="white"/>
+
+  <!-- Company name -->
+  <text font-family="'Segoe UI','Helvetica Neue',Arial,sans-serif" font-size="23" y="35">
+    <tspan x="62" font-weight="700" fill="#d96820">Glass</tspan><tspan font-weight="300" fill="#2a2a2a"> Technology</tspan>
+  </text>
+
+  <!-- Tagline -->
+  <text x="62" y="49" font-family="'Segoe UI','Helvetica Neue',Arial,sans-serif" font-size="10.5" fill="#999999" font-style="italic">The glass of tomorrow, today</text>
+</svg>

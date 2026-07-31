@@ -1,0 +1,954 @@
+import React, { useState, useCallback, useEffect, useMemo } from 'react';
+import { Plus, Search, Download, Save, Edit2, Trash2, RefreshCw, X, Check, Maximize2 } from 'lucide-react';
+
+interface PaymentTransaction {
+  id: string;
+  date: string;
+  amount: number;
+  remarks: string;
+}
+
+interface FollowupRecord {
+  id: string;
+  section: string;
+  itemDescription: string;
+  requestDate: string;
+  requiredTimeline: string;
+  currentStatus: string;
+  paymentStatus: string;
+  prNumber: string;
+  reqDate: string;
+  budget: number;
+  leadTime: string;
+  workingTime: string;
+  source: 'manual' | 'rfq' | 'po';
+  remarks: string;
+  receivedDate: string;
+  paymentHistory: PaymentTransaction[];
+}
+
+type TableRow =
+  | { type: 'section'; label: string }
+  | { type: 'data'; record: FollowupRecord; sl: number };
+
+const STORAGE_KEY = 'mms_purchase_followup';
+
+const STATUS_WEB: Record<string, { bg: string; tc: string }> = {
+  'RFQ created':           { bg: 'rgba(59,130,246,0.85)',  tc: '#fff' },
+  'Technical Review':      { bg: 'rgba(234,88,12,0.85)',   tc: '#fff' },
+  'Quotation Received':    { bg: 'rgba(139,92,246,0.85)',  tc: '#fff' },
+  'PO done':               { bg: 'rgba(180,130,0,0.90)',   tc: '#fff' },
+  'Material Not Delivered':{ bg: 'rgba(220,38,38,0.85)',   tc: '#fff' },
+  'Rejected':              { bg: 'rgba(71,85,105,0.85)',   tc: '#fff' },
+  'Material Received':     { bg: 'rgba(22,163,74,0.85)',   tc: '#fff' },
+};
+
+const STATUS_XLS: Record<string, string> = {
+  'RFQ created':           '#4472C4',
+  'Technical Review':      '#FFA500',
+  'Quotation Received':    '#7030A0',
+  'PO done':               '#FFFF00',
+  'Material Not Delivered':'#FF0000',
+  'Rejected':              '#808080',
+  'Material Received':     '#00B050',
+};
+
+const TL_COLOR: Record<string, string> = {
+  'Second Priority': '#22c55e',
+  'Primary Priority': '#f97316',
+};
+
+const STATUSES  = ['', ...Object.keys(STATUS_WEB)];
+const TIMELINES = ['', 'Need', 'Needed', 'Second Priority', 'Primary Priority'];
+
+const PAYMENT_STATUSES = ['', 'Payment Under-Progress', 'Payment Initiated', 'Partial Payment Done', 'Payment Done'];
+const PAYMENT_CFG: Record<string, { bg: string; tc: string }> = {
+  'Payment Under-Progress': { bg: 'rgba(245,158,11,0.85)',  tc: '#fff' },
+  'Payment Initiated':      { bg: 'rgba(59,130,246,0.85)',  tc: '#fff' },
+  'Partial Payment Done':   { bg: 'rgba(168,85,247,0.85)',  tc: '#fff' },
+  'Payment Done':           { bg: 'rgba(22,163,74,0.85)',   tc: '#fff' },
+};
+const PAYMENT_XLS: Record<string, string> = {
+  'Payment Under-Progress': '#FFC000',
+  'Payment Initiated':      '#4472C4',
+  'Partial Payment Done':   '#7030A0',
+  'Payment Done':           '#00B050',
+};
+
+function daysSince(date: string): number {
+  if (!date) return 0;
+  return Math.floor((Date.now() - new Date(date).getTime()) / 86400000);
+}
+
+function fmtDate(iso: string) {
+  if (!iso) return '';
+  return new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: '2-digit' });
+}
+
+function fmtMonYear(iso: string) {
+  if (!iso) return '';
+  return new Date(iso).toLocaleDateString('en-GB', { month: 'short', year: '2-digit' });
+}
+
+function mapRFQStatus(s: string): string {
+  return ({ draft:'RFQ created', sent:'Technical Review', 'quotation-received':'Quotation Received', 'converted-to-po':'PO done', closed:'Material Received' } as Record<string,string>)[s] || s;
+}
+function mapPOStatus(s: string): string {
+  return ({ ordered:'PO done', acknowledged:'PO done', 'in-transit':'Material Not Delivered', 'partially-received':'Material Not Delivered', received:'Material Received', delayed:'Material Not Delivered', cancelled:'Rejected' } as Record<string,string>)[s] || s;
+}
+function mapPriority(p: string): string {
+  return ({ urgent:'Primary Priority', high:'Second Priority', normal:'Need', low:'' } as Record<string,string>)[p] || '';
+}
+
+const SEED: FollowupRecord[] = [
+  { id:'f1',  section:'', itemDescription:'RFQ-01(2026) Furnace Heat Up panel.',         requestDate:'2026-01-02', requiredTimeline:'Second Priority', currentStatus:'Material Received',     paymentStatus:'Payment Under-Progress', prNumber:'PR10000031',           reqDate:'2026-12-01', budget:5800, leadTime:'2 week execution',  workingTime:'',        source:'manual', remarks:'', receivedDate:'2026-03-10', paymentHistory:[] },
+  { id:'f2',  section:'', itemDescription:'RFQ-02(2026) Lehr thermocouple.',              requestDate:'2026-01-02', requiredTimeline:'Need',             currentStatus:'Material Not Delivered', paymentStatus:'',                      prNumber:'PR10000040',           reqDate:'2026-09-01', budget:6300, leadTime:'1 week execution',  workingTime:'',        source:'manual', remarks:'', receivedDate:'', paymentHistory:[] },
+  { id:'f3',  section:'', itemDescription:'Rolling Machine (Rail & Rope).',               requestDate:'2026-01-15', requiredTimeline:'Need',             currentStatus:'RFQ created',           paymentStatus:'',                      prNumber:'Waiting for Quotation',reqDate:'',          budget:0,    leadTime:'RFQ under progress', workingTime:'October', source:'manual', remarks:'', receivedDate:'', paymentHistory:[] },
+  { id:'f4',  section:'', itemDescription:'RFQ-07 (2026) Step Down Transformer.',         requestDate:'2026-02-10', requiredTimeline:'Primary Priority', currentStatus:'Material Not Delivered', paymentStatus:'',                      prNumber:'Older One',            reqDate:'',          budget:5800, leadTime:'1 week',             workingTime:'',        source:'manual', remarks:'', receivedDate:'', paymentHistory:[] },
+  { id:'f5',  section:'', itemDescription:'Double Edger - Siemens Drive.',                requestDate:'2026-02-12', requiredTimeline:'Needed',           currentStatus:'PO done',               paymentStatus:'',                      prNumber:'Service',              reqDate:'',          budget:3300, leadTime:'6 week delivery',   workingTime:'',        source:'manual', remarks:'', receivedDate:'', paymentHistory:[] },
+  { id:'f6',  section:'', itemDescription:'RFQ for robot EMD Tool',                       requestDate:'',          requiredTimeline:'',                 currentStatus:'',                      paymentStatus:'',                      prNumber:'',                     reqDate:'',          budget:0,    leadTime:'',                  workingTime:'',        source:'manual', remarks:'', receivedDate:'', paymentHistory:[] },
+  { id:'f7',  section:'', itemDescription:'Utility starter',                              requestDate:'',          requiredTimeline:'',                 currentStatus:'',                      paymentStatus:'',                      prNumber:'',                     reqDate:'',          budget:0,    leadTime:'',                  workingTime:'',        source:'manual', remarks:'', receivedDate:'', paymentHistory:[] },
+  { id:'f8',  section:'Spare Material for Manufacturing Line', itemDescription:'RFQ Batch Plant Critical Spare Material.', requestDate:'2026-03-28', requiredTimeline:'Need', currentStatus:'RFQ created', paymentStatus:'', prNumber:'Waiting for Quotation', reqDate:'', budget:0, leadTime:'', workingTime:'', source:'manual', remarks:'', receivedDate:'', paymentHistory:[] },
+  { id:'f9',  section:'Spare Material for Manufacturing Line', itemDescription:'RFQ lehr Critical Spare Material.',        requestDate:'2026-03-28', requiredTimeline:'Need', currentStatus:'RFQ created', paymentStatus:'', prNumber:'Waiting for Quotation', reqDate:'', budget:0, leadTime:'', workingTime:'', source:'manual', remarks:'', receivedDate:'', paymentHistory:[] },
+  { id:'f10', section:'Spare Material for Manufacturing Line', itemDescription:'RFQ Cutting Line Critical Spare Material.',requestDate:'2026-03-28', requiredTimeline:'Need', currentStatus:'RFQ created', paymentStatus:'', prNumber:'Waiting for Quotation', reqDate:'', budget:0, leadTime:'', workingTime:'', source:'manual', remarks:'', receivedDate:'', paymentHistory:[] },
+];
+
+function loadRecords(): FollowupRecord[] {
+  try {
+    const r = localStorage.getItem(STORAGE_KEY);
+    if (r) {
+      const parsed = JSON.parse(r);
+      // Migrate old format: paymentPaidAmount → paymentHistory
+      return (parsed as any[]).map(rec => ({
+        ...rec,
+        paymentHistory: rec.paymentHistory || (
+          rec.paymentPaidAmount > 0
+            ? [{ id: 'migrated_' + rec.id, date: rec.receivedDate || rec.requestDate || '', amount: rec.paymentPaidAmount, remarks: rec.paymentRemarks || '' }]
+            : []
+        ),
+      })) as FollowupRecord[];
+    }
+  } catch {}
+  return SEED;
+}
+
+function downloadXLS(records: FollowupRecord[]) {
+  const today = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: '2-digit' });
+
+  const sectionOrder: string[] = [];
+  const sectionMap: Record<string, FollowupRecord[]> = {};
+  records.forEach(r => {
+    const s = r.section || '__main__';
+    if (!sectionOrder.includes(s)) sectionOrder.push(s);
+    (sectionMap[s] = sectionMap[s] || []).push(r);
+  });
+
+  let rows = '';
+  const td = (v: string, bg = '', tc = '#000000', bold = false, align = 'left') =>
+    `<td style="padding:5px 7px;border:1px solid #bbb;background:${bg||'#ffffff'};color:${tc};font-weight:${bold?'bold':'normal'};text-align:${align};font-family:Arial;font-size:10pt;">${v}</td>`;
+
+  sectionOrder.forEach(sKey => {
+    const recs = sectionMap[sKey] || [];
+    if (sKey !== '__main__') {
+      rows += `<tr><td colspan="12" style="background:#C00000;color:#fff;font-weight:bold;font-size:11pt;text-align:center;padding:7px;border:1px solid #bbb;font-family:Arial;">${sKey}</td></tr>`;
+    }
+    recs.forEach((r, i) => {
+      const days = r.requestDate ? daysSince(r.requestDate) : '';
+      const sBg  = STATUS_XLS[r.currentStatus] || '#ffffff';
+      const sTc  = r.currentStatus === 'PO done' ? '#000000' : (r.currentStatus ? '#ffffff' : '#000000');
+      const tlc  = ({ 'Second Priority': '#007700', 'Primary Priority': '#CC4400' } as Record<string,string>)[r.requiredTimeline] || '#000000';
+      const pBg  = PAYMENT_XLS[r.paymentStatus] || '#ffffff';
+      const pTc  = r.paymentStatus ? '#ffffff' : '#000000';
+      rows += `<tr>
+        ${td(String(i + 1), '', '#000000', false, 'center')}
+        ${td(r.itemDescription)}
+        ${td(r.requestDate ? fmtDate(r.requestDate) : '', '', '#000000', false, 'center')}
+        ${td(days ? String(days) : '', '', '#FF0000', true, 'center')}
+        ${td(r.requiredTimeline, '', tlc, !!TL_COLOR[r.requiredTimeline])}
+        ${td(r.currentStatus, sBg, sTc, true)}
+        ${td(r.paymentStatus || '', pBg, pTc, !!r.paymentStatus)}
+        ${td(r.prNumber)}
+        ${td(r.reqDate ? fmtMonYear(r.reqDate) : '', '', '#000000', false, 'center')}
+        ${td(r.budget ? String(r.budget) : '', '', '#000000', false, 'right')}
+        ${td(r.leadTime)}
+        ${td(r.workingTime)}
+      </tr>`;
+    });
+  });
+
+  const html = `<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel">
+<head><meta charset="utf-8"/></head><body><table>
+<tr>
+  <td colspan="7" style="background:#B8D4E8;font-weight:bold;font-size:14pt;text-align:center;padding:9px;border:1px solid #bbb;font-family:Arial;">PR Pending Status - E &amp; I</td>
+  <td colspan="5" style="background:#C6EFCE;font-weight:bold;font-size:11pt;text-align:center;padding:9px;border:1px solid #bbb;font-family:Arial;">${today}</td>
+</tr>
+<tr style="background:#FFFF00;">
+  ${['Sl. No.','Item Description','Request date','Days','Required Timeline','Current Status','Payment Status','PR Number','Req. date','Budget','Lead time','Working time'].map(h=>`<td style="padding:5px 7px;border:1px solid #bbb;font-weight:bold;font-family:Arial;font-size:10pt;">${h}</td>`).join('')}
+</tr>
+${rows}
+</table></body></html>`;
+
+  const blob = new Blob([html], { type: 'application/vnd.ms-excel;charset=utf-8' });
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href = url; a.download = `PR_Pending_Status_${new Date().toISOString().slice(0,10)}.xls`; a.click();
+  URL.revokeObjectURL(url);
+}
+
+const BLANK = (): Omit<FollowupRecord,'id'> => ({
+  section: '', itemDescription: '', requestDate: new Date().toISOString().slice(0,10),
+  requiredTimeline: 'Need', currentStatus: '', paymentStatus: '',
+  prNumber: '', reqDate: '', budget: 0, leadTime: '', workingTime: '', source: 'manual', remarks: '',
+  receivedDate: '', paymentHistory: [],
+});
+
+export default function PurchaseFollowup() {
+  const [records, setRecords]     = useState<FollowupRecord[]>(loadRecords);
+  const [isDirty, setIsDirty]     = useState(false);
+  const [savedAt, setSavedAt]     = useState<string|null>(null);
+  const [search, setSearch]       = useState('');
+  const [statusFilter, setStatus] = useState('all');
+  const [listTab, setListTab]     = useState<'pending' | 'payment' | 'completed'>('pending');
+  const [showForm, setShowForm]   = useState(false);
+  const [editId, setEditId]       = useState<string|null>(null);
+  const [form, setForm]           = useState<Omit<FollowupRecord,'id'>>(BLANK());
+  const [syncMsg, setSyncMsg]     = useState('');
+
+  const sections = useMemo(() => [...new Set(records.map(r => r.section).filter(Boolean))], [records]);
+
+  useEffect(() => {
+    const h = (e: BeforeUnloadEvent) => { if (isDirty) { e.preventDefault(); e.returnValue = ''; } };
+    window.addEventListener('beforeunload', h);
+    return () => window.removeEventListener('beforeunload', h);
+  }, [isDirty]);
+
+  const handleSave = useCallback(() => {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(records));
+    setIsDirty(false);
+    setSavedAt(new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }));
+  }, [records]);
+
+  const mutate = useCallback((upd: (r: FollowupRecord[]) => FollowupRecord[]) => {
+    setRecords(upd); setIsDirty(true);
+  }, []);
+
+  const handleSync = () => {
+    type AnyRFQ = { id: string; subject?: string; rfqNo: string; date: string; priority?: string; status: string; requiredBy?: string; remarks?: string };
+    type AnyPO  = { id: string; poNo: string; poDate: string; status: string; estimatedDelivery?: string; totalValue?: number; items?: { description: string }[]; remarks?: string };
+    let added = 0, updated = 0;
+    try {
+      const rfqs: AnyRFQ[] = JSON.parse(localStorage.getItem('mms_purchase_rfq') || '[]');
+      const pos:  AnyPO[]  = JSON.parse(localStorage.getItem('mms_purchase_po')  || '[]');
+      const incoming: FollowupRecord[] = [
+        ...rfqs.map(r => ({ id:`rfq-${r.id}`, section:'', itemDescription:r.subject||r.rfqNo, requestDate:r.date, requiredTimeline:mapPriority(r.priority||''), currentStatus:mapRFQStatus(r.status), paymentStatus:'', prNumber:r.rfqNo, reqDate:r.requiredBy||'', budget:0, leadTime:'', workingTime:'', source:'rfq' as const, remarks:r.remarks||'', receivedDate:'', paymentHistory:[] })),
+        ...pos.map(p  => ({ id:`po-${p.id}`,  section:'', itemDescription:p.items?.[0]?.description||p.poNo, requestDate:p.poDate, requiredTimeline:'', currentStatus:mapPOStatus(p.status), paymentStatus:'', prNumber:p.poNo, reqDate:p.estimatedDelivery||'', budget:p.totalValue||0, leadTime:'', workingTime:'', source:'po' as const, remarks:p.remarks||'', receivedDate:'', paymentHistory:[] })),
+      ];
+      mutate(prev => {
+        const next = [...prev];
+        incoming.forEach(inc => {
+          const idx = next.findIndex(r => r.id === inc.id);
+          if (idx >= 0) { next[idx] = { ...next[idx], currentStatus: inc.currentStatus }; updated++; }
+          else { next.push(inc); added++; }
+        });
+        return next;
+      });
+    } catch {}
+    setSyncMsg(`Sync complete: ${added} added, ${updated} status updated from RFQ & PO modules.`);
+    setTimeout(() => setSyncMsg(''), 5000);
+  };
+
+  const updateStatusDirect  = (id: string, status: string) =>
+    mutate(rs => rs.map(r => r.id === id ? { ...r, currentStatus: status } : r));
+  const updatePaymentDirect = (id: string, ps: string) =>
+    mutate(rs => rs.map(r => r.id === id ? { ...r, paymentStatus: ps } : r));
+  const updateFieldDirect = (id: string, updates: Partial<FollowupRecord>) =>
+    mutate(rs => rs.map(r => r.id === id ? { ...r, ...updates } : r));
+
+  // ── Payment helpers ────────────────────────────────────────────────────────
+  const getTotalPaid  = (r: FollowupRecord) => (r.paymentHistory || []).reduce((s, p) => s + p.amount, 0);
+  const getRemaining  = (r: FollowupRecord) => Math.max(0, (r.budget || 0) - getTotalPaid(r));
+
+  // tab membership helpers
+  const inPending   = (r: FollowupRecord) => r.currentStatus !== 'Material Received' && r.currentStatus !== 'Rejected';
+  // shows until fully paid (remaining > 0) and not manually set to Done
+  const inPayment   = (r: FollowupRecord) => r.currentStatus === 'Material Received' && r.paymentStatus !== 'Payment Done';
+  // each payment transaction appears in Completed; rejected items appear too
+  const inCompleted = (r: FollowupRecord) => (r.paymentHistory || []).length > 0 || r.paymentStatus === 'Payment Done' || r.currentStatus === 'Rejected';
+
+  // ── Add-payment modal ──────────────────────────────────────────────────────
+  const [payModal, setPayModal] = useState<{ record: FollowupRecord; amount: string; date: string; remarks: string } | null>(null);
+
+  const openPayModal = (r: FollowupRecord) => {
+    setOpenMenuId(null); setMenuRec(null);
+    setPayModal({ record: r, amount: '', date: new Date().toISOString().slice(0, 10), remarks: '' });
+  };
+
+  const savePayment = () => {
+    if (!payModal) return;
+    const amt = parseFloat(payModal.amount);
+    if (!amt || amt <= 0) { alert('Enter a valid payment amount.'); return; }
+    const newTx: PaymentTransaction = { id: `px_${Date.now()}`, date: payModal.date, amount: amt, remarks: payModal.remarks };
+    mutate(rs => rs.map(r => {
+      if (r.id !== payModal.record.id) return r;
+      const hist = [...(r.paymentHistory || []), newTx];
+      const paid = hist.reduce((s, p) => s + p.amount, 0);
+      const rem  = Math.max(0, (r.budget || 0) - paid);
+      const ps   = rem <= 0 ? 'Payment Done' : 'Partial Payment Done';
+      return { ...r, paymentHistory: hist, paymentStatus: ps };
+    }));
+    setPayModal(null);
+  };
+
+  const filtered = useMemo(() => {
+    const t = search.toLowerCase();
+    return records.filter(r => {
+      const m = !t || r.itemDescription.toLowerCase().includes(t) || r.prNumber.toLowerCase().includes(t) || r.currentStatus.toLowerCase().includes(t);
+      const inTab = listTab === 'pending' ? inPending(r) : listTab === 'payment' ? inPayment(r) : inCompleted(r);
+      const sf = statusFilter === 'all' || (listTab === 'pending' ? r.currentStatus === statusFilter : r.paymentStatus === statusFilter);
+      return m && inTab && sf;
+    });
+  }, [records, search, statusFilter, listTab]);
+
+  const tableRows = useMemo<TableRow[]>(() => {
+    const rows: TableRow[] = [];
+    let cur: string | undefined = undefined;
+    let sl = 0;
+    filtered.forEach(r => {
+      if (r.section !== cur) {
+        if (r.section) rows.push({ type: 'section', label: r.section });
+        cur = r.section; sl = 0;
+      }
+      rows.push({ type: 'data', record: r, sl: ++sl });
+    });
+    return rows;
+  }, [filtered]);
+
+  const stats = {
+    total:     records.length,
+    rfqOrReview: records.filter(r => r.currentStatus === 'RFQ created' || r.currentStatus === 'Technical Review').length,
+    notDelivered: records.filter(r => r.currentStatus === 'Material Not Delivered').length,
+    quotation: records.filter(r => r.currentStatus === 'Quotation Received' || r.currentStatus === 'PO done').length,
+    received:  records.filter(r => r.currentStatus === 'Material Received').length,
+    blank:     records.filter(r => !r.currentStatus).length,
+  };
+
+  // ── Inline edit state ──────────────────────────────────────────────────────
+  const [inlineId,  setInlineId]  = useState<string | null>(null);
+  const [inlineRow, setInlineRow] = useState<FollowupRecord | null>(null);
+  const [openMenuId, setOpenMenuId] = useState<string | null>(null);
+  const [menuPos, setMenuPos] = useState<{top:number;left:number}>({top:0,left:0});
+  const [menuRec, setMenuRec] = useState<FollowupRecord|null>(null);
+
+  useEffect(() => {
+    if (!openMenuId) return;
+    const close = () => { setOpenMenuId(null); setMenuRec(null); };
+    window.addEventListener('click', close);
+    return () => window.removeEventListener('click', close);
+  }, [openMenuId]);
+
+  const startInline  = (r: FollowupRecord) => { setInlineId(r.id); setInlineRow({ ...r }); };
+  const cancelInline = () => { setInlineId(null); setInlineRow(null); };
+  const saveInline   = () => {
+    if (!inlineRow) return;
+    mutate(rs => rs.map(r => r.id === inlineId ? inlineRow : r));
+    setInlineId(null); setInlineRow(null);
+  };
+  const openMenu = (e: React.MouseEvent<HTMLButtonElement>, r: FollowupRecord) => {
+    e.stopPropagation();
+    if (openMenuId === r.id) { setOpenMenuId(null); setMenuRec(null); return; }
+    const rect = (e.currentTarget as HTMLButtonElement).getBoundingClientRect();
+    setMenuPos({ top: rect.bottom + 4, left: Math.min(rect.right - 140, window.innerWidth - 148) });
+    setMenuRec(r);
+    setOpenMenuId(r.id);
+  };
+  const setIR = (k: keyof FollowupRecord, v: any) =>
+    setInlineRow(r => r ? { ...r, [k]: v } : r);
+
+  const setF  = (k: keyof typeof form, v: any) => setForm(f => ({ ...f, [k]: v }));
+  const openAdd  = () => { setForm(BLANK()); setEditId(null); setShowForm(true); };
+  const openEdit = (r: FollowupRecord) => { const { id, ...rest } = r; setForm(rest); setEditId(id); setShowForm(true); };
+  const saveForm = () => {
+    if (!form.itemDescription.trim()) { alert('Item description is required.'); return; }
+    if (editId) mutate(rs => rs.map(r => r.id === editId ? { ...form, id: editId } : r));
+    else mutate(rs => [...rs, { ...form, id: `f-${Date.now()}` }]);
+    setShowForm(false);
+  };
+  const del = (id: string) => { if (confirm('Delete this record?')) mutate(rs => rs.filter(r => r.id !== id)); };
+
+  const lbl: React.CSSProperties = { fontSize: 12, color: '#94a3b8', display: 'block', marginBottom: 5 };
+  const inp: React.CSSProperties = { width: '100%' };
+  const todayStr = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: '2-digit' });
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+
+      {/* Page header */}
+      <div className="glass-card" style={{ padding: '14px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div>
+          <div style={{ fontSize: 18, fontWeight: 700, color: '#f1f5f9' }}>PR Pending Status — E &amp; I</div>
+          <div style={{ fontSize: 12, color: '#64748b', marginTop: 3 }}>Purchase follow-up register · auto-syncs from RFQ &amp; PO modules</div>
+        </div>
+        <div style={{ fontSize: 14, fontWeight: 700, color: '#60a5fa', background: 'rgba(59,130,246,0.1)', border: '1px solid rgba(59,130,246,0.25)', borderRadius: 8, padding: '6px 16px' }}>
+          {todayStr}
+        </div>
+      </div>
+
+      {/* Stats */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6,1fr)', gap: 10 }}>
+        {([
+          { label: 'Total Items',           value: stats.total,           color: '#3b82f6' },
+          { label: 'RFQ / Under Review',    value: stats.rfqOrReview,     color: '#f97316' },
+          { label: 'Not Delivered',         value: stats.notDelivered,    color: '#ef4444' },
+          { label: 'Quotation / PO done',   value: stats.quotation,       color: '#f59e0b' },
+          { label: 'Material Received',     value: stats.received,        color: '#22c55e' },
+          { label: 'New / No Status',       value: stats.blank,           color: '#64748b' },
+        ] as { label:string; value:number; color:string }[]).map(s => (
+          <div key={s.label} className="glass-card" style={{ padding: '12px 14px' }}>
+            <div style={{ fontSize: 22, fontWeight: 700, color: s.color }}>{s.value}</div>
+            <div style={{ fontSize: 10, color: '#64748b', marginTop: 3 }}>{s.label}</div>
+          </div>
+        ))}
+      </div>
+
+      {/* Controls */}
+      <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+        <div style={{ position: 'relative', flex: 1, minWidth: 220 }}>
+          <Search size={13} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: '#475569' }} />
+          <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search item, PR number, status…" className="input-dark" style={{ paddingLeft: 30 }} />
+        </div>
+        <button onClick={handleSync} className="btn-secondary" style={{ fontSize: 12, display: 'flex', alignItems: 'center', gap: 5 }}>
+          <RefreshCw size={13} /> Sync RFQ/PO
+        </button>
+        <button onClick={() => downloadXLS(records)} className="btn-secondary" style={{ fontSize: 12, display: 'flex', alignItems: 'center', gap: 5 }}>
+          <Download size={13} /> Download Excel
+        </button>
+        <button onClick={handleSave} style={{
+          display: 'flex', alignItems: 'center', gap: 6, padding: '8px 18px', borderRadius: 8, fontSize: 12, fontWeight: 700, cursor: 'pointer',
+          background:  isDirty ? 'linear-gradient(135deg,#22c55e,#16a34a)' : 'rgba(34,197,94,0.12)',
+          border:      isDirty ? '1px solid #22c55e' : '1px solid rgba(34,197,94,0.3)',
+          color:       isDirty ? '#fff' : '#22c55e',
+          boxShadow:   isDirty ? '0 0 18px rgba(34,197,94,0.35)' : 'none', transition: 'all 0.2s',
+        }}>
+          <Save size={14} /> {isDirty ? 'Save' : savedAt ? 'Saved ✓' : 'Save'}
+        </button>
+        <button onClick={openAdd} className="btn-primary" style={{ fontSize: 12, display: 'flex', alignItems: 'center', gap: 5 }}>
+          <Plus size={13} /> Add Item
+        </button>
+      </div>
+
+      {/* 3-tab navigation */}
+      <div style={{ display: 'flex', gap: 0, borderBottom: '2px solid rgba(255,255,255,0.07)', alignItems: 'center' }}>
+        {([
+          { key: 'pending',   label: 'Pending Purchase',   count: records.filter(inPending).length,   color: '#f59e0b' },
+          { key: 'payment',   label: 'Payment History',    count: records.filter(inPayment).length,   color: '#60a5fa' },
+          { key: 'completed', label: 'Completed',          count: records.filter(inCompleted).length, color: '#22c55e' },
+        ] as const).map(t => (
+          <button key={t.key} onClick={() => { setListTab(t.key); setStatus('all'); }} style={{
+            padding: '10px 22px', background: 'none', border: 'none', cursor: 'pointer', fontSize: 13, fontWeight: 700,
+            color: listTab === t.key ? t.color : '#475569',
+            borderBottom: listTab === t.key ? `2px solid ${t.color}` : '2px solid transparent',
+            marginBottom: -2, display: 'flex', alignItems: 'center', gap: 8, transition: 'all 0.15s',
+          }}>
+            {t.label}
+            <span style={{ padding: '1px 8px', borderRadius: 20, fontSize: 11, fontWeight: 700,
+              background: listTab === t.key ? `${t.color}22` : 'rgba(255,255,255,0.05)',
+              color: listTab === t.key ? t.color : '#475569',
+            }}>{t.count}</span>
+          </button>
+        ))}
+        {/* Adaptive sub-filter */}
+        <select value={statusFilter} onChange={e => setStatus(e.target.value)} className="input-dark"
+          style={{ marginLeft: 'auto', width: 250, alignSelf: 'center', fontSize: 11 }}>
+          {listTab === 'pending' ? (
+            <>
+              <option value="all">All Pending Status</option>
+              {STATUSES.filter(Boolean).map(s => <option key={s} value={s}>{s}</option>)}
+            </>
+          ) : (
+            <>
+              <option value="all">All Payment Status</option>
+              {PAYMENT_STATUSES.filter(Boolean).map(s => <option key={s} value={s}>{s}</option>)}
+            </>
+          )}
+        </select>
+      </div>
+
+      {/* Sync message */}
+      {syncMsg && (
+        <div style={{ padding: '8px 14px', background: 'rgba(59,130,246,0.1)', border: '1px solid rgba(59,130,246,0.3)', borderRadius: 8, fontSize: 12, color: '#93c5fd' }}>
+          {syncMsg}
+        </div>
+      )}
+
+      {/* ── PENDING PURCHASE TABLE ─────────────────────────────────────────── */}
+      {listTab === 'pending' && (
+      <div className="glass-card" style={{ overflow: 'auto' }}>
+        <table className="data-table" style={{ minWidth: 1160, tableLayout: 'fixed', width: '100%' }}>
+          <colgroup>
+            <col style={{ width: 40 }} /><col style={{ width: 195 }} /><col style={{ width: 90 }} />
+            <col style={{ width: 52 }} /><col style={{ width: 118 }} /><col style={{ width: 170 }} />
+            <col style={{ width: 115 }} /><col style={{ width: 68 }} /><col style={{ width: 68 }} />
+            <col style={{ width: 115 }} /><col style={{ width: 80 }} /><col style={{ width: 46 }} />
+          </colgroup>
+          <thead><tr>
+            <th style={{ textAlign:'center', position:'sticky', left:0, zIndex:3, background:'#0b0b18', boxShadow:'2px 0 6px rgba(0,0,0,0.4)' }}>Sl.</th>
+            <th>Item Description</th><th style={{ whiteSpace:'nowrap' }}>Request Date</th>
+            <th style={{ textAlign:'center' }}>Days</th><th>Required Timeline</th>
+            <th>Current Status</th><th>PR Number</th>
+            <th style={{ whiteSpace:'nowrap' }}>Req. Date</th>
+            <th style={{ textAlign:'right', whiteSpace:'nowrap' }}>Budget</th>
+            <th style={{ whiteSpace:'nowrap' }}>Lead Time</th><th style={{ whiteSpace:'nowrap' }}>Working Time</th>
+            <th style={{ position:'sticky', right:0, zIndex:3, background:'#0b0b18', boxShadow:'-3px 0 8px rgba(0,0,0,0.5)', whiteSpace:'nowrap' }}>Actions</th>
+          </tr></thead>
+          <tbody>
+            {tableRows.length === 0 && <tr><td colSpan={12} style={{ textAlign:'center', padding:32, color:'#475569' }}>No pending purchase items found.</td></tr>}
+            {tableRows.map((row, i) => {
+              if (row.type === 'section') return (
+                <tr key={`sec-${i}`}><td colSpan={12} style={{ padding:'9px 14px', textAlign:'center', fontWeight:700, fontSize:13, background:'rgba(200,0,0,0.18)', color:'#fca5a5', borderTop:'2px solid rgba(200,0,0,0.35)', letterSpacing:0.4 }}>{row.label}</td></tr>
+              );
+              const { record: r, sl } = row;
+              const isEditing = inlineId === r.id && inlineRow !== null;
+              const iSel: React.CSSProperties = { fontSize:11, padding:'3px 5px', width:'100%' };
+              const iInp: React.CSSProperties = { fontSize:11, padding:'3px 6px', width:'100%' };
+              if (isEditing && inlineRow) return (
+                <tr key={r.id} style={{ background:'rgba(59,130,246,0.07)', outline:'1px solid rgba(59,130,246,0.25)', outlineOffset:-1 }}>
+                  <td style={{ textAlign:'center', color:'#60a5fa', fontSize:12, fontWeight:700, position:'sticky', left:0, background:'#0d1520', zIndex:1, boxShadow:'2px 0 6px rgba(0,0,0,0.3)' }}>{sl}</td>
+                  <td><input className="input-dark" style={iInp} value={inlineRow.itemDescription} onChange={e=>setIR('itemDescription',e.target.value)}/></td>
+                  <td><input type="date" className="input-dark" style={{ fontSize:11, padding:'3px 5px' }} value={inlineRow.requestDate} onChange={e=>setIR('requestDate',e.target.value)}/></td>
+                  <td style={{ textAlign:'center', color:'#64748b', fontSize:12 }}>{inlineRow.requestDate ? daysSince(inlineRow.requestDate) : '—'}</td>
+                  <td><select className="input-dark" style={iSel} value={inlineRow.requiredTimeline} onChange={e=>setIR('requiredTimeline',e.target.value)}>{TIMELINES.map(t=><option key={t} value={t}>{t||'—'}</option>)}</select></td>
+                  <td><select className="input-dark" style={iSel} value={inlineRow.currentStatus} onChange={e=>setIR('currentStatus',e.target.value)}>{STATUSES.map(s=><option key={s} value={s}>{s||'—'}</option>)}</select></td>
+                  <td><input className="input-dark" style={iInp} value={inlineRow.prNumber} onChange={e=>setIR('prNumber',e.target.value)} placeholder="PR / RFQ No."/></td>
+                  <td><input type="date" className="input-dark" style={{ fontSize:11, padding:'3px 5px' }} value={inlineRow.reqDate} onChange={e=>setIR('reqDate',e.target.value)}/></td>
+                  <td><input type="number" className="input-dark" style={{ fontSize:11, padding:'3px 6px', width:80, textAlign:'right' }} value={inlineRow.budget||''} onChange={e=>setIR('budget',Number(e.target.value))} min={0}/></td>
+                  <td><input className="input-dark" style={iInp} value={inlineRow.leadTime} onChange={e=>setIR('leadTime',e.target.value)} placeholder="Lead time"/></td>
+                  <td><input className="input-dark" style={iInp} value={inlineRow.workingTime} onChange={e=>setIR('workingTime',e.target.value)} placeholder="Working time"/></td>
+                  <td style={{ position:'sticky', right:0, background:'#0d1520', zIndex:1, boxShadow:'-3px 0 8px rgba(0,0,0,0.4)', padding:'4px', textAlign:'center' }}>
+                    <div style={{ display:'flex', flexDirection:'column', gap:3, alignItems:'center' }}>
+                      <button onClick={saveInline} style={{ width:30, height:24, background:'rgba(34,197,94,0.15)', border:'1px solid rgba(34,197,94,0.45)', borderRadius:5, color:'#22c55e', cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center' }} title="Save"><Check size={11}/></button>
+                      <button onClick={cancelInline} style={{ width:30, height:24, background:'rgba(239,68,68,0.1)', border:'1px solid rgba(239,68,68,0.3)', borderRadius:5, color:'#ef4444', cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center' }} title="Cancel"><X size={11}/></button>
+                      <button onClick={()=>{cancelInline();openEdit(r);}} style={{ width:30, height:24, background:'rgba(59,130,246,0.1)', border:'1px solid rgba(59,130,246,0.3)', borderRadius:5, color:'#60a5fa', cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center' }} title="Full edit"><Maximize2 size={10}/></button>
+                    </div>
+                  </td>
+                </tr>
+              );
+              const days = r.requestDate ? daysSince(r.requestDate) : null;
+              const sc = STATUS_WEB[r.currentStatus]; const tlc = TL_COLOR[r.requiredTimeline];
+              return (
+                <tr key={r.id}>
+                  <td style={{ textAlign:'center', color:'#64748b', fontSize:12, position:'sticky', left:0, background:'#0b0b18', zIndex:1, boxShadow:'2px 0 6px rgba(0,0,0,0.3)' }}>{sl}</td>
+                  <td style={{ fontSize:13, fontWeight:500, color:'#e2e8f0', wordBreak:'break-word', overflow:'hidden' }}>{r.itemDescription}</td>
+                  <td style={{ fontSize:11, color:'#94a3b8', whiteSpace:'nowrap' }}>{r.requestDate ? fmtDate(r.requestDate) : '—'}</td>
+                  <td style={{ textAlign:'center', fontWeight:700, fontSize:13, color: days && days>90 ? '#ef4444' : days && days>30 ? '#f59e0b' : '#e2e8f0' }}>{days !== null && days > 0 ? days : '—'}</td>
+                  <td style={{ fontWeight:600, fontSize:12, color: tlc||'#e2e8f0' }}>{r.requiredTimeline||'—'}</td>
+                  <td>
+                    <select value={r.currentStatus} onChange={e=>updateStatusDirect(r.id,e.target.value)} style={{ width:'100%', padding:'4px 8px', borderRadius:7, fontSize:11, fontWeight:700, cursor:'pointer', outline:'none', background:sc?.bg||'rgba(255,255,255,0.06)', border:`1px solid ${sc?sc.tc+'55':'rgba(255,255,255,0.15)'}`, color:sc?.tc||'#e2e8f0' }}>
+                      {STATUSES.map(s=><option key={s} value={s} style={{ background:'#0b0b18', color:STATUS_WEB[s]?.tc||'#e2e8f0' }}>{s||'— Not set —'}</option>)}
+                    </select>
+                  </td>
+                  <td style={{ fontSize:12, color:'#60a5fa', fontFamily:'monospace' }}>{r.prNumber||'—'}</td>
+                  <td style={{ fontSize:11, color:'#94a3b8', whiteSpace:'nowrap' }}>{r.reqDate ? fmtMonYear(r.reqDate) : '—'}</td>
+                  <td style={{ textAlign:'right', fontSize:12, color:'#22c55e', fontWeight:600 }}>{r.budget ? r.budget.toLocaleString() : '—'}</td>
+                  <td style={{ fontSize:12, color:'#94a3b8', whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }} title={r.leadTime}>{r.leadTime||'—'}</td>
+                  <td style={{ fontSize:12, color:'#94a3b8', whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }} title={r.workingTime}>{r.workingTime||'—'}</td>
+                  <td style={{ position:'sticky', right:0, background:'#0b0b18', zIndex:2, boxShadow:'-3px 0 8px rgba(0,0,0,0.5)', padding:'4px', textAlign:'center' }}>
+                    <button onClick={e=>openMenu(e,r)} style={{ width:30, height:28, borderRadius:6, background:'rgba(255,255,255,0.07)', border:'1px solid rgba(255,255,255,0.13)', color:'#94a3b8', cursor:'pointer', fontSize:16, lineHeight:1, display:'flex', alignItems:'center', justifyContent:'center' }} title="Actions">⋮</button>
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+      )}
+
+      {/* ── PAYMENT HISTORY TABLE ──────────────────────────────────────────── */}
+      {listTab === 'payment' && (() => {
+        const payRecs = filtered;
+        const iSel: React.CSSProperties = { fontSize:11, padding:'3px 5px', width:'100%' };
+        return (
+          <div className="glass-card" style={{ overflow:'auto' }}>
+            <table className="data-table" style={{ minWidth:1100, tableLayout:'fixed', width:'100%' }}>
+              <colgroup>
+                <col style={{ width:38 }}/><col style={{ width:210 }}/><col style={{ width:110 }}/>
+                <col style={{ width:95 }}/><col style={{ width:82 }}/><col style={{ width:58 }}/>
+                <col style={{ width:90 }}/><col style={{ width:90 }}/><col style={{ width:155 }}/>
+                <col style={{ width:72 }}/>
+              </colgroup>
+              <thead><tr>
+                <th style={{ textAlign:'center' }}>Sl.</th>
+                <th>Item Description</th>
+                <th>PO Number</th>
+                <th style={{ whiteSpace:'nowrap' }}>Received Date</th>
+                <th style={{ textAlign:'right', whiteSpace:'nowrap' }}>PO Total</th>
+                <th style={{ textAlign:'center', whiteSpace:'nowrap' }}>Due Days</th>
+                <th style={{ textAlign:'right', whiteSpace:'nowrap' }}>Total Paid</th>
+                <th style={{ textAlign:'right', whiteSpace:'nowrap' }}>Remaining</th>
+                <th>Payment Status</th>
+                <th style={{ position:'sticky', right:0, zIndex:3, background:'#0b0b18', boxShadow:'-3px 0 8px rgba(0,0,0,0.5)', textAlign:'center' }}>Actions</th>
+              </tr></thead>
+              <tbody>
+                {payRecs.length === 0 && <tr><td colSpan={10} style={{ textAlign:'center', padding:32, color:'#475569' }}>No items in Payment History — set Current Status to "Material Received".</td></tr>}
+                {payRecs.map((r, i) => {
+                  const isEditing  = inlineId === r.id && inlineRow !== null;
+                  const dueDays    = (() => { const d = r.receivedDate||r.requestDate; return d ? daysSince(d) : null; })();
+                  const totalPaid  = getTotalPaid(r);
+                  const remaining  = getRemaining(r);
+                  const pc         = PAYMENT_CFG[r.paymentStatus];
+                  const payments   = r.paymentHistory || [];
+
+                  if (isEditing && inlineRow) return (
+                    <tr key={r.id} style={{ background:'rgba(59,130,246,0.07)', outline:'1px solid rgba(59,130,246,0.25)', outlineOffset:-1 }}>
+                      <td style={{ textAlign:'center', color:'#60a5fa', fontSize:12, fontWeight:700 }}>{i+1}</td>
+                      <td style={{ fontSize:12, color:'#94a3b8', fontWeight:500 }}>{r.itemDescription}</td>
+                      <td><input className="input-dark" style={{ fontSize:11, padding:'3px 6px', width:'100%' }} value={inlineRow.prNumber} onChange={e=>setIR('prNumber',e.target.value)} placeholder="PO / PR No."/></td>
+                      <td><input type="date" className="input-dark" style={{ fontSize:11, padding:'3px 5px', width:'100%' }} value={inlineRow.receivedDate||''} onChange={e=>setIR('receivedDate',e.target.value)}/></td>
+                      <td style={{ textAlign:'right', fontSize:12, color:'#22c55e', fontWeight:600 }}>{r.budget ? `AED ${r.budget.toLocaleString()}` : '—'}</td>
+                      <td style={{ textAlign:'center', fontWeight:700, color: dueDays && dueDays>60 ? '#ef4444' : dueDays && dueDays>30 ? '#f59e0b' : '#e2e8f0' }}>{dueDays ?? '—'}</td>
+                      <td style={{ textAlign:'right', fontSize:12, color:'#a855f7', fontWeight:700 }}>{totalPaid > 0 ? `AED ${totalPaid.toLocaleString()}` : '—'}</td>
+                      <td style={{ textAlign:'right', fontSize:12, color:'#f59e0b', fontWeight:700 }}>{remaining > 0 ? `AED ${remaining.toLocaleString()}` : '✓'}</td>
+                      <td>
+                        <select className="input-dark" style={iSel} value={inlineRow.paymentStatus} onChange={e=>setIR('paymentStatus',e.target.value)}>
+                          {PAYMENT_STATUSES.map(s=><option key={s} value={s}>{s||'— Not set —'}</option>)}
+                        </select>
+                      </td>
+                      <td style={{ position:'sticky', right:0, background:'#0d1520', zIndex:1, boxShadow:'-3px 0 8px rgba(0,0,0,0.4)', padding:'4px', textAlign:'center' }}>
+                        <div style={{ display:'flex', flexDirection:'column', gap:3, alignItems:'center' }}>
+                          <button onClick={saveInline} style={{ width:30, height:24, background:'rgba(34,197,94,0.15)', border:'1px solid rgba(34,197,94,0.45)', borderRadius:5, color:'#22c55e', cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center' }} title="Save"><Check size={11}/></button>
+                          <button onClick={cancelInline} style={{ width:30, height:24, background:'rgba(239,68,68,0.1)', border:'1px solid rgba(239,68,68,0.3)', borderRadius:5, color:'#ef4444', cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center' }} title="Cancel"><X size={11}/></button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+
+                  return (
+                    <React.Fragment key={r.id}>
+                      <tr style={{ background: payments.length > 0 ? 'rgba(168,85,247,0.05)' : undefined }}>
+                        <td style={{ textAlign:'center', color:'#64748b', fontSize:12 }}>{i+1}</td>
+                        <td style={{ fontSize:13, fontWeight:500, color:'#e2e8f0', wordBreak:'break-word' }}>
+                          {r.itemDescription}
+                          {payments.length > 0 && <span style={{ fontSize:10, color:'#a855f7', marginLeft:6, fontWeight:600 }}>{payments.length} payment{payments.length>1?'s':''}</span>}
+                        </td>
+                        <td style={{ fontSize:12, color:'#60a5fa', fontFamily:'monospace' }}>{r.prNumber||'—'}</td>
+                        <td style={{ padding:'4px 6px' }}>
+                          <input type="date" className="input-dark"
+                            style={{ fontSize:11, padding:'3px 5px', width:'100%', background:'transparent', border:'1px solid rgba(255,255,255,0.1)', borderRadius:5, color:'#94a3b8' }}
+                            value={r.receivedDate||''} onChange={e=>updateFieldDirect(r.id,{receivedDate:e.target.value})}
+                          />
+                        </td>
+                        <td style={{ textAlign:'right', fontSize:12, color:'#22c55e', fontWeight:700 }}>{r.budget ? `AED ${r.budget.toLocaleString()}` : '—'}</td>
+                        <td style={{ textAlign:'center', fontWeight:700, fontSize:13, color: dueDays && dueDays>60 ? '#ef4444' : dueDays && dueDays>30 ? '#f59e0b' : '#64748b' }}>{dueDays ?? '—'}</td>
+                        <td style={{ textAlign:'right', fontSize:12, fontWeight:700, color: totalPaid>0 ? '#a855f7' : '#475569' }}>
+                          {totalPaid > 0 ? `AED ${totalPaid.toLocaleString()}` : '—'}
+                        </td>
+                        <td style={{ textAlign:'right', fontSize:12, fontWeight:700, color: remaining>0 ? '#f59e0b' : '#22c55e' }}>
+                          {remaining > 0 ? `AED ${remaining.toLocaleString()}` : (r.budget ? '✓ Settled' : '—')}
+                        </td>
+                        <td>
+                          <select value={r.paymentStatus} onChange={e=>updatePaymentDirect(r.id,e.target.value)}
+                            style={{ width:'100%', padding:'4px 8px', borderRadius:7, fontSize:11, fontWeight:700, cursor:'pointer', outline:'none', background:pc?.bg||'rgba(255,255,255,0.06)', border:`1px solid ${pc?pc.tc+'55':'rgba(255,255,255,0.15)'}`, color:pc?.tc||'#94a3b8' }}>
+                            {PAYMENT_STATUSES.map(s=><option key={s} value={s} style={{ background:'#0b0b18' }}>{s||'— Not set —'}</option>)}
+                          </select>
+                        </td>
+                        <td style={{ position:'sticky', right:0, background:'#0b0b18', zIndex:2, boxShadow:'-3px 0 8px rgba(0,0,0,0.5)', padding:'4px', textAlign:'center' }}>
+                          <div style={{ display:'flex', flexDirection:'column', gap:3, alignItems:'center' }}>
+                            <button onClick={()=>openPayModal(r)}
+                              style={{ width:30, height:26, borderRadius:5, background:'rgba(34,197,94,0.15)', border:'1px solid rgba(34,197,94,0.5)', color:'#22c55e', cursor:'pointer', fontSize:16, display:'flex', alignItems:'center', justifyContent:'center', fontWeight:700 }}
+                              title="Add Payment">+</button>
+                            <button onClick={e=>openMenu(e,r)} style={{ width:30, height:26, borderRadius:5, background:'rgba(255,255,255,0.07)', border:'1px solid rgba(255,255,255,0.13)', color:'#94a3b8', cursor:'pointer', fontSize:15, display:'flex', alignItems:'center', justifyContent:'center' }} title="More">⋮</button>
+                          </div>
+                        </td>
+                      </tr>
+                      {/* Payment installment sub-rows */}
+                      {payments.map((px, pi) => {
+                        const cumulative = payments.slice(0, pi + 1).reduce((s, p) => s + p.amount, 0);
+                        const remAfter   = Math.max(0, (r.budget||0) - cumulative);
+                        return (
+                          <tr key={px.id} style={{ background:'rgba(168,85,247,0.04)', borderLeft:'3px solid rgba(168,85,247,0.3)' }}>
+                            <td style={{ textAlign:'center' }}><span style={{ fontSize:9, color:'#a855f7', fontWeight:700 }}>#{pi+1}</span></td>
+                            <td style={{ fontSize:11, color:'#64748b', paddingLeft:24, fontStyle:'italic' }}>{fmtDate(px.date)} — {px.remarks || 'Payment installment'}</td>
+                            <td style={{ fontSize:11, color:'#64748b' }}>—</td>
+                            <td style={{ fontSize:11, color:'#64748b' }}>{fmtDate(px.date)}</td>
+                            <td></td>
+                            <td></td>
+                            <td style={{ textAlign:'right', fontSize:12, fontWeight:800, color:'#22c55e' }}>AED {px.amount.toLocaleString()}</td>
+                            <td style={{ textAlign:'right', fontSize:11, color: remAfter>0 ? '#f59e0b' : '#22c55e' }}>
+                              {remAfter > 0 ? `AED ${remAfter.toLocaleString()} left` : '✓ Cleared'}
+                            </td>
+                            <td></td>
+                            <td style={{ position:'sticky', right:0, background:'#0b0b18', zIndex:2, boxShadow:'-3px 0 8px rgba(0,0,0,0.5)', padding:'4px', textAlign:'center' }}>
+                              <button onClick={()=>mutate(rs=>rs.map(rec=>rec.id!==r.id?rec:{ ...rec, paymentHistory:(rec.paymentHistory||[]).filter(p=>p.id!==px.id), paymentStatus:(rec.paymentHistory||[]).filter(p=>p.id!==px.id).reduce((s,p)=>s+p.amount,0)>=(rec.budget||0)?'Payment Done': (rec.paymentHistory||[]).filter(p=>p.id!==px.id).length>0?'Partial Payment Done':rec.paymentStatus }))}
+                                style={{ width:26, height:22, borderRadius:4, background:'rgba(239,68,68,0.1)', border:'1px solid rgba(239,68,68,0.3)', color:'#ef4444', cursor:'pointer', fontSize:10, display:'flex', alignItems:'center', justifyContent:'center' }} title="Remove payment">
+                                <Trash2 size={10}/>
+                              </button>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </React.Fragment>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        );
+      })()}
+
+      {/* ── COMPLETED TABLE ────────────────────────────────────────────────── */}
+      {listTab === 'completed' && (() => {
+        const compRecs = filtered;
+        type CompRow =
+          | { kind: 'po';      rec: FollowupRecord; idx: number }
+          | { kind: 'payment'; rec: FollowupRecord; tx: PaymentTransaction; txIdx: number; cumulative: number; remaining: number }
+          | { kind: 'rejected'; rec: FollowupRecord; idx: number };
+
+        const rows: CompRow[] = [];
+        compRecs.forEach((r, idx) => {
+          if (r.currentStatus === 'Rejected') { rows.push({ kind:'rejected', rec:r, idx }); return; }
+          rows.push({ kind:'po', rec:r, idx });
+          let cum = 0;
+          (r.paymentHistory || []).forEach((tx, ti) => {
+            cum += tx.amount;
+            rows.push({ kind:'payment', rec:r, tx, txIdx:ti, cumulative:cum, remaining:Math.max(0,(r.budget||0)-cum) });
+          });
+        });
+
+        return (
+          <div className="glass-card" style={{ overflow:'auto' }}>
+            <table className="data-table" style={{ minWidth:1100, tableLayout:'fixed', width:'100%' }}>
+              <colgroup>
+                <col style={{ width:42 }}/><col style={{ width:215 }}/><col style={{ width:110 }}/>
+                <col style={{ width:92 }}/><col style={{ width:88 }}/><col style={{ width:88 }}/>
+                <col style={{ width:88 }}/><col style={{ width:145 }}/><col style={{ width:46 }}/>
+              </colgroup>
+              <thead><tr>
+                <th style={{ textAlign:'center' }}>#</th>
+                <th>Item Description</th>
+                <th>PO Number</th>
+                <th style={{ whiteSpace:'nowrap' }}>Payment Date</th>
+                <th style={{ textAlign:'right', whiteSpace:'nowrap' }}>PO Total</th>
+                <th style={{ textAlign:'right', whiteSpace:'nowrap' }}>Paid (This)</th>
+                <th style={{ textAlign:'right', whiteSpace:'nowrap' }}>Remaining</th>
+                <th>Status / Remarks</th>
+                <th style={{ position:'sticky', right:0, zIndex:3, background:'#0b0b18', boxShadow:'-3px 0 8px rgba(0,0,0,0.5)' }}>Act.</th>
+              </tr></thead>
+              <tbody>
+                {rows.length === 0 && <tr><td colSpan={9} style={{ textAlign:'center', padding:32, color:'#475569' }}>No completed payments yet — add payments via Payment History tab.</td></tr>}
+                {rows.map((row, ri) => {
+                  if (row.kind === 'rejected') return (
+                    <tr key={`rej-${row.rec.id}`} style={{ background:'rgba(71,85,105,0.12)', opacity:0.75 }}>
+                      <td style={{ textAlign:'center', color:'#64748b', fontSize:12 }}>{row.idx+1}</td>
+                      <td style={{ fontSize:13, fontWeight:500, color:'#94a3b8' }}>{row.rec.itemDescription}</td>
+                      <td style={{ fontSize:12, color:'#64748b', fontFamily:'monospace' }}>{row.rec.prNumber||'—'}</td>
+                      <td style={{ fontSize:11, color:'#64748b' }}>—</td>
+                      <td style={{ textAlign:'right', fontSize:12, color:'#64748b' }}>{row.rec.budget ? `AED ${row.rec.budget.toLocaleString()}` : '—'}</td>
+                      <td style={{ textAlign:'right', fontSize:12, color:'#64748b' }}>—</td>
+                      <td>—</td>
+                      <td><span style={{ padding:'2px 10px', borderRadius:20, fontSize:11, fontWeight:700, background:'rgba(71,85,105,0.3)', color:'#94a3b8', border:'1px solid rgba(71,85,105,0.5)' }}>Rejected</span></td>
+                      <td style={{ position:'sticky', right:0, background:'#0b0b18', zIndex:2, boxShadow:'-3px 0 8px rgba(0,0,0,0.5)', padding:'4px', textAlign:'center' }}>
+                        <button onClick={e=>openMenu(e,row.rec)} style={{ width:30, height:28, borderRadius:6, background:'rgba(255,255,255,0.07)', border:'1px solid rgba(255,255,255,0.13)', color:'#94a3b8', cursor:'pointer', fontSize:16, display:'flex', alignItems:'center', justifyContent:'center' }}>⋮</button>
+                      </td>
+                    </tr>
+                  );
+                  if (row.kind === 'po') {
+                    const tp = getTotalPaid(row.rec); const rm = getRemaining(row.rec); const full = rm <= 0;
+                    return (
+                      <tr key={`po-${row.rec.id}`} style={{ background: full ? 'rgba(34,197,94,0.08)' : 'rgba(245,158,11,0.05)', borderLeft: full ? '3px solid rgba(34,197,94,0.6)' : '3px solid rgba(245,158,11,0.5)' }}>
+                        <td style={{ textAlign:'center', fontSize:12, color:'#64748b', fontWeight:700 }}>{row.idx+1}</td>
+                        <td style={{ fontSize:13, fontWeight:700, color:'#e2e8f0', wordBreak:'break-word' }}>{row.rec.itemDescription}</td>
+                        <td style={{ fontSize:12, color:'#60a5fa', fontFamily:'monospace', fontWeight:700 }}>{row.rec.prNumber||'—'}</td>
+                        <td style={{ fontSize:11, color:'#64748b' }}>{row.rec.receivedDate ? fmtDate(row.rec.receivedDate) : '—'}</td>
+                        <td style={{ textAlign:'right', fontSize:12, color:'#e2e8f0', fontWeight:700 }}>{row.rec.budget ? `AED ${row.rec.budget.toLocaleString()}` : '—'}</td>
+                        <td style={{ textAlign:'right', fontSize:12, color:'#a855f7', fontWeight:700 }}>{tp > 0 ? `AED ${tp.toLocaleString()}` : '—'}</td>
+                        <td style={{ textAlign:'right', fontSize:12, fontWeight:700, color: rm>0 ? '#f59e0b' : '#22c55e' }}>{rm > 0 ? `AED ${rm.toLocaleString()}` : '✓ Fully Paid'}</td>
+                        <td>
+                          <span style={{ padding:'3px 10px', borderRadius:20, fontSize:11, fontWeight:700, background: full?'rgba(34,197,94,0.18)':'rgba(245,158,11,0.18)', color: full?'#22c55e':'#f59e0b', border:`1px solid ${full?'rgba(34,197,94,0.4)':'rgba(245,158,11,0.4)'}` }}>
+                            {full ? '✓ Payment Done' : `◑ ${(row.rec.paymentHistory||[]).length} payment${(row.rec.paymentHistory||[]).length!==1?'s':''} made`}
+                          </span>
+                        </td>
+                        <td style={{ position:'sticky', right:0, background:'#0b0b18', zIndex:2, boxShadow:'-3px 0 8px rgba(0,0,0,0.5)', padding:'4px', textAlign:'center' }}>
+                          <button onClick={e=>openMenu(e,row.rec)} style={{ width:30, height:28, borderRadius:6, background:'rgba(255,255,255,0.07)', border:'1px solid rgba(255,255,255,0.13)', color:'#94a3b8', cursor:'pointer', fontSize:16, display:'flex', alignItems:'center', justifyContent:'center' }}>⋮</button>
+                        </td>
+                      </tr>
+                    );
+                  }
+                  // payment transaction row
+                  const { rec, tx, txIdx, remaining } = row;
+                  const isLast = remaining <= 0;
+                  return (
+                    <tr key={`tx-${tx.id}`} style={{ background: isLast ? 'rgba(34,197,94,0.04)' : 'rgba(168,85,247,0.04)', borderLeft:'3px solid '+(isLast?'rgba(34,197,94,0.3)':'rgba(168,85,247,0.3)') }}>
+                      <td style={{ textAlign:'center' }}>
+                        <span style={{ fontSize:10, color:isLast?'#22c55e':'#a855f7', fontWeight:700, background:isLast?'rgba(34,197,94,0.15)':'rgba(168,85,247,0.15)', padding:'1px 7px', borderRadius:10 }}>P{txIdx+1}</span>
+                      </td>
+                      <td style={{ fontSize:11, color:'#94a3b8', paddingLeft:28 }}>{rec.itemDescription}</td>
+                      <td style={{ fontSize:11, color:'#64748b', fontFamily:'monospace' }}>{rec.prNumber||'—'}</td>
+                      <td style={{ fontSize:12, color:'#e2e8f0', fontWeight:600, whiteSpace:'nowrap' }}>{tx.date ? fmtDate(tx.date) : '—'}</td>
+                      <td style={{ textAlign:'right', fontSize:11, color:'#475569' }}>{rec.budget ? `AED ${rec.budget.toLocaleString()}` : '—'}</td>
+                      <td style={{ textAlign:'right', fontSize:13, fontWeight:800, color:isLast?'#22c55e':'#a855f7' }}>AED {tx.amount.toLocaleString()}</td>
+                      <td style={{ textAlign:'right', fontSize:12, fontWeight:700, color:remaining>0?'#f59e0b':'#22c55e' }}>{remaining>0 ? `AED ${remaining.toLocaleString()}` : '✓ Cleared'}</td>
+                      <td style={{ fontSize:11, color:'#64748b' }}>{tx.remarks||'—'}</td>
+                      <td style={{ position:'sticky', right:0, background:'#0b0b18', zIndex:2, boxShadow:'-3px 0 8px rgba(0,0,0,0.5)', padding:'4px', textAlign:'center' }}></td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        );
+      })()}
+
+      {/* ── Add Payment Modal ─────────────────────────────────────────────── */}
+      {payModal && (
+        <div className="modal-overlay" onClick={()=>setPayModal(null)}>
+          <div className="modal-content" style={{ maxWidth:420 }} onClick={e=>e.stopPropagation()}>
+            <div style={{ padding:'16px 20px', borderBottom:'1px solid rgba(255,255,255,0.06)', display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+              <div>
+                <div style={{ fontSize:14, fontWeight:600, color:'#f1f5f9' }}>Add Payment</div>
+                <div style={{ fontSize:11, color:'#60a5fa', marginTop:2, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap', maxWidth:340 }}>{payModal.record.itemDescription}</div>
+              </div>
+              <button onClick={()=>setPayModal(null)} style={{ background:'none', border:'none', color:'#64748b', cursor:'pointer' }}><X size={16}/></button>
+            </div>
+            <div style={{ padding:20, display:'flex', flexDirection:'column', gap:12 }}>
+              {/* Summary */}
+              <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:8 }}>
+                {[
+                  { label:'PO Total', val:`AED ${(payModal.record.budget||0).toLocaleString()}`, color:'#e2e8f0' },
+                  { label:'Paid So Far', val:`AED ${getTotalPaid(payModal.record).toLocaleString()}`, color:'#a855f7' },
+                  { label:'Remaining', val:`AED ${getRemaining(payModal.record).toLocaleString()}`, color:'#f59e0b' },
+                ].map(c=>(
+                  <div key={c.label} style={{ background:'rgba(255,255,255,0.04)', borderRadius:8, padding:'8px 10px', textAlign:'center' }}>
+                    <div style={{ fontSize:10, color:'#64748b', marginBottom:2 }}>{c.label}</div>
+                    <div style={{ fontSize:13, fontWeight:700, color:c.color }}>{c.val}</div>
+                  </div>
+                ))}
+              </div>
+              <div>
+                <label style={{ fontSize:11, color:'#94a3b8', display:'block', marginBottom:4 }}>Payment Date *</label>
+                <input type="date" className="input-dark" style={{ width:'100%', padding:'8px 10px', fontSize:13 }}
+                  value={payModal.date} onChange={e=>setPayModal(m=>m?{...m,date:e.target.value}:m)}/>
+              </div>
+              <div>
+                <label style={{ fontSize:11, color:'#94a3b8', display:'block', marginBottom:4 }}>Amount Paid (AED) *</label>
+                <input type="number" className="input-dark" style={{ width:'100%', padding:'8px 10px', fontSize:13 }}
+                  value={payModal.amount} min={0} max={getRemaining(payModal.record)}
+                  onChange={e=>setPayModal(m=>m?{...m,amount:e.target.value}:m)} placeholder="e.g. 1500"/>
+              </div>
+              <div>
+                <label style={{ fontSize:11, color:'#94a3b8', display:'block', marginBottom:4 }}>Remarks</label>
+                <input className="input-dark" style={{ width:'100%', padding:'8px 10px', fontSize:13 }}
+                  value={payModal.remarks} onChange={e=>setPayModal(m=>m?{...m,remarks:e.target.value}:m)} placeholder="e.g. Cheque #12345"/>
+              </div>
+              <div style={{ display:'flex', gap:10, marginTop:4 }}>
+                <button onClick={savePayment} className="btn-primary" style={{ flex:1, justifyContent:'center' }}>Save Payment</button>
+                <button onClick={()=>setPayModal(null)} className="btn-secondary">Cancel</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Global fixed-position kebab menu (renders above overflow containers) ── */}
+      {openMenuId && menuRec && (
+        <div onClick={e=>e.stopPropagation()} style={{
+          position:'fixed', top:menuPos.top, left:menuPos.left, zIndex:9999,
+          background:'#1e293b', border:'1px solid rgba(255,255,255,0.12)',
+          borderRadius:8, boxShadow:'0 8px 24px rgba(0,0,0,0.55)',
+          minWidth:140, padding:'4px 0', display:'flex', flexDirection:'column',
+        }}>
+          {listTab !== 'completed' && (
+            <button onClick={()=>{startInline(menuRec!);setOpenMenuId(null);setMenuRec(null);}} style={{ padding:'8px 14px', background:'none', border:'none', color:'#e2e8f0', cursor:'pointer', textAlign:'left', fontSize:12, display:'flex', alignItems:'center', gap:8 }}>
+              <Edit2 size={12}/> Quick Edit
+            </button>
+          )}
+          <button onClick={()=>{openEdit(menuRec!);setOpenMenuId(null);setMenuRec(null);}} style={{ padding:'8px 14px', background:'none', border:'none', color:'#60a5fa', cursor:'pointer', textAlign:'left', fontSize:12, display:'flex', alignItems:'center', gap:8 }}>
+            <Maximize2 size={12}/> Full Edit
+          </button>
+          <div style={{ height:1, background:'rgba(255,255,255,0.07)', margin:'3px 0' }}/>
+          <button onClick={()=>{del(menuRec!.id);setOpenMenuId(null);setMenuRec(null);}} style={{ padding:'8px 14px', background:'none', border:'none', color:'#ef4444', cursor:'pointer', textAlign:'left', fontSize:12, display:'flex', alignItems:'center', gap:8 }}>
+            <Trash2 size={12}/> Delete
+          </button>
+        </div>
+      )}
+
+      {/* Add / Edit Modal */}
+      {showForm && (
+        <div className="modal-overlay" onClick={() => setShowForm(false)}>
+          <div className="modal-content" style={{ maxWidth: 680 }} onClick={e => e.stopPropagation()}>
+            <div style={{ padding: '18px 24px', borderBottom: '1px solid rgba(255,255,255,0.06)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div style={{ fontSize: 16, fontWeight: 600, color: '#f1f5f9' }}>{editId ? 'Edit Record' : 'Add PR Follow-up Item'}</div>
+              <button onClick={() => setShowForm(false)} style={{ background: 'none', border: 'none', color: '#64748b', cursor: 'pointer' }}><X size={18} /></button>
+            </div>
+            <div style={{ padding: 24, maxHeight: '78vh', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 14 }}>
+
+              <div>
+                <label style={lbl}>Section (blank = main E&amp;I list)</label>
+                <input list="sec-list" className="input-dark" style={inp} value={form.section} onChange={e => setF('section', e.target.value)} placeholder="e.g. Spare Material for Manufacturing Line" />
+                <datalist id="sec-list">{sections.map(s => <option key={s} value={s} />)}</datalist>
+              </div>
+
+              <div>
+                <label style={lbl}>Item Description *</label>
+                <input className="input-dark" style={inp} value={form.itemDescription} onChange={e => setF('itemDescription', e.target.value)} placeholder="e.g. RFQ-01(2026) Furnace Heat Up panel." />
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+                <div>
+                  <label style={lbl}>Request Date</label>
+                  <input type="date" className="input-dark" style={inp} value={form.requestDate} onChange={e => setF('requestDate', e.target.value)} />
+                </div>
+                <div>
+                  <label style={lbl}>Required Timeline (Priority)</label>
+                  <select className="input-dark" style={inp} value={form.requiredTimeline} onChange={e => setF('requiredTimeline', e.target.value)}>
+                    {TIMELINES.map(t => <option key={t} value={t}>{t || '— None —'}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label style={lbl}>Current Status</label>
+                  <select className="input-dark" style={inp} value={form.currentStatus} onChange={e => setF('currentStatus', e.target.value)}>
+                    {STATUSES.map(s => <option key={s} value={s}>{s || '— None —'}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label style={lbl}>Payment Status</label>
+                  <select className="input-dark" style={inp} value={form.paymentStatus} onChange={e => setF('paymentStatus', e.target.value)}>
+                    {PAYMENT_STATUSES.map(s => <option key={s} value={s}>{s || '— Not set —'}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label style={lbl}>PR / PO / RFQ Number</label>
+                  <input className="input-dark" style={inp} value={form.prNumber} onChange={e => setF('prNumber', e.target.value)} placeholder="PR10000031 / RFQ-2026-001" />
+                </div>
+                <div>
+                  <label style={lbl}>Required / Expected Date</label>
+                  <input type="date" className="input-dark" style={inp} value={form.reqDate} onChange={e => setF('reqDate', e.target.value)} />
+                </div>
+                <div>
+                  <label style={lbl}>Budget (AED)</label>
+                  <input type="number" className="input-dark" style={inp} value={form.budget || ''} onChange={e => setF('budget', Number(e.target.value))} placeholder="0" min={0} />
+                </div>
+                <div>
+                  <label style={lbl}>Lead Time</label>
+                  <input className="input-dark" style={inp} value={form.leadTime} onChange={e => setF('leadTime', e.target.value)} placeholder="e.g. 2 week execution" />
+                </div>
+                <div>
+                  <label style={lbl}>Working Time</label>
+                  <input className="input-dark" style={inp} value={form.workingTime} onChange={e => setF('workingTime', e.target.value)} placeholder="e.g. October" />
+                </div>
+              </div>
+
+              <div>
+                <label style={lbl}>Remarks</label>
+                <input className="input-dark" style={inp} value={form.remarks} onChange={e => setF('remarks', e.target.value)} placeholder="Follow-up notes…" />
+              </div>
+
+              <div style={{ display: 'flex', gap: 10 }}>
+                <button onClick={saveForm} className="btn-primary" style={{ flex: 1, justifyContent: 'center' }}>{editId ? 'Update' : 'Add Item'}</button>
+                <button onClick={() => setShowForm(false)} className="btn-secondary">Cancel</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}

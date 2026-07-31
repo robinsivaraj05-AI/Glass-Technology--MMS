@@ -1,0 +1,12 @@
+{
+  "name": "ei-mms",
+  "version": "2.0.0",
+  "description": "Electrical & Instrumentation Maintenance Management System",
+  "private": true,
+  "scripts": {
+    "frontend": "cd frontend && npm run dev",
+    "backend": "cd backend && npm run dev",
+    "install:all": "cd frontend && npm install && cd ../backend && npm install",
+    "dev": "npm run frontend"
+  }
+}
