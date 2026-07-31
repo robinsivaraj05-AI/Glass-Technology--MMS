@@ -1,7 +1,6 @@
 // @ts-nocheck
 import { useState, useRef, useEffect } from 'react';
 import { Plus, Search, QrCode, Download, Edit, Activity, Upload, FileSpreadsheet, CheckCircle, XCircle, AlertTriangle } from 'lucide-react';
-import { Asset } from '../types';
 import * as XLSX from 'xlsx';
 
 async function apiFetch(path: string, opts: any = {}) {
