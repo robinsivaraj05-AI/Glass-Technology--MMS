@@ -31,27 +31,36 @@ export function EmployeeProvider({ children }: { children: React.ReactNode }) {
     let cancelled = false;
     (async () => {
       try {
-        // Wake up Render backend first (free tier cold start ~50s)
-        // fetch with no timeout — waits until backend responds
-        await fetch('/api/health');
+        console.log('[EMP] pinging health...');
+        const h = await fetch('/api/health');
+        console.log('[EMP] health status:', h.status);
         if (cancelled) return;
 
-        let data: FullEmployee[] = await apiFetch(API);
+        console.log('[EMP] fetching employees...');
+        const res = await fetch(API, { headers: { 'Content-Type': 'application/json' } });
+        console.log('[EMP] employees status:', res.status);
+        const text = await res.text();
+        console.log('[EMP] employees raw (first 200):', text.slice(0, 200));
+        if (!res.ok) throw new Error(text);
+        let data: FullEmployee[] = JSON.parse(text);
+        console.log('[EMP] parsed count:', data.length);
 
-        // First launch — seed mock employees into MongoDB
         if (data.length === 0) {
-          await apiFetch(`${API}/seed`, {
+          await fetch(`${API}/seed`, {
             method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(mockEmployees),
           });
-          data = await apiFetch(API);
+          const r2 = await fetch(API);
+          data = await r2.json();
         }
 
         if (!cancelled) {
           setEmployees(data);
           setLoading(false);
         }
-      } catch {
+      } catch (err) {
+        console.error('[EMP] error:', err);
         if (!cancelled) {
           setEmployees(mockEmployees);
           setLoading(false);
