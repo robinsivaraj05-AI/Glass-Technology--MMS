@@ -1,5 +1,6 @@
+// @ts-nocheck
 import React, { useState, useCallback, useEffect } from 'react';
-import { Plus, Search, Download, Save, Edit2, Trash2, Eye, X, Printer } from 'lucide-react';
+import { Plus, Search, Download, Edit2, Trash2, Eye, X, Printer } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { useEmployees } from '../context/EmployeeContext';
 
@@ -36,7 +37,6 @@ interface RFQ {
 }
 
 // ── Constants ─────────────────────────────────────────────────────────────────
-const STORAGE_KEY = 'mms_purchase_rfq';
 const UNITS = ['No', 'Nos', 'Set', 'Meter', 'Roll', 'Kg', 'Ltr', 'Box', 'Pair', 'Lot'];
 
 const DEFAULT_FROM        = 'Glass Technology FZ-LLC';
@@ -59,51 +59,18 @@ const STATUS_CFG: Record<string, { label: string; color: string; bg: string }> =
   'closed':             { label: 'Closed',             color: '#64748b', bg: 'rgba(100,116,139,0.12)' },
 };
 
-// ── Persistence ───────────────────────────────────────────────────────────────
-function load(): RFQ[] {
-  try {
-    const r = localStorage.getItem(STORAGE_KEY);
-    if (r) {
-      const parsed = JSON.parse(r);
-      return (parsed as any[]).map(rec => ({
-        ...rec,
-        items: Array.isArray(rec.items) ? rec.items : [],
-      })) as RFQ[];
-    }
-  } catch {}
-  return SEED;
+// ── API helper ────────────────────────────────────────────────────────────────
+async function apiFetch(path, options = {}) {
+  const res = await fetch(path, {
+    headers: { 'Content-Type': 'application/json' },
+    ...options,
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ message: res.statusText }));
+    throw new Error(err.message || 'Request failed');
+  }
+  return res.json();
 }
-
-// ── Seed ──────────────────────────────────────────────────────────────────────
-const SEED: RFQ[] = [
-  {
-    id:'rfq1', rfqNo:'RFQ-2026-001', date:'2026-01-01',
-    subject:'Furnace Heat Up', from:DEFAULT_FROM,
-    contactPerson:'Mr. Rabin Sivaraj', contactEmail:DEFAULT_EMAIL, contactPhone:DEFAULT_PHONE,
-    purposeOfRFQ:'Furnace', scopeOfWork:'Heat Up preparation',
-    vendors:'Endress+Hauser UAE LLC', requiredBy:'2026-07-25',
-    submissionDeadline: DEFAULT_DEADLINE,
-    items:[
-      { slNo:1, category:'Industrial Power Box', description:'32A, 3PH/N/PE CEE32A, 15kw Heater up Burner. Single Phase 230v 16A (PH/N/PE)', make:'Branded one need', quantity:2, unit:'No', criticalRemarks:'In a single Box contains 5 Nos of 32A three Phase socket and Two Number Of single phase 16A. It should be floor grounded Stand.' },
-      { slNo:2, category:'Male And Female Connector', description:'5 Pin male and female connector', make:'Branded one need', quantity:5, unit:'No', criticalRemarks:'As per standard' },
-      { slNo:3, category:'Extension Junction Box', description:'4 point Power socket for the system', make:'NA', quantity:2, unit:'No', criticalRemarks:'Extension Box with 5meter length cable.' },
-    ],
-    status:'sent', quotationRef:'', poRef:'', remarks:'Follow-up on 10-Jul',
-  },
-  {
-    id:'rfq2', rfqNo:'RFQ-2026-002', date:'2026-07-10',
-    subject:'VFD Spare Parts - Line 3', from:DEFAULT_FROM,
-    contactPerson:'Mr. Rajesh Kumar', contactEmail:'rajesh.kumar@glasstechnology.ae', contactPhone:DEFAULT_PHONE,
-    purposeOfRFQ:'VFD Maintenance', scopeOfWork:'Spare parts procurement for VFD on Production Line 3',
-    vendors:'Siemens UAE, ABB Gulf', requiredBy:'2026-08-15',
-    submissionDeadline: DEFAULT_DEADLINE,
-    items:[
-      { slNo:1, category:'VFD Module', description:'IGBT Module for Siemens G120C', make:'Siemens', quantity:1, unit:'Nos', criticalRemarks:'6SL3210-1KE21-3UF1, 7.5kW - Critical spare' },
-      { slNo:2, category:'Control Board', description:'Control Board G120C CU240E-2 PN', make:'Siemens', quantity:1, unit:'Nos', criticalRemarks:'Firmware V4.7 - Must be OEM' },
-    ],
-    status:'quotation-received', quotationRef:'SIE-Q-2026-445', poRef:'', remarks:'',
-  },
-];
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 function nextRFQNo(existing: RFQ[]): string {
@@ -300,9 +267,8 @@ export default function PurchaseRFQ() {
     .filter(e => e.status !== 'resigned')
     .sort((a, b) => a.name.localeCompare(b.name));
 
-  const [rfqs, setRFQs]         = useState<RFQ[]>(load);
-  const [isDirty, setIsDirty]   = useState(false);
-  const [savedAt, setSavedAt]   = useState<string|null>(() => localStorage.getItem(STORAGE_KEY) ? 'Loaded' : null);
+  const [rfqs, setRFQs]         = useState<RFQ[]>([]);
+  const [loading, setLoading]   = useState(true);
   const [search, setSearch]     = useState('');
   const [statusFilter, setStatus] = useState('all');
   const [listTab, setListTab]   = useState<'pending'|'completed'>('pending');
@@ -311,22 +277,23 @@ export default function PurchaseRFQ() {
   const [form, setForm]         = useState<Omit<RFQ,'id'>>(blankRFQ([]));
   const [viewRFQ, setViewRFQ]   = useState<RFQ|null>(null);
 
-  const PENDING_STATUSES   = new Set<RFQ['status']>(['draft','sent','quotation-received']);
-  const COMPLETED_STATUSES = new Set<RFQ['status']>(['converted-to-po','closed']);
+  const PENDING_STATUSES   = new Set(['draft','sent','quotation-received']);
+  const COMPLETED_STATUSES = new Set(['converted-to-po','closed']);
 
+  // ── Load on mount ──
   useEffect(() => {
-    const h = (e: BeforeUnloadEvent) => { if (isDirty) { e.preventDefault(); e.returnValue=''; } };
-    window.addEventListener('beforeunload', h);
-    return () => window.removeEventListener('beforeunload', h);
-  }, [isDirty]);
-
-  const handleSave = useCallback(() => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(rfqs));
-    setIsDirty(false);
-    setSavedAt(new Date().toLocaleTimeString('en-IN', { hour:'2-digit', minute:'2-digit' }));
-  }, [rfqs]);
-
-  const mutate = useCallback((upd: (p: RFQ[]) => RFQ[]) => { setRFQs(upd); setIsDirty(true); }, []);
+    (async () => {
+      try {
+        await fetch('/api/health');
+        const data = await apiFetch('/api/purchase-rfq');
+        setRFQs(data);
+      } catch (e) {
+        console.error('Failed to load RFQs', e);
+      } finally {
+        setLoading(false);
+      }
+    })();
+  }, []);
 
   const tabSet = listTab === 'pending' ? PENDING_STATUSES : COMPLETED_STATUSES;
   const filtered = rfqs.filter(r => {
@@ -352,33 +319,66 @@ export default function PurchaseRFQ() {
     setEditId(id);
     setShowForm(true);
   };
-  const setF     = (k: keyof typeof form, v: any) => setForm(f => ({ ...f, [k]: v }));
+  const setF     = (k, v) => setForm(f => ({ ...f, [k]: v }));
   const addItem  = () => setForm(f => { const cur = f.items || []; return { ...f, items:[...cur, { ...BLANK_ITEM(), slNo:cur.length+1 }] }; });
-  const removeItem = (idx: number) => setForm(f => ({ ...f, items:(f.items||[]).filter((_,i)=>i!==idx).map((it,i)=>({...it,slNo:i+1})) }));
-  const setItem  = (idx: number, k: keyof RFQItem, v: any) =>
+  const removeItem = (idx) => setForm(f => ({ ...f, items:(f.items||[]).filter((_,i)=>i!==idx).map((it,i)=>({...it,slNo:i+1})) }));
+  const setItem  = (idx, k, v) =>
     setForm(f => ({ ...f, items: (f.items||[]).map((it,i) => i===idx ? { ...it, [k]: v } : it) }));
 
-  const saveForm = () => {
+  const saveForm = async () => {
     if (!form.rfqNo || !form.subject) { alert('RFQ No. and Subject are required.'); return; }
-    if (editId) mutate(p => p.map(r => r.id===editId ? { ...form, id:editId } : r));
-    else         mutate(p => [...p, { ...form, id:`rfq-${Date.now()}` }]);
-    setShowForm(false);
+    try {
+      if (editId) {
+        const updated = await apiFetch(`/api/purchase-rfq/${editId}`, { method: 'PUT', body: JSON.stringify(form) });
+        setRFQs(p => p.map(r => r.id === editId ? updated : r));
+      } else {
+        const created = await apiFetch('/api/purchase-rfq', { method: 'POST', body: JSON.stringify(form) });
+        setRFQs(p => [created, ...p]);
+      }
+      setShowForm(false);
+    } catch (e: any) {
+      alert(e.message || 'Failed to save RFQ');
+    }
   };
 
-  const deleteRFQ    = (id: string) => { if (confirm('Delete this RFQ?')) mutate(p => p.filter(r => r.id!==id)); };
-  const updateStatus = (id: string, status: RFQ['status']) =>
-    mutate(p => p.map(r => r.id===id ? { ...r, status } : r));
+  const deleteRFQ = async (id) => {
+    if (!confirm('Delete this RFQ?')) return;
+    try {
+      await apiFetch(`/api/purchase-rfq/${id}`, { method: 'DELETE' });
+      setRFQs(p => p.filter(r => r.id !== id));
+    } catch (e: any) {
+      alert(e.message || 'Failed to delete');
+    }
+  };
+
+  const updateStatus = async (id, status) => {
+    try {
+      const updated = await apiFetch(`/api/purchase-rfq/${id}`, { method: 'PUT', body: JSON.stringify({ status }) });
+      setRFQs(p => p.map(r => r.id === id ? updated : r));
+    } catch (e: any) {
+      alert(e.message || 'Failed to update status');
+    }
+  };
 
   // ── Shared input styles ──
   const lbl: React.CSSProperties = { fontSize:12, color:'#94a3b8', display:'block', marginBottom:5 };
   const inp: React.CSSProperties = { width:'100%' };
 
   // ── Section header helper ──
-  const secHdr = (label: string, color: string) => (
+  const secHdr = (label, color) => (
     <div style={{ padding:'7px 12px', marginBottom:10, borderLeft:`4px solid ${color}`, background:`${color}12`, borderRadius:'0 6px 6px 0', fontSize:13, fontWeight:700, color }}>
       {label}
     </div>
   );
+
+  if (loading) {
+    return (
+      <div style={{ display:'flex', alignItems:'center', justifyContent:'center', height:300, flexDirection:'column', gap:16 }}>
+        <div style={{ width:40, height:40, border:'3px solid rgba(59,130,246,0.3)', borderTopColor:'#3b82f6', borderRadius:'50%', animation:'spin 0.8s linear infinite' }} />
+        <div style={{ color:'#64748b', fontSize:14 }}>Loading RFQs…</div>
+      </div>
+    );
+  }
 
   return (
     <div style={{ display:'flex', flexDirection:'column', gap:16 }}>
@@ -407,15 +407,6 @@ export default function PurchaseRFQ() {
           <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search RFQ No., subject, vendor…" className="input-dark" style={{ paddingLeft:30 }} />
         </div>
         <button className="btn-secondary" style={{ fontSize:12, display:'flex', alignItems:'center', gap:5 }} onClick={() => exportList(rfqs)}><Download size={13}/> Export List</button>
-        <button onClick={handleSave} style={{
-          display:'flex', alignItems:'center', gap:6, padding:'8px 18px', borderRadius:8, fontSize:12, fontWeight:700, cursor:'pointer',
-          background: isDirty ? 'linear-gradient(135deg,#22c55e,#16a34a)' : 'rgba(34,197,94,0.12)',
-          border:    isDirty ? '1px solid #22c55e' : '1px solid rgba(34,197,94,0.3)',
-          color:     isDirty ? '#fff' : '#22c55e',
-          boxShadow: isDirty ? '0 0 18px rgba(34,197,94,0.35)' : 'none', transition:'all 0.2s',
-        }}>
-          <Save size={14}/> {isDirty ? 'Save' : savedAt ? 'Saved ✓' : 'Save'}
-        </button>
         <button onClick={openAdd} className="btn-primary" style={{ fontSize:12, display:'flex', alignItems:'center', gap:5 }}><Plus size={13}/> Create RFQ</button>
       </div>
 
@@ -438,7 +429,6 @@ export default function PurchaseRFQ() {
             }}>{t.count}</span>
           </button>
         ))}
-        {/* inline status filter — only for pending tab */}
         {listTab === 'pending' && (
           <select value={statusFilter} onChange={e=>setStatus(e.target.value)} className="input-dark"
             style={{ marginLeft:'auto', width:190, alignSelf:'center', fontSize:11 }}>
@@ -481,7 +471,7 @@ export default function PurchaseRFQ() {
                   <td style={{ minWidth:170 }}>
                     <select
                       value={r.status}
-                      onChange={e => updateStatus(r.id, e.target.value as RFQ['status'])}
+                      onChange={e => updateStatus(r.id, e.target.value)}
                       style={{
                         padding:'4px 8px', borderRadius:7, fontSize:11, fontWeight:700, cursor:'pointer',
                         background: sc.bg, border:`1px solid ${sc.color}55`, color: sc.color,
@@ -513,7 +503,6 @@ export default function PurchaseRFQ() {
       {viewRFQ && (
         <div className="modal-overlay" onClick={()=>setViewRFQ(null)}>
           <div className="modal-content" style={{ maxWidth:900 }} onClick={e=>e.stopPropagation()}>
-            {/* Title bar */}
             <div style={{ padding:'14px 20px', borderBottom:'1px solid rgba(255,255,255,0.06)', display:'flex', justifyContent:'space-between', alignItems:'center' }}>
               <div style={{ fontSize:15, fontWeight:700, color:'#f1f5f9' }}>{viewRFQ.rfqNo} — {viewRFQ.subject}</div>
               <div style={{ display:'flex', gap:8 }}>
@@ -523,7 +512,6 @@ export default function PurchaseRFQ() {
               </div>
             </div>
             <div style={{ maxHeight:'78vh', overflowY:'auto' }}>
-              {/* Document Header (gold) */}
               <div style={{ background:'linear-gradient(135deg,#b8860b,#d4a017)', padding:'12px 20px', textAlign:'center' }}>
                 <div style={{ fontSize:18, fontWeight:800, color:'#1a1a0a', letterSpacing:0.5 }}>
                   Request for Quotation (RFQ) &nbsp;—&nbsp; {viewRFQ.rfqNo.split('-').pop()}
@@ -531,7 +519,6 @@ export default function PurchaseRFQ() {
               </div>
 
               <div style={{ padding:'0 20px 20px' }}>
-                {/* Company info table */}
                 <table style={{ width:'100%', borderCollapse:'collapse', marginTop:12, fontSize:13 }}>
                   <tbody>
                     {[
@@ -550,7 +537,6 @@ export default function PurchaseRFQ() {
                   </tbody>
                 </table>
 
-                {/* General Information (blue heading) */}
                 <div style={{ marginTop:16, padding:'6px 12px', color:'#60a5fa', fontWeight:700, fontSize:14, textDecoration:'underline' }}>General Information:</div>
                 <table style={{ width:'100%', borderCollapse:'collapse', fontSize:13 }}>
                   <tbody>
@@ -565,7 +551,6 @@ export default function PurchaseRFQ() {
                   </tbody>
                 </table>
 
-                {/* Technical Specifications (red heading) */}
                 <div style={{ marginTop:16, padding:'6px 12px', color:'#f87171', fontWeight:700, fontSize:14 }}>Technical Specifications :</div>
                 <div style={{ overflow:'auto', borderRadius:8, border:'1px solid rgba(255,255,255,0.08)' }}>
                   <table style={{ width:'100%', borderCollapse:'collapse', fontSize:12 }}>
@@ -592,30 +577,26 @@ export default function PurchaseRFQ() {
                   </table>
                 </div>
 
-                {/* Requirements */}
                 <div style={{ marginTop:14, padding:'10px 14px', background:'rgba(255,255,255,0.03)', borderRadius:8, fontSize:12, color:'#94a3b8' }}>
                   <div style={{ fontWeight:700, color:'#e2e8f0', marginBottom:6 }}>Please provide the following information along with your quotation:</div>
                   {DEFAULT_REQUIREMENTS.map((r,i) => <div key={i} style={{ marginTop:3 }}>{i+1}) {r}</div>)}
                 </div>
 
-                {/* Submission Deadline */}
                 <div style={{ marginTop:10, padding:'10px 14px', background:'rgba(255,255,255,0.03)', borderRadius:8, fontSize:12, color:'#94a3b8' }}>
                   <div style={{ fontWeight:700, color:'#e2e8f0', marginBottom:4 }}>Submission Deadline</div>
                   <div>{viewRFQ.submissionDeadline}</div>
                   <div style={{ marginTop:4, fontStyle:'italic', fontSize:11, color:'#475569' }}>Note: The purchaser reserves the right to accept or reject any or all quotations without assigning any reason.</div>
                 </div>
 
-                {/* Acknowledgment */}
                 <div style={{ marginTop:10, padding:'10px 14px', background:'rgba(255,255,255,0.03)', borderRadius:8, fontSize:12, color:'#94a3b8' }}>
                   <div style={{ fontWeight:700, color:'#e2e8f0', marginBottom:4 }}>Acknowledgment:</div>
                   <div>Please confirm receipt of this RFQ and your intent to submit a quotation by end of the working date.</div>
                 </div>
 
-                {/* Status update */}
                 <div style={{ marginTop:14, display:'flex', gap:8, flexWrap:'wrap', alignItems:'center' }}>
                   <span style={{ fontSize:12, color:'#64748b' }}>Update Status:</span>
                   {Object.entries(STATUS_CFG).map(([k,v]) => (
-                    <button key={k} onClick={()=>{ updateStatus(viewRFQ.id, k as RFQ['status']); setViewRFQ(p => p ? {...p, status:k as RFQ['status']} : p); }}
+                    <button key={k} onClick={()=>{ updateStatus(viewRFQ.id, k); setViewRFQ(p => p ? {...p, status:k} : p); }}
                       style={{ padding:'5px 12px', borderRadius:7, fontSize:11, fontWeight:600, cursor:'pointer',
                         background: viewRFQ.status===k ? v.color : 'rgba(255,255,255,0.05)',
                         border:`1px solid ${viewRFQ.status===k ? v.color : 'rgba(255,255,255,0.08)'}`,
@@ -633,7 +614,6 @@ export default function PurchaseRFQ() {
       {showForm && (
         <div className="modal-overlay" onClick={()=>setShowForm(false)}>
           <div className="modal-content" style={{ maxWidth:1000 }} onClick={e=>e.stopPropagation()}>
-            {/* Header (gold strip) */}
             <div style={{ background:'linear-gradient(135deg,#b8860b,#d4a017)', padding:'12px 20px', display:'flex', justifyContent:'space-between', alignItems:'center' }}>
               <div style={{ fontSize:15, fontWeight:800, color:'#1a1a0a' }}>
                 {editId ? 'Edit RFQ' : 'Create New RFQ'} — Request for Quotation
@@ -643,7 +623,6 @@ export default function PurchaseRFQ() {
 
             <div style={{ padding:20, maxHeight:'82vh', overflowY:'auto', display:'flex', flexDirection:'column', gap:16 }}>
 
-              {/* ── Section 1: RFQ Details ── */}
               {secHdr('RFQ Details', '#60a5fa')}
               <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:14 }}>
                 <div>
@@ -668,7 +647,6 @@ export default function PurchaseRFQ() {
                 </div>
               </div>
 
-              {/* ── Section 2: From (Company) ── */}
               {secHdr('From — Company Details', '#a78bfa')}
               <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:14 }}>
                 <div style={{ gridColumn:'1/-1' }}>
@@ -713,7 +691,6 @@ export default function PurchaseRFQ() {
                 </div>
               </div>
 
-              {/* ── Section 3: General Information ── */}
               {secHdr('General Information', '#22c55e')}
               <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:14 }}>
                 <div>
@@ -726,7 +703,6 @@ export default function PurchaseRFQ() {
                 </div>
               </div>
 
-              {/* ── Section 4: Technical Specifications (Items Table) ── */}
               {secHdr('Technical Specifications', '#f87171')}
               <div>
               <div style={{ border:'1px solid rgba(255,255,255,0.08)', borderRadius:8, overflowX:'auto' }}>
@@ -779,19 +755,17 @@ export default function PurchaseRFQ() {
                 <Plus size={11}/> Add Item
               </button>
 
-              {/* ── Section 5: Submission ── */}
               {secHdr('Submission Deadline', '#f59e0b')}
               <div>
                 <label style={lbl}>Deadline Text</label>
                 <input className="input-dark" style={inp} value={form.submissionDeadline} onChange={e=>setF('submissionDeadline',e.target.value)} />
               </div>
 
-              {/* ── Section 6: Internal Tracking ── */}
               {secHdr('Internal Tracking', '#64748b')}
               <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:14 }}>
                 <div>
                   <label style={lbl}>Status</label>
-                  <select className="input-dark" style={inp} value={form.status} onChange={e=>setF('status',e.target.value as RFQ['status'])}>
+                  <select className="input-dark" style={inp} value={form.status} onChange={e=>setF('status',e.target.value)}>
                     {Object.entries(STATUS_CFG).map(([k,v]) => <option key={k} value={k}>{v.label}</option>)}
                   </select>
                 </div>

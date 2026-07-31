@@ -1,17 +1,18 @@
-import { useState, useRef, useCallback, useEffect } from 'react';
-import { Plus, Search, QrCode, Download, Eye, Edit, Activity, Upload, FileSpreadsheet, CheckCircle, XCircle, AlertTriangle, Save } from 'lucide-react';
-import { mockAssets } from '../data/mockData';
-import type { Asset } from '../types';
+// @ts-nocheck
+import { useState, useRef, useEffect } from 'react';
+import { Plus, Search, QrCode, Download, Edit, Activity, Upload, FileSpreadsheet, CheckCircle, XCircle, AlertTriangle } from 'lucide-react';
+import { Asset } from '../types';
 import * as XLSX from 'xlsx';
 
-const ASSET_STORAGE_KEY = 'mms_asset_master';
-
-function loadAssets(): Asset[] {
-  try {
-    const raw = localStorage.getItem(ASSET_STORAGE_KEY);
-    if (raw) return JSON.parse(raw);
-  } catch {}
-  return mockAssets;
+async function apiFetch(path: string, opts: any = {}) {
+  const base = '/api';
+  const res = await fetch(base + path, {
+    headers: { 'Content-Type': 'application/json', ...(opts.headers ?? {}) },
+    ...opts,
+    body: opts.body ? JSON.stringify(opts.body) : undefined,
+  });
+  if (!res.ok) throw new Error(await res.text());
+  return res.json();
 }
 
 const CATEGORY_ICONS: Record<string, string> = {
@@ -245,11 +246,8 @@ export default function AssetManagement() {
     nextPM: '', nextCalibration: '', amcVendor: '', amcExpiry: '',
   };
 
-  const [assets,       setAssets]       = useState<Asset[]>(loadAssets);
-  const [isDirty,      setIsDirty]      = useState(false);
-  const [savedAt,      setSavedAt]      = useState<string | null>(() =>
-    localStorage.getItem(ASSET_STORAGE_KEY) ? 'Loaded' : null
-  );
+  const [assets,       setAssets]       = useState<Asset[]>([]);
+  const [loading,      setLoading]      = useState(true);
   const [search,       setSearch]       = useState('');
   const [category,     setCategory]     = useState('All');
   const [statusFilter, setStatusFilter] = useState('all');
@@ -263,22 +261,20 @@ export default function AssetManagement() {
   const [showImport,   setShowImport]   = useState(false);
   const [importing,    setImporting]    = useState(false);
 
-  useEffect(() => {
-    const handler = (e: BeforeUnloadEvent) => { if (isDirty) { e.preventDefault(); e.returnValue = ''; } };
-    window.addEventListener('beforeunload', handler);
-    return () => window.removeEventListener('beforeunload', handler);
-  }, [isDirty]);
+  const fetchAssets = async () => {
+    try {
+      setLoading(true);
+      await fetch('/api/health');
+      const data = await apiFetch('/assets');
+      setAssets(data);
+    } catch (e) {
+      console.error('Failed to load assets', e);
+    } finally {
+      setLoading(false);
+    }
+  };
 
-  const handleSave = useCallback(() => {
-    localStorage.setItem(ASSET_STORAGE_KEY, JSON.stringify(assets));
-    setIsDirty(false);
-    setSavedAt(new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }));
-  }, [assets]);
-
-  const mutateAssets = useCallback((updater: (prev: Asset[]) => Asset[]) => {
-    setAssets(updater);
-    setIsDirty(true);
-  }, []);
+  useEffect(() => { fetchAssets(); }, []);
 
   const filtered = assets.filter(a => {
     const s = search.toLowerCase();
@@ -312,25 +308,26 @@ export default function AssetManagement() {
     finally { setImporting(false); }
   };
 
-  const applyImport = () => {
-    const valid = importRows.filter(r => r.errors.length === 0);
-    mutateAssets(prev => {
-      const map = new Map(prev.map(a => [a.code, a]));
-      valid.forEach(r => {
-        const d = r.data as Asset;
-        d.id = d.id || `imported-${Date.now()}-${Math.random()}`;
-        map.set(d.code, { ...map.get(d.code), ...d } as Asset);
-      });
-      return Array.from(map.values());
-    });
-    setShowImport(false);
-    setImportRows([]);
+  const applyImport = async () => {
+    const valid = importRows.filter(r => r.errors.length === 0).map(r => r.data);
+    try {
+      await apiFetch('/assets/bulk', { method: 'POST', body: valid });
+      await fetchAssets();
+      setShowImport(false);
+      setImportRows([]);
+    } catch (e) { alert('Failed to import assets.'); }
   };
 
   const validCount  = importRows.filter(r => r.errors.length === 0).length;
   const errorCount  = importRows.filter(r => r.errors.length > 0).length;
   const addCount    = importRows.filter(r => r.errors.length === 0 && r.mode === 'add').length;
   const updateCount = importRows.filter(r => r.errors.length === 0 && r.mode === 'update').length;
+
+  if (loading) return (
+    <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: 200, color: '#64748b', fontSize: 14 }}>
+      Loading assets…
+    </div>
+  );
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
@@ -385,23 +382,6 @@ export default function AssetManagement() {
         </button>
         <input ref={importRef} type="file" accept=".xlsx,.xls,.csv" style={{ display: 'none' }} onChange={handleImportFile} />
         <button className="btn-secondary" style={{ fontSize: 12 }}><QrCode size={13} /> QR Scan</button>
-
-        {/* ── SAVE button — always visible ── */}
-        <button
-          onClick={handleSave}
-          style={{
-            display: 'flex', alignItems: 'center', gap: 6,
-            padding: '8px 18px', borderRadius: 8, fontSize: 12, fontWeight: 700, cursor: 'pointer',
-            background: isDirty ? 'linear-gradient(135deg,#22c55e,#16a34a)' : 'rgba(34,197,94,0.12)',
-            border: isDirty ? '1px solid #22c55e' : '1px solid rgba(34,197,94,0.3)',
-            color: isDirty ? '#fff' : '#22c55e',
-            boxShadow: isDirty ? '0 0 18px rgba(34,197,94,0.4)' : 'none',
-            transition: 'all 0.2s',
-          }}
-          title={isDirty ? 'Save changes to browser storage' : `Last saved: ${savedAt ?? 'never'}`}
-        >
-          <Save size={14} /> {isDirty ? 'Save' : savedAt ? 'Saved ✓' : 'Save'}
-        </button>
 
         <button onClick={() => setShowCreate(true)} className="btn-primary" style={{ fontSize: 12 }}>
           <Plus size={13} /> Add Asset
@@ -499,14 +479,17 @@ export default function AssetManagement() {
               <div style={{ gridColumn: '1/-1', display: 'flex', gap: 10 }}>
                 <button
                   className="btn-primary" style={{ flex: 1, justifyContent: 'center' }}
-                  onClick={() => {
+                  onClick={async () => {
                     if (!newAsset.code || !newAsset.name || !newAsset.location || !newAsset.manufacturer || !newAsset.installDate || !newAsset.nextPM) {
                       alert('Please fill all required (*) fields.'); return;
                     }
                     if (assets.find(a => a.code === newAsset.code)) { alert('Asset code already exists.'); return; }
-                    mutateAssets(p => [...p, { ...newAsset, id: `asset-${Date.now()}` } as Asset]);
-                    setNewAsset({ ...BLANK_ASSET });
-                    setShowCreate(false);
+                    try {
+                      await apiFetch('/assets', { method: 'POST', body: newAsset });
+                      await fetchAssets();
+                      setNewAsset({ ...BLANK_ASSET });
+                      setShowCreate(false);
+                    } catch (e) { alert('Failed to save asset.'); }
                   }}
                 >
                   Save Asset

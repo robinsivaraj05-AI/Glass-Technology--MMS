@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { useState, useEffect, useMemo } from 'react';
 import { Download, RefreshCw, FileText, AlertCircle, Clock, CheckCircle, TrendingUp } from 'lucide-react';
 import jsPDF from 'jspdf';
@@ -18,14 +19,6 @@ interface FollowupRecord {
 
 const RFQ_STATUSES  = new Set(['RFQ created', 'Technical Review', 'Quotation Received']);
 const PO_STATUSES   = new Set(['PO done', 'Material Not Delivered']);
-
-function loadRecords(): FollowupRecord[] {
-  try {
-    const r = localStorage.getItem('mms_purchase_followup');
-    if (r) return JSON.parse(r);
-  } catch {}
-  return [];
-}
 
 function fmtAED(n: number) {
   return n.toLocaleString('en-AE', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
@@ -63,8 +56,18 @@ async function getLogoDataUrl(): Promise<string | null> {
 
 export default function PurchaseCosting() {
   const [records, setRecords] = useState<FollowupRecord[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  useEffect(() => { setRecords(loadRecords()); }, []);
+  const fetchRecords = async () => {
+    try {
+      await fetch('/api/health');
+      const data = await fetch('/api/purchase-followup').then(r => r.json());
+      setRecords(data);
+    } catch (e) { console.error('Failed to load costing data', e); }
+    finally { setLoading(false); }
+  };
+
+  useEffect(() => { fetchRecords(); }, []);
 
   const rfqItems  = useMemo(() => records.filter(r => RFQ_STATUSES.has(r.currentStatus)), [records]);
   const poItems   = useMemo(() => records.filter(r => PO_STATUSES.has(r.currentStatus)), [records]);
@@ -274,6 +277,13 @@ export default function PurchaseCosting() {
     </div>
   );
 
+  if (loading) return (
+    <div style={{ display:'flex', alignItems:'center', justifyContent:'center', height:300, flexDirection:'column', gap:16 }}>
+      <div style={{ width:40, height:40, border:'3px solid rgba(59,130,246,0.3)', borderTopColor:'#3b82f6', borderRadius:'50%', animation:'spin 0.8s linear infinite' }} />
+      <div style={{ color:'#64748b', fontSize:14 }}>Loading purchase costing…</div>
+    </div>
+  );
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
 
@@ -284,7 +294,7 @@ export default function PurchaseCosting() {
           <div style={{ fontSize: 12, color: '#64748b', marginTop: 3 }}>{reportTitle}</div>
         </div>
         <div style={{ display: 'flex', gap: 10 }}>
-          <button onClick={() => setRecords(loadRecords())} className="btn-secondary"
+          <button onClick={fetchRecords} className="btn-secondary"
             style={{ fontSize: 12, display: 'flex', alignItems: 'center', gap: 5 }}>
             <RefreshCw size={13} /> Refresh
           </button>

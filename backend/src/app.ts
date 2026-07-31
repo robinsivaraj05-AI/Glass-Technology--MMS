@@ -12,6 +12,11 @@ import equipmentRoutes from './routes/equipment';
 import equipmentEntryRoutes from './routes/equipmentEntries';
 import accessoryRoutes from './routes/accessories';
 import assetRoutes from './routes/assets';
+import purchaseRFQRoutes from './routes/purchaseRFQ';
+import purchaseFollowupRoutes from './routes/purchaseFollowup';
+import purchasePORoutes from './routes/purchasePO';
+import machineRoutes from './routes/machines';
+import calibrationRoutes from './routes/calibration';
 
 const app = express();
 
@@ -38,6 +43,11 @@ app.use('/api/equipment', equipmentRoutes);
 app.use('/api/equipment-entries', equipmentEntryRoutes);
 app.use('/api/accessories', accessoryRoutes);
 app.use('/api/assets', assetRoutes);
+app.use('/api/purchase-rfq', purchaseRFQRoutes);
+app.use('/api/purchase-followup', purchaseFollowupRoutes);
+app.use('/api/purchase-po', purchasePORoutes);
+app.use('/api/machines', machineRoutes);
+app.use('/api/calibration', calibrationRoutes);
 
 // 404 handler
 app.use((req, res) => res.status(404).json({ message: `Route ${req.originalUrl} not found` }));
