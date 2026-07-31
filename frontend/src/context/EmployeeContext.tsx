@@ -28,27 +28,41 @@ export function EmployeeProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    let cancelled = false;
     (async () => {
-      try {
-        let data: FullEmployee[] = await apiFetch(API);
+      // Retry up to 3 times to handle Render cold start (~50s spin-up)
+      for (let attempt = 0; attempt < 3; attempt++) {
+        try {
+          let data: FullEmployee[] = await apiFetch(API);
 
-        // First launch — seed mock employees into MongoDB
-        if (data.length === 0) {
-          await apiFetch(`${API}/seed`, {
-            method: 'POST',
-            body: JSON.stringify(mockEmployees),
-          });
-          data = await apiFetch(API);
+          // First launch — seed mock employees into MongoDB
+          if (data.length === 0) {
+            await apiFetch(`${API}/seed`, {
+              method: 'POST',
+              body: JSON.stringify(mockEmployees),
+            });
+            data = await apiFetch(API);
+          }
+
+          if (!cancelled) {
+            setEmployees(data);
+            setLoading(false);
+          }
+          return;
+        } catch {
+          if (attempt < 2) {
+            // Wait 20s before retrying (Render cold start)
+            await new Promise(r => setTimeout(r, 20000));
+          }
         }
-
-        setEmployees(data);
-      } catch {
-        // Backend unreachable — fall back to mock data
+      }
+      // All retries failed — fall back to mock data
+      if (!cancelled) {
         setEmployees(mockEmployees);
-      } finally {
         setLoading(false);
       }
     })();
+    return () => { cancelled = true; };
   }, []);
 
   const addEmployee = async (emp: FullEmployee) => {
