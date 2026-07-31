@@ -549,7 +549,7 @@ export default function FinanceDashboard() {
                       <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9"/>
                       <XAxis dataKey="month" tick={{ fontSize:10, fill:'#94a3b8' }}/>
                       <YAxis tickFormatter={v => fmtK(v).replace('AED ','')} tick={{ fontSize:9, fill:'#94a3b8' }}/>
-                      <Tooltip formatter={(v: number) => `AED ${fmt(v)}`} contentStyle={{ fontSize:11, borderRadius:8 }}/>
+                      <Tooltip formatter={(v: number | string | undefined) => `AED ${fmt(Number(v ?? 0))}`} contentStyle={{ fontSize:11, borderRadius:8 }}/>
                       <Legend wrapperStyle={{ fontSize:11 }}/>
                       <Bar dataKey="outsource"   name="Outsource Labour" stackId="a" fill={TEAL}   radius={[0,0,0,0]}/>
                       <Bar dataKey="equipment"   name="Equipment Usage"  stackId="a" fill={PURPLE} radius={[0,0,0,0]}/>
@@ -566,7 +566,7 @@ export default function FinanceDashboard() {
                       <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9"/>
                       <XAxis dataKey="name" tick={{ fontSize:10, fill:'#94a3b8' }} angle={-15} textAnchor="end" height={50}/>
                       <YAxis tickFormatter={v => fmtK(v).replace('AED ','')} tick={{ fontSize:9, fill:'#94a3b8' }}/>
-                      <Tooltip formatter={(v: number) => `AED ${fmt(v)}`} contentStyle={{ fontSize:11, borderRadius:8 }}/>
+                      <Tooltip formatter={(v: number | string | undefined) => `AED ${fmt(Number(v ?? 0))}`} contentStyle={{ fontSize:11, borderRadius:8 }}/>
                       <Bar dataKey="cost" name="Cost (AED)" radius={[6,6,0,0]}>
                         {[TEAL, PURPLE, AMBER].map((fill, i) => <Cell key={i} fill={fill}/>)}
                       </Bar>
@@ -588,7 +588,7 @@ export default function FinanceDashboard() {
                         <Pie data={pieData} cx="50%" cy="50%" innerRadius={34} outerRadius={54} paddingAngle={3} dataKey="value">
                           {pieData.map((_, i) => <Cell key={i} fill={PIE_COLORS[i]}/>)}
                         </Pie>
-                        <Tooltip formatter={(v: number) => `AED ${fmt(v)}`} contentStyle={{ fontSize:11, borderRadius:8 }}/>
+                        <Tooltip formatter={(v: number | string | undefined) => `AED ${fmt(Number(v ?? 0))}`} contentStyle={{ fontSize:11, borderRadius:8 }}/>
                       </PieChart>
                     </ResponsiveContainer>
                     <div style={{ display:'flex', flexDirection:'column', gap:2, width:'100%' }}>
