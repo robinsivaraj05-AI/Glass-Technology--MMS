@@ -5,4 +5,4 @@ RUN npm install
 COPY . .
 RUN npm run build || true
 EXPOSE 5000
-CMD ["npm", "start"]
+CMD ["node", "dist/server.js"]
