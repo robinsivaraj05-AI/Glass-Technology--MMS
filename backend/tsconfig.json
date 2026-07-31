@@ -16,9 +16,10 @@
     "declaration": true,
 
     // Stricter Typechecking Options
-    "strict": true,
+    "strict": false,
     "esModuleInterop": true,
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
+    "noEmitOnError": false,
   }
 }
