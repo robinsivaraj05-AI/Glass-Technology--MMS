@@ -1,5 +1,5 @@
-import { useState, useEffect, useRef } from 'react';
-import { User, Bell, Shield, Database, Globe, Save, Camera, Check } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { User, Bell, Shield, Database, Globe, Save, Check } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useEmployees } from '../context/EmployeeContext';
 
@@ -52,22 +52,9 @@ export default function Settings() {
     }));
   };
 
-  // Profile photo — stored in localStorage per user
-  const photoKey = `profilePhoto_${user?.id || 'default'}`;
-  const [photoUrl, setPhotoUrl] = useState<string>(() => localStorage.getItem(photoKey) ?? '');
-  const photoInputRef = useRef<HTMLInputElement>(null);
-
-  const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = ev => {
-      const url = ev.target?.result as string;
-      setPhotoUrl(url);
-      localStorage.setItem(photoKey, url);
-    };
-    reader.readAsDataURL(file);
-  };
+  // Profile photo — taken directly from the linked employee record
+  const linkedEmployee = employees.find(e => e.empId === linkedEmpId);
+  const photoUrl = linkedEmployee?.photo ?? '';
 
   const [lang, setLang] = useState('English');
   const [theme, setTheme] = useState('Dark (Default)');
@@ -126,45 +113,25 @@ export default function Settings() {
               <img
                 src={photoUrl}
                 alt="Profile"
-                style={{ width: 80, height: 80, borderRadius: '50%', objectFit: 'cover', border: '3px solid rgba(59,130,246,0.5)' }}
+                style={{ width: 90, height: 90, borderRadius: '50%', objectFit: 'cover', border: '3px solid rgba(59,130,246,0.5)' }}
               />
             ) : (
-              <div style={{ width: 80, height: 80, borderRadius: '50%', background: 'linear-gradient(135deg, #3b82f6, #8b5cf6)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 28, fontWeight: 700, color: 'white' }}>
+              <div style={{ width: 90, height: 90, borderRadius: '50%', background: 'linear-gradient(135deg, #3b82f6, #8b5cf6)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 30, fontWeight: 700, color: 'white' }}>
                 {(form.name || user?.name || '').split(' ').map((n: string) => n[0]).join('').slice(0, 2) || '??'}
               </div>
             )}
-            {/* Hidden file input */}
-            <input
-              ref={photoInputRef}
-              type="file"
-              accept="image/*"
-              style={{ display: 'none' }}
-              onChange={handlePhotoChange}
-            />
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 6, alignItems: 'center' }}>
-              <button
-                className="btn-secondary"
-                style={{ fontSize: 11, display: 'flex', alignItems: 'center', gap: 6 }}
-                onClick={() => photoInputRef.current?.click()}
-              >
-                <Camera size={12} /> Change Photo
-              </button>
-              {photoUrl && (
-                <button
-                  style={{ fontSize: 10, color: '#ef4444', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
-                  onClick={() => { setPhotoUrl(''); localStorage.removeItem(photoKey); }}
-                >
-                  Remove photo
-                </button>
-              )}
-            </div>
             <div style={{ textAlign: 'center' }}>
               <div style={{ fontSize: 14, fontWeight: 600, color: '#f1f5f9' }}>{form.name || user?.name || '—'}</div>
               <div style={{ fontSize: 11, color: '#60a5fa', textTransform: 'capitalize', marginTop: 2 }}>
-                {employees.find(e => e.empId === linkedEmpId)?.designation || user?.role.replace(/_/g, ' ')}
+                {linkedEmployee?.designation || user?.role.replace(/_/g, ' ')}
               </div>
               <div style={{ fontSize: 11, color: '#475569', marginTop: 2 }}>{linkedEmpId || user?.employeeId || '—'}</div>
             </div>
+            {!photoUrl && linkedEmpId && (
+              <div style={{ fontSize: 10, color: '#64748b', textAlign: 'center', marginTop: 2 }}>
+                No photo — add one in<br/>Employee Profile
+              </div>
+            )}
           </div>
 
           {/* Form */}
