@@ -151,6 +151,7 @@ function parse(text: string, rows: string[][]): ExtractedPO {
 
   // PO Number
   const poPatterns = [
+    /DOCUMENT\s+NO[\s:./\-]*([A-Z0-9][A-Z0-9\-\/_.]{2,20})/i,
     /P\.?O\.?\s*(?:No|Number|#|Ref)?[\s:./\-]*([A-Z0-9][A-Z0-9\-\/_.]{2,20})/i,
     /Purchase\s+Order\s*(?:No|Number|#)?[\s:./\-]+([A-Z0-9][A-Z0-9\-\/_.]{2,20})/i,
     /Order\s+No[\s:./\-]+([A-Z0-9][A-Z0-9\-\/_.]{2,20})/i,
@@ -165,26 +166,42 @@ function parse(text: string, rows: string[][]): ExtractedPO {
   }
 
   // PO Date
-  const poDate = findDate(text, 'PO\\s+Date', 'Date', 'Dated', 'Issue\\s+Date');
+  const poDate = findDate(text, 'DOCUMENT\\s+DATE', 'PO\\s+Date', 'Date', 'Dated', 'Issue\\s+Date');
   if (poDate) { result.poDate = poDate; found.push('poDate'); }
 
   // RFQ Reference
   const rfqM = text.match(/(?:RFQ|Quotation|Quote)\s*(?:No|Number|Ref)?[\s:./\-]*([A-Z0-9][A-Z0-9\-\/_.]{2,20})/i);
   if (rfqM && rfqM[1]) { result.rfqRef = rfqM[1].trim(); found.push('rfqRef'); }
 
-  // Vendor name — look for "To:" row first, then regex
-  const toRow = rows.find(r => /^(?:To|Vendor|Supplier|M\/s\.?)[\s:]?$/i.test(r[0]));
-  if (toRow && toRow.length > 1) {
-    result.vendor = toRow.slice(1).join(' ').trim();
-    found.push('vendor');
+  // Vendor name — look for "VENDOR NAME" section first, then "To:" row, then regex
+  const vendorNameIdx = rows.findIndex(r => /VENDOR\s*NAME/i.test(r.join(' ')));
+  if (vendorNameIdx >= 0 && vendorNameIdx + 1 < rows.length) {
+    // Next non-empty row after VENDOR NAME header is the vendor
+    const nextRow = rows[vendorNameIdx + 1];
+    if (nextRow && nextRow.length > 0) {
+      result.vendor = nextRow.join(' ').trim();
+      found.push('vendor');
+    }
   } else {
-    const vm = text.match(/(?:^|\n)\s*(?:To|Vendor|Supplier|M\/s\.?)[\s:]+([A-Z][^\n]{5,80})/im);
-    if (vm) { result.vendor = vm[1].trim(); found.push('vendor'); }
+    const toRow = rows.find(r => /^(?:To|Vendor|Supplier|M\/s\.?)[\s:]?$/i.test(r[0]));
+    if (toRow && toRow.length > 1) {
+      result.vendor = toRow.slice(1).join(' ').trim();
+      found.push('vendor');
+    } else {
+      const vm = text.match(/(?:^|\n)\s*(?:To|Vendor|Supplier|M\/s\.?)[\s:]+([A-Z][^\n]{5,80})/im);
+      if (vm) { result.vendor = vm[1].trim(); found.push('vendor'); }
+    }
   }
 
-  // Vendor email / phone
-  const emailM = text.match(/[\w.+\-]+@[\w.\-]+\.[a-z]{2,}/i);
-  if (emailM) { result.vendorContact = emailM[0]; found.push('vendorContact'); }
+  // Vendor contact — prefer SUPPLIER CONTACT field, then email
+  const supplierContactM = text.match(/SUPPLIER\s+CONTACT[\s:]+([^\n\r]{5,60})/i);
+  if (supplierContactM) {
+    result.vendorContact = supplierContactM[1].trim();
+    found.push('vendorContact');
+  } else {
+    const emailM = text.match(/[\w.+\-]+@[\w.\-]+\.[a-z]{2,}/i);
+    if (emailM) { result.vendorContact = emailM[0]; found.push('vendorContact'); }
+  }
 
   // Currency
   const currM = text.match(/\b(AED|USD|EUR|INR|GBP|SAR|QAR|OMR|KWD)\b/);
@@ -234,7 +251,8 @@ function parse(text: string, rows: string[][]): ExtractedPO {
 }
 
 // ── Line items parser ─────────────────────────────────────────────────────────
-const UNIT_RE = /^(Nos?|Pcs?|Sets?|Meter|Roll|Kgs?|Ltrs?|Boxes?|Pairs?|Lots?|Units?|EA|Each|M|mm|Pc|Qty)$/i;
+const UNIT_RE = /^(Nos?|Pcs?|Sets?|Meter|Roll|Kgs?|Ltrs?|Boxes?|Pairs?|Lots?|Units?|EA|Each|M|mm|Pc|Qty|UOM)$/i;
+const DATE_CELL_RE = /^\d{1,2}[\/\-\.]\d{1,2}[\/\-\.]\d{4}$/;
 
 function parseItems(rows: string[][], fallback: string): ExtractedItem[] {
   // Find table header row (has ≥2 of: description qty unit price amount)
@@ -270,31 +288,41 @@ function parseItems(rows: string[][], fallback: string): ExtractedItem[] {
       if (cur?.description) items.push(finalizeItem(cur));
       cur = { description: '', specification: '', make: '', qty: 1, unit: 'Nos', unitPrice: 0, totalPrice: 0 };
 
-      const cells     = row.slice(1); // drop sl.no
-      const lastNum   = parseFloat(cells[cells.length - 1].replace(/,/g,''));
+      const cells = row.slice(1); // drop sl.no
+
+      // Remove item code (first cell if it looks like a numeric code and no unit nearby)
+      // Remove date cells (delivery date columns like 13-08-2026)
+      const filtered = cells.filter(c => !DATE_CELL_RE.test(c));
+
+      const lastNum = parseFloat(filtered[filtered.length - 1]?.replace(/,/g,'') ?? '');
       if (!isNaN(lastNum)) cur.totalPrice = lastNum;
 
-      // Find unit keyword in cells (scan right-to-left)
+      // Find unit keyword in filtered cells (scan right-to-left)
       let unitIdx = -1;
-      for (let j = cells.length - 1; j >= 0; j--) {
-        if (UNIT_RE.test(cells[j])) { unitIdx = j; break; }
+      for (let j = filtered.length - 1; j >= 0; j--) {
+        if (UNIT_RE.test(filtered[j])) { unitIdx = j; break; }
       }
 
       if (unitIdx >= 0) {
-        cur.unit = cells[unitIdx];
+        cur.unit = filtered[unitIdx] === 'UOM' ? 'Nos' : filtered[unitIdx];
+        // qty is immediately before unit
         if (unitIdx > 0) {
-          const q = parseFloat(cells[unitIdx - 1].replace(/,/g,''));
+          const q = parseFloat(filtered[unitIdx - 1].replace(/,/g,''));
           if (!isNaN(q)) cur.qty = q;
         }
-        if (unitIdx + 1 < cells.length - 1) {
-          const up = parseFloat(cells[unitIdx + 1].replace(/,/g,''));
-          if (!isNaN(up)) cur.unitPrice = up;
-        }
-        cur.description = cells.slice(0, Math.max(0, unitIdx - 1)).join(' ').trim() ||
-                          cells.slice(0, unitIdx).join(' ').trim();
+        // unit price is immediately after unit (skip VAT% and VAT amount columns — pick smallest price)
+        const afterUnit = filtered.slice(unitIdx + 1, filtered.length - 1)
+          .map(c => parseFloat(c.replace(/,/g,'')))
+          .filter(n => !isNaN(n) && n > 0);
+        if (afterUnit.length > 0) cur.unitPrice = Math.min(...afterUnit);
+
+        // description = everything before (qty - 1), skipping pure numeric item codes
+        const descCells = filtered.slice(0, Math.max(0, unitIdx - 1))
+          .filter(c => !/^\d+$/.test(c)); // remove pure numeric item codes
+        cur.description = descCells.join(' ').trim() || filtered.slice(0, unitIdx).join(' ').trim();
       } else {
-        // No unit found — treat middle cells as description
-        cur.description = cells.slice(0, cells.length - 1).join(' ').trim();
+        cur.description = filtered.slice(0, filtered.length - 1)
+          .filter(c => !/^\d+$/.test(c)).join(' ').trim();
       }
     } else if (cur) {
       // Continuation row — part number / make / specification
