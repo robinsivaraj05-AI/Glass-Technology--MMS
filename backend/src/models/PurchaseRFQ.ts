@@ -21,6 +21,7 @@ const PurchaseRFQSchema = new Schema({
   purposeOfRFQ: { type: String, default: '' },
   scopeOfWork: { type: String, default: '' },
   vendors: { type: String, default: '' },
+  estimatedBudget: { type: Number, default: 0 },
   requiredBy: { type: String, default: '' },
   submissionDeadline: { type: String, default: '' },
   items: { type: [RFQItemSchema], default: [] },

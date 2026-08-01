@@ -27,6 +27,7 @@ interface RFQ {
   purposeOfRFQ: string;
   scopeOfWork: string;
   vendors: string;
+  estimatedBudget: number;
   requiredBy: string;
   submissionDeadline: string;
   items: RFQItem[];
@@ -87,6 +88,7 @@ function blankRFQ(existing: RFQ[]): Omit<RFQ,'id'> {
     rfqNo: nextRFQNo(existing), date: new Date().toISOString().slice(0,10),
     subject:'', from: DEFAULT_FROM, contactPerson:'', contactEmail: DEFAULT_EMAIL, contactPhone: DEFAULT_PHONE,
     purposeOfRFQ:'', scopeOfWork:'', vendors:'',
+    estimatedBudget: 0,
     requiredBy:'', submissionDeadline: DEFAULT_DEADLINE,
     items:[BLANK_ITEM()],
     status:'draft', quotationRef:'', poRef:'', remarks:'',
@@ -172,7 +174,8 @@ function exportList(rfqs: RFQ[]) {
   const wb = XLSX.utils.book_new();
   const rows = rfqs.map(r => ({
     'RFQ No': r.rfqNo, 'Date': r.date, 'Subject': r.subject,
-    'Vendor(s)': r.vendors, 'Contact Person': r.contactPerson,
+    'Est. Budget (AED)': r.estimatedBudget || 0, 'Vendor(s)': r.vendors,
+    'Contact Person': r.contactPerson,
     'Purpose': r.purposeOfRFQ, 'Scope': r.scopeOfWork,
     'Required By': r.requiredBy, 'Items': (r.items||[]).length,
     'Status': STATUS_CFG[r.status]?.label,
@@ -443,7 +446,7 @@ export default function PurchaseRFQ() {
         <table className="data-table">
           <thead>
             <tr>
-              <th>RFQ No.</th><th>Date</th><th>Subject</th><th>Vendor(s)</th>
+              <th>RFQ No.</th><th>Date</th><th>Subject</th><th>Est. Budget</th>
               <th>Items</th><th>Required By</th><th>Status</th>
               <th style={{ position:'sticky', right:0, background:'#0b0b18', zIndex:3 }}>Actions</th>
             </tr>
@@ -462,7 +465,9 @@ export default function PurchaseRFQ() {
                   <td style={{ color:'#60a5fa', fontFamily:'monospace', fontWeight:700, fontSize:12 }}>{r.rfqNo}</td>
                   <td style={{ fontSize:12, color:'#64748b' }}>{r.date}</td>
                   <td style={{ fontWeight:600, color:'#e2e8f0', maxWidth:200 }}>{r.subject}</td>
-                  <td style={{ fontSize:11, color:'#94a3b8', maxWidth:160, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{r.vendors}</td>
+                  <td style={{ fontSize:12, color:'#22c55e', fontWeight:600, whiteSpace:'nowrap' }}>
+                    {r.estimatedBudget ? `AED ${r.estimatedBudget.toLocaleString()}` : '—'}
+                  </td>
                   <td style={{ textAlign:'center', color:'#3b82f6', fontWeight:600 }}>{(r.items||[]).length}</td>
                   <td style={{ fontSize:11, color: overdue ? '#ef4444' : '#64748b', fontWeight: overdue ? 700 : 400 }}>
                     {r.requiredBy||'—'}
@@ -640,6 +645,10 @@ export default function PurchaseRFQ() {
                 <div style={{ gridColumn:'1/-1' }}>
                   <label style={lbl}>Subject *</label>
                   <input className="input-dark" style={inp} value={form.subject} onChange={e=>setF('subject',e.target.value)} placeholder="e.g. Furnace Heat Up" />
+                </div>
+                <div>
+                  <label style={lbl}>Estimated Budget (AED)</label>
+                  <input type="number" className="input-dark" style={inp} value={form.estimatedBudget || ''} onChange={e=>setF('estimatedBudget', Number(e.target.value))} placeholder="e.g. 5000" min={0} />
                 </div>
                 <div style={{ gridColumn:'1/-1' }}>
                   <label style={lbl}>Vendor(s) to Send RFQ</label>
