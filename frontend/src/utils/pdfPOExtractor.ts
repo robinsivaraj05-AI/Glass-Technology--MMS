@@ -173,19 +173,20 @@ function parse(text: string, rows: string[][]): ExtractedPO {
   const rfqM = text.match(/(?:RFQ|Quotation|Quote)\s*(?:No|Number|Ref)?[\s:./\-]*([A-Z0-9][A-Z0-9\-\/_.]{2,20})/i);
   if (rfqM && rfqM[1]) { result.rfqRef = rfqM[1].trim(); found.push('rfqRef'); }
 
-  // Vendor name — look for "VENDOR NAME" section first, then "To:" row, then regex
+  // Vendor name — two-column PDFs: "VENDOR NAME" row's NEXT row first cell is the vendor
   const vendorNameIdx = rows.findIndex(r => /VENDOR\s*NAME/i.test(r.join(' ')));
   if (vendorNameIdx >= 0 && vendorNameIdx + 1 < rows.length) {
-    // Next non-empty row after VENDOR NAME header is the vendor
+    // Take only the FIRST cell of the next row (left column = vendor name)
     const nextRow = rows[vendorNameIdx + 1];
-    if (nextRow && nextRow.length > 0) {
-      result.vendor = nextRow.join(' ').trim();
+    if (nextRow && nextRow[0] && nextRow[0].length > 3) {
+      result.vendor = nextRow[0].trim();
       found.push('vendor');
     }
-  } else {
+  }
+  if (!result.vendor) {
     const toRow = rows.find(r => /^(?:To|Vendor|Supplier|M\/s\.?)[\s:]?$/i.test(r[0]));
     if (toRow && toRow.length > 1) {
-      result.vendor = toRow.slice(1).join(' ').trim();
+      result.vendor = toRow[1].trim();
       found.push('vendor');
     } else {
       const vm = text.match(/(?:^|\n)\s*(?:To|Vendor|Supplier|M\/s\.?)[\s:]+([A-Z][^\n]{5,80})/im);
@@ -193,8 +194,8 @@ function parse(text: string, rows: string[][]): ExtractedPO {
     }
   }
 
-  // Vendor contact — prefer SUPPLIER CONTACT field, then email
-  const supplierContactM = text.match(/SUPPLIER\s+CONTACT[\s:]+([^\n\r]{5,60})/i);
+  // Vendor contact — prefer SUPPLIER CONTACT (phone/number), then email in vendor section
+  const supplierContactM = text.match(/SUPPLIER\s+CONTACT[\s:]*(\+?[\d\s\-]{7,25})/i);
   if (supplierContactM) {
     result.vendorContact = supplierContactM[1].trim();
     found.push('vendorContact');
@@ -219,9 +220,13 @@ function parse(text: string, rows: string[][]): ExtractedPO {
     if (m) { result.totalValue = parseFloat(m[1].replace(/,/g,'')); found.push('totalValue'); break; }
   }
 
-  // Payment Terms
-  const payM = text.match(/Payment\s+Terms?[\s:]+([^\n\r.]{5,80})/i);
-  if (payM) { result.paymentTerms = payM[1].trim().slice(0,60); found.push('paymentTerms'); }
+  // Payment Terms — stop before CURRENCY or INCOTERMS keywords
+  const payM = text.match(/Payment\s+Terms?[\s:]+([^\n\r]{5,80})/i);
+  if (payM) {
+    let pt = payM[1].trim();
+    pt = pt.replace(/\s*(CURRENCY|INCOTERMS|VAT|TOTAL|REMARKS).*/i, '').trim();
+    if (pt.length >= 5) { result.paymentTerms = pt.slice(0, 60); found.push('paymentTerms'); }
+  }
 
   // Estimated Delivery
   const delDate = findDate(text,
