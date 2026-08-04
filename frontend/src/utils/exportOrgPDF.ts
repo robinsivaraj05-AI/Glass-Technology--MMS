@@ -119,128 +119,119 @@ function drawLogo(pdf: jsPDF): void {
   pdf.text('The glass of tomorrow, today', tx, y + 9.8);
 }
 
-// ── Draw a single card — centered layout, compact for 7-level deep trees ──────
-function drawCard(pdf: jsPDF, n: LNode, ox: number, oy: number): void {
+// ── Draw a single card — dimensions passed in to support auto-scaling ─────────
+function drawCard(pdf: jsPDF, n: LNode, ox: number, oy: number, nw: number, nh: number): void {
   const { pos } = n;
   const x  = ox + n.x;
   const y  = oy + n.y;
-  const cx = x + NODE_W / 2;
+  const cx = x + nw / 2;
+  const sc = nw / NODE_W;            // font/spacing scale relative to full-size card
   const { bg, accent } = cardColors(pos);
 
   // Card background + border
   pdf.setFillColor(...bg);
   pdf.setDrawColor(...accent);
   pdf.setLineWidth(0.35);
-  pdf.rect(x, y, NODE_W, NODE_H, 'FD');
+  pdf.rect(x, y, nw, nh, 'FD');
 
   // Top accent bar
+  const barH = 2.5 * sc;
   pdf.setFillColor(...accent);
-  pdf.rect(x, y, NODE_W, 2.5, 'F');
+  pdf.rect(x, y, nw, barH, 'F');
 
-  // Status dot — on accent bar (top-right), avoids overlapping the person name
+  // Status dot on accent bar
   const rs = pos.recruitmentStatus || (pos.personName.trim() ? 'joined' : 'pending');
   pdf.setFillColor(...statusColor(rs));
-  pdf.circle(x + NODE_W - 2, y + 1.25, 1.25, 'F');
+  pdf.circle(x + nw - 2 * sc, y + barH / 2, 1.25 * sc, 'F');
 
-  // Start below accent bar: cap-height of 7.5pt ≈ 1.85mm, accent bar = 2.5mm
-  // so baseline must be ≥ 2.5 + 1.85 = 4.35mm → shifted to 5.8mm for visual breathing room
-  let ty = y + 5.8;
+  let ty = y + 5.8 * sc;
 
-  // Team label — 7.5pt bold centered (web: 13px uppercase)
+  // Team label
   if (pos.team) {
-    pdf.setFontSize(7.5);
+    pdf.setFontSize(7.5 * sc);
     pdf.setFont('helvetica', 'bold');
     pdf.setTextColor(...accent);
     pdf.text(pos.team.toUpperCase(), cx, ty, { align: 'center' });
-    ty += 3.8;  // enough gap so role cap-height clears team descender
+    ty += 3.8 * sc;
   } else {
-    ty += 0.5;
+    ty += 0.5 * sc;
   }
 
-  // Role name — 8pt bold, dark, centered
-  pdf.setFontSize(8);
+  // Role name
+  pdf.setFontSize(8 * sc);
   pdf.setFont('helvetica', 'bold');
   pdf.setTextColor(30, 41, 59);
-  const rl = (pdf.splitTextToSize(pos.role, NODE_W - 5) as string[]).slice(0, 2);
+  const rl = (pdf.splitTextToSize(pos.role, nw - 5 * sc) as string[]).slice(0, 2);
   pdf.text(rl, cx, ty, { align: 'center' });
-  ty += rl.length * 3.2;
+  ty += rl.length * 3.2 * sc;
 
-  // Separator line
+  // Separator
   pdf.setDrawColor(210, 215, 225);
   pdf.setLineWidth(0.15);
-  pdf.line(x + 2.5, ty + 0.3, x + NODE_W - 2.5, ty + 0.3);
-  ty += 1.6;
+  pdf.line(x + 2.5 * sc, ty + 0.3 * sc, x + nw - 2.5 * sc, ty + 0.3 * sc);
+  ty += 1.6 * sc;
 
   const filled = pos.personName.trim() !== '';
-
   if (filled) {
-    // Horizontal layout matching web app: [avatar] [name]  — no vertical stacking, no overlap
     const initials = pos.personName.trim().split(' ')
       .map((w: string) => w[0] ?? '').join('').slice(0, 2).toUpperCase();
-    const r   = 1.5;
-    const gap = 1.8;  // gap between avatar right edge and name text
-    const rowMidY = ty + r; // vertical centre of the person row
+    const r   = 1.5 * sc;
+    const gap = 1.8 * sc;
+    const rowMidY = ty + r;
 
-    // Measure name width at 7.5pt to centre the avatar+name block
-    pdf.setFontSize(7.5);
+    pdf.setFontSize(7.5 * sc);
     pdf.setFont('helvetica', 'normal');
     const nameText = pos.personName.trim();
-    const nW       = Math.min(pdf.getTextWidth(nameText), NODE_W - r * 2 - gap - 8);
+    const nW       = Math.min(pdf.getTextWidth(nameText), nw - r * 2 - gap - 8 * sc);
     const blockW   = r * 2 + gap + nW;
-    const blockX   = cx - blockW / 2; // left edge of block, centred in card
+    const blockX   = cx - blockW / 2;
     const avatarCx = blockX + r;
     const nameX    = blockX + r * 2 + gap;
 
-    // Avatar circle
     pdf.setFillColor(...bg);
     pdf.setDrawColor(...accent);
     pdf.setLineWidth(0.5);
     pdf.circle(avatarCx, rowMidY, r, 'FD');
 
-    // Initials inside circle
-    pdf.setFontSize(4.5);
+    pdf.setFontSize(4.5 * sc);
     pdf.setFont('helvetica', 'bold');
     pdf.setTextColor(...accent);
-    pdf.text(initials, avatarCx, rowMidY + 0.5, { align: 'center' });
+    pdf.text(initials, avatarCx, rowMidY + 0.5 * sc, { align: 'center' });
 
-    // Name text — vertically centred with avatar, left-aligned from nameX
-    pdf.setFontSize(7.5);
+    pdf.setFontSize(7.5 * sc);
     pdf.setFont('helvetica', 'normal');
     pdf.setTextColor(51, 65, 85);
-    pdf.text(nameText, nameX, rowMidY + 0.5);
-
-    ty += r * 2 + 1.0; // advance past person row
+    pdf.text(nameText, nameX, rowMidY + 0.5 * sc);
   } else {
-    // Vacant — 7pt italic, centered, muted
-    pdf.setFontSize(7);
+    pdf.setFontSize(7 * sc);
     pdf.setFont('helvetica', 'italic');
     pdf.setTextColor(148, 163, 184);
-    pdf.text(pos.urgent ? '! Position Vacant' : '— Not Yet Filled —', cx, ty + 1.0, { align: 'center' });
+    pdf.text(pos.urgent ? '! Position Vacant' : '— Not Yet Filled —', cx, ty + 1.0 * sc, { align: 'center' });
   }
 }
 
 // ── Connector lines ───────────────────────────────────────────────────────────
-function drawConnectors(pdf: jsPDF, nodes: LNode[], ox: number, oy: number): void {
+function drawConnectors(pdf: jsPDF, nodes: LNode[], ox: number, oy: number, nw: number, nh: number, connh: number): void {
   pdf.setDrawColor(140, 170, 220);
   pdf.setLineWidth(0.3);
 
   function draw(n: LNode) {
     if (!n.children.length) return;
-    const px   = ox + n.x + NODE_W / 2;
-    const py   = oy + n.y + NODE_H;
-    const midY = py + CONN_H / 2;
+    const px   = ox + n.x + nw / 2;
+    const py   = oy + n.y + nh;
+    const midY = py + connh / 2;
 
     pdf.line(px, py, px, midY);
 
     if (n.children.length === 1) {
-      const cx = ox + n.children[0].x + NODE_W / 2;
+      const cx = ox + n.children[0].x + nw / 2;
       pdf.line(cx, midY, cx, oy + n.children[0].y);
     } else {
-      const firstCx = ox + n.children[0].x + NODE_W / 2;
-      const lastCx  = ox + n.children[n.children.length - 1].x + NODE_W / 2;
+      const firstCx = ox + n.children[0].x + nw / 2;
+      const lastCx  = ox + n.children[n.children.length - 1].x + nw / 2;
       pdf.line(firstCx, midY, lastCx, midY);
       n.children.forEach(c => {
-        const cx = ox + c.x + NODE_W / 2;
+        const cx = ox + c.x + nw / 2;
         pdf.line(cx, midY, cx, oy + c.y);
       });
     }
@@ -278,24 +269,55 @@ function drawOrgPage(pdf: jsPDF, positions: OrgPos[]): void {
   if (!roots.length) return;
 
   const treeW  = roots.reduce((s, r) => s + r.width, 0) + (roots.length - 1) * H_GAP;
-  const startX = Math.max(8, (PW - treeW) / 2);
+  const availW = PW - 18;                           // 9mm margin each side
+  const scaleX = Math.min(1.0, availW / treeW);     // shrink only if tree too wide
+  const startX = Math.max(8, (PW - treeW * scaleX) / 2);
   const startY = 19;
 
+  // Count how many levels deep the tree goes
+  function countLevels(nodes: LNode[]): number {
+    let mx = 0;
+    nodes.forEach(n => { mx = Math.max(mx, n.children.length ? countLevels(n.children) : 0); });
+    return mx + 1;
+  }
+  const levels = countLevels(roots);
+
+  // Card dimensions after horizontal scaling
+  const nw = NODE_W * scaleX;
+  const nh = NODE_H * scaleX;
+
+  // Stretch V_GAP so the tree fills 90% of available page height,
+  // keeping cards at the horizontally-scaled size (no distortion).
+  const availH       = PH - startY - 14;            // reserve 14mm for legend/footer
+  const targetH      = availH * 0.90;
+  const adjustedVGap = levels > 1 ? (targetH - nh) / (levels - 1) : targetH;
+  const connh        = Math.max(2, adjustedVGap - nh);
+
+  // Build initial coordinates (uses original V_GAP internally)
   assignCoords(roots, startX, startY);
+
+  // Remap: x uses scaleX, y uses adjustedVGap so tree fills the page
+  const remapCoords = (nd: LNode) => {
+    const level = Math.round((nd.y - startY) / V_GAP);
+    nd.x = startX + (nd.x - startX) * scaleX;
+    nd.y = startY + level * adjustedVGap;
+    nd.children.forEach(remapCoords);
+  };
+  roots.forEach(remapCoords);
+
   const all = collectAll(roots);
 
-  // White card canvas — use direct n.x values (already absolute, no double-offset)
+  // White card canvas
   const minX = Math.min(...all.map(n => n.x));
-  const maxX = Math.max(...all.map(n => n.x + NODE_W));
-  const maxY = Math.max(...all.map(n => n.y + NODE_H));
+  const maxX = Math.max(...all.map(n => n.x + nw));
+  const maxY = Math.max(...all.map(n => n.y + nh));
   pdf.setFillColor(255, 255, 255);
   pdf.setDrawColor(220, 225, 235);
   pdf.setLineWidth(0.2);
   pdf.rect(minX - 4, startY - 2, (maxX - minX) + 8, (maxY - startY) + 6, 'FD');
 
-  // Draw with ox=0 — n.x is already absolute (includes startX)
-  drawConnectors(pdf, roots, 0, 0);
-  all.forEach(n => drawCard(pdf, n, 0, 0));
+  drawConnectors(pdf, roots, 0, 0, nw, nh, connh);
+  all.forEach(n => drawCard(pdf, n, 0, 0, nw, nh));
 
   // ── Legend ──────────────────────────────────────────────────────────────
   const legendY = PH - 9;

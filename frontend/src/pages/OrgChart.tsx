@@ -67,20 +67,21 @@ const BTN_MT  = 5;     // margin-top of toggle button below card
 // connector starts below the toggle button:
 const CONN_Y  = CARD_H + BTN_MT + BTN_H + 3;  // ≈ 120px from card top
 
-// ── Tree-layout engine (proper minimum-separation algorithm) ──────────────────
+// ── Layout engine ─────────────────────────────────────────────────────────────
+// Natural widths → min-separation → equal sibling gaps → re-center parents.
+// "Equal sibling gaps" means every pair of adjacent siblings under the SAME
+// parent gets the same centre-to-centre distance (= the largest natural gap
+// among those siblings).  Parent nodes are re-centred above their children
+// after each shift so connectors stay correct.
 
 interface LPos { cx: number; y: number; }
 
-// Natural slot width: leaf = CARD_W + MIN_SEP, parent = sum of children
 function natW(node: OrgNode, colIds: Set<string>): number {
   if (colIds.has(node.pos.posId) || !node.children.length) return CARD_W + MIN_SEP;
   return node.children.reduce((s, c) => s + natW(c, colIds), 0);
 }
 
-// Pass 1 – place every node using its natural slot width
-function buildInitialLayout(
-  tree: OrgNode[], colIds: Set<string>, map: Map<string, LPos>
-): void {
+function buildInitialLayout(tree: OrgNode[], colIds: Set<string>, map: Map<string, LPos>): void {
   function place(node: OrgNode, leftX: number, level: number) {
     const w = natW(node, colIds);
     map.set(node.pos.posId, { cx: leftX + w / 2, y: level * LEVEL_H });
@@ -93,20 +94,16 @@ function buildInitialLayout(
   for (const root of tree) { place(root, x, 0); x += natW(root, colIds); }
 }
 
-// Shift a node and its entire subtree by dx
 function shiftSubtree(node: OrgNode, dx: number, colIds: Set<string>, map: Map<string, LPos>) {
   const p = map.get(node.pos.posId);
   if (p) map.set(node.pos.posId, { cx: p.cx + dx, y: p.y });
   if (!colIds.has(node.pos.posId)) node.children.forEach(c => shiftSubtree(c, dx, colIds, map));
 }
 
-// Pass 2 – enforce minimum card-edge separation at every level
 function enforceSep(tree: OrgNode[], colIds: Set<string>, map: Map<string, LPos>) {
   const byLevel = new Map<number, OrgNode[]>();
   function collect(n: OrgNode, lv: number) {
-    const arr = byLevel.get(lv) ?? [];
-    arr.push(n);
-    byLevel.set(lv, arr);
+    const arr = byLevel.get(lv) ?? []; arr.push(n); byLevel.set(lv, arr);
     if (!colIds.has(n.pos.posId)) n.children.forEach(c => collect(c, lv + 1));
   }
   tree.forEach(r => collect(r, 0));
@@ -121,13 +118,36 @@ function enforceSep(tree: OrgNode[], colIds: Set<string>, map: Map<string, LPos>
   });
 }
 
-// Pass 3 – re-centre every parent above its (possibly shifted) children
+// Make every pair of adjacent siblings under the same parent have the same
+// centre-to-centre gap (= the widest natural gap among those siblings).
+function equalizeGaps(tree: OrgNode[], colIds: Set<string>, map: Map<string, LPos>) {
+  function process(node: OrgNode) {
+    if (colIds.has(node.pos.posId) || node.children.length < 2) {
+      if (!colIds.has(node.pos.posId)) node.children.forEach(c => process(c));
+      return;
+    }
+    const kids = [...node.children].sort(
+      (a, b) => (map.get(a.pos.posId)?.cx ?? 0) - (map.get(b.pos.posId)?.cx ?? 0));
+    const cxs = kids.map(c => map.get(c.pos.posId)!.cx);
+    let maxGap = 0;
+    for (let i = 1; i < cxs.length; i++) maxGap = Math.max(maxGap, cxs[i] - cxs[i - 1]);
+    let cur = cxs[0];
+    for (let i = 1; i < kids.length; i++) {
+      const target = cur + maxGap;
+      const actual = map.get(kids[i].pos.posId)!.cx;
+      if (target > actual) shiftSubtree(kids[i], target - actual, colIds, map);
+      cur = map.get(kids[i].pos.posId)!.cx;
+    }
+    kids.forEach(c => process(c));
+  }
+  tree.forEach(r => process(r));
+}
+
 function recenterParents(node: OrgNode, colIds: Set<string>, map: Map<string, LPos>) {
   if (!colIds.has(node.pos.posId) && node.children.length) {
     node.children.forEach(c => recenterParents(c, colIds, map));
-    const cxs   = node.children.map(c => map.get(c.pos.posId)!.cx);
-    const newCx = (Math.min(...cxs) + Math.max(...cxs)) / 2;
-    map.set(node.pos.posId, { ...map.get(node.pos.posId)!, cx: newCx });
+    const cxs = node.children.map(c => map.get(c.pos.posId)!.cx);
+    map.set(node.pos.posId, { ...map.get(node.pos.posId)!, cx: (Math.min(...cxs) + Math.max(...cxs)) / 2 });
   }
 }
 
@@ -137,8 +157,9 @@ function computeLayout(tree: OrgNode[], colIds: Set<string>): {
   const map = new Map<string, LPos>();
   buildInitialLayout(tree, colIds, map);
   enforceSep(tree, colIds, map);
-  tree.forEach(r => recenterParents(r, colIds, map));
-  // Normalise: shift leftmost card to PAD_X
+  equalizeGaps(tree, colIds, map);               // equal card-edge gaps between siblings
+  tree.forEach(r => recenterParents(r, colIds, map));  // re-center parents after shifts
+  // Normalize: shift leftmost card edge to PAD_X
   const vals = Array.from(map.values());
   const minCx = Math.min(...vals.map(p => p.cx)) - CARD_W / 2;
   if (minCx < PAD_X) {
@@ -899,7 +920,7 @@ export default function OrgChart() {
               <ul style={{ fontSize:12, color:'#64748b', margin:'12px 0 0', paddingLeft:18, lineHeight:2 }}>
                 <li>E&amp;I, IT Manager → E&amp;I, Deputy Manager</li>
                 <li>Deputy Manager → <strong>General E&amp;I Engineer · Automation Engineer · IT Engineer</strong></li>
-                <li>General E&amp;I Engineer → 4 Shift Engineers (A, B, C, Reliving)</li>
+                <li>Deputy Manager → <strong>Shift Engineer (A, B, C) · Reliving Shift Engineer</strong></li>
                 <li>Each Shift Engineer → Sub-role → Team Member</li>
               </ul>
               <p style={{ fontSize:11, color:'#ef4444', marginTop:12, fontWeight:600 }}>

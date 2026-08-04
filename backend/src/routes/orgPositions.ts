@@ -3,33 +3,34 @@ import OrgPosition from '../models/OrgPosition';
 
 const router = Router();
 
-// ── Default E&I Department Structure (v2) ─────────────────────────────────────
-// Hierarchy: Manager → Deputy Manager → [General E&I Eng | Automation Eng | IT Eng]
-//            General E&I Eng → 4 Shift Engineers → Junior/SE → Team Members
+// ── Default E&I Department Structure ──────────────────────────────────────────
+// Hierarchy: Manager → Deputy Manager → [Gen E&I | Auto | IT | SE-A | SE-B | SE-C | Reliving]
+//            All 4 Shift Engineers report DIRECTLY to Deputy Manager.
+//            General E&I, Automation, IT Engineers are leaf nodes (no subordinates).
 const SEED_POSITIONS = [
   // Level 0
-  { posId:'p01', parentId:null,  role:'E & I, IT Manager',          team:'', personName:'Mr. Sathish Venmani', urgent:false, sortOrder:0, roleCategory:'Manager',               recruitmentStatus:'joined'        },
+  { posId:'p01', parentId:null,  role:'E & I, IT Manager',          team:'', personName:'Mr. Sathish Venmani', urgent:false, sortOrder:0, roleCategory:'Manager',             recruitmentStatus:'joined'        },
   // Level 1
-  { posId:'p02', parentId:'p01', role:'E & I, Deputy Manager',      team:'', personName:'Mr. Rabin Sivaraj',   urgent:false, sortOrder:0, roleCategory:'Dy Manager',             recruitmentStatus:'joined'        },
-  // Level 2 — Three direct reports of Deputy Manager
-  { posId:'p03', parentId:'p02', role:'General E & I Engineer',     team:'', personName:'',                    urgent:false, sortOrder:0, roleCategory:'General E&I Engineer',   recruitmentStatus:'pending'       },
-  { posId:'p14', parentId:'p02', role:'Automation Engineer',        team:'', personName:'',                    urgent:false, sortOrder:1, roleCategory:'Automation Engineer',     recruitmentStatus:'pending'       },
-  { posId:'p17', parentId:'p02', role:'IT Engineer',                team:'', personName:'Mr. Castero',          urgent:false, sortOrder:2, roleCategory:'IT Engineer',             recruitmentStatus:'joined'        },
-  // Level 3 — Four Shift Engineers under General E&I Engineer
-  { posId:'p04', parentId:'p03', role:'Shift Engineer',             team:'Team A',    personName:'Mr. Praveen Kumar',         urgent:false, sortOrder:0, roleCategory:'Shift Engineer', recruitmentStatus:'joined'        },
-  { posId:'p07', parentId:'p03', role:'Shift Engineer',             team:'Team B',    personName:'Mr. Hari Krishna',          urgent:false, sortOrder:1, roleCategory:'Shift Engineer', recruitmentStatus:'joined'        },
-  { posId:'p10', parentId:'p03', role:'Shift Engineer',             team:'Team C',    personName:'Mr. Arun',                  urgent:false, sortOrder:2, roleCategory:'Shift Engineer', recruitmentStatus:'joined'        },
-  { posId:'p13', parentId:'p03', role:'Reliving Shift Engineer',    team:'',          personName:'',                          urgent:true,  sortOrder:3, roleCategory:'Shift Engineer', recruitmentStatus:'ready_to_join' },
-  // Level 4 — Sub-roles under each Shift Engineer
+  { posId:'p02', parentId:'p01', role:'E & I, Deputy Manager',      team:'', personName:'Mr. Rabin Sivaraj',   urgent:false, sortOrder:0, roleCategory:'Dy Manager',           recruitmentStatus:'joined'        },
+  // Level 2 — Engineer roles (leaf nodes, no subordinates)
+  { posId:'p03', parentId:'p02', role:'General E & I Engineer',     team:'', personName:'',                    urgent:false, sortOrder:0, roleCategory:'General E&I Engineer', recruitmentStatus:'pending'       },
+  { posId:'p14', parentId:'p02', role:'Automation Engineer',        team:'', personName:'',                    urgent:false, sortOrder:1, roleCategory:'Automation Engineer',   recruitmentStatus:'pending'       },
+  { posId:'p17', parentId:'p02', role:'IT Engineer',                team:'', personName:'Mr. Castero',          urgent:false, sortOrder:2, roleCategory:'IT Engineer',           recruitmentStatus:'joined'        },
+  // Level 2 — Four Shift Engineers, all reporting directly to Deputy Manager
+  { posId:'p04', parentId:'p02', role:'Shift Engineer',             team:'Team A',    personName:'Mr. Praveen Kumar',         urgent:false, sortOrder:3, roleCategory:'Shift Engineer', recruitmentStatus:'joined'        },
+  { posId:'p07', parentId:'p02', role:'Shift Engineer',             team:'Team B',    personName:'Mr. Hari Krishna',          urgent:false, sortOrder:4, roleCategory:'Shift Engineer', recruitmentStatus:'joined'        },
+  { posId:'p10', parentId:'p02', role:'Shift Engineer',             team:'Team C',    personName:'Mr. Arun',                  urgent:false, sortOrder:5, roleCategory:'Shift Engineer', recruitmentStatus:'joined'        },
+  { posId:'p13', parentId:'p02', role:'Reliving Shift Engineer',    team:'',          personName:'',                          urgent:true,  sortOrder:6, roleCategory:'Shift Engineer', recruitmentStatus:'ready_to_join' },
+  // Level 3 — Sub-roles under each Shift Engineer
   { posId:'p05', parentId:'p04', role:'Junior Shift Engineer',      team:'Team A', personName:'Mr. Vivek Surendra Singh', urgent:false, sortOrder:0, roleCategory:'Junior Engineer', recruitmentStatus:'joined'  },
-  { posId:'p08', parentId:'p07', role:'Shift Engineer',             team:'Team B', personName:'Mr. Mohit Thalaviya',      urgent:false, sortOrder:0, roleCategory:'Junior Engineer', recruitmentStatus:'joined'  },
-  { posId:'p11', parentId:'p10', role:'Shift Engineer',             team:'Team C', personName:'Mr. Aniket',               urgent:false, sortOrder:0, roleCategory:'Junior Engineer', recruitmentStatus:'joined'  },
+  { posId:'p08', parentId:'p07', role:'Junior Shift Engineer',      team:'Team B', personName:'Mr. Mohit Thalaviya',      urgent:false, sortOrder:0, roleCategory:'Junior Engineer', recruitmentStatus:'joined'  },
+  { posId:'p11', parentId:'p10', role:'Junior Shift Engineer',      team:'Team C', personName:'Mr. Aniket',               urgent:false, sortOrder:0, roleCategory:'Junior Engineer', recruitmentStatus:'joined'  },
   { posId:'p15', parentId:'p13', role:'Team Member',                team:'Reliving', personName:'',                       urgent:false, sortOrder:0, roleCategory:'Technician',      recruitmentStatus:'pending' },
-  // Level 5 — Team Members
-  { posId:'p06', parentId:'p05', role:'Team Member', team:'Team A',    personName:'Mr. Krishna', urgent:false, sortOrder:0, roleCategory:'Technician', recruitmentStatus:'joined'  },
-  { posId:'p09', parentId:'p08', role:'Team Member', team:'Team B',    personName:'Mr. Rajan',   urgent:false, sortOrder:0, roleCategory:'Technician', recruitmentStatus:'joined'  },
-  { posId:'p12', parentId:'p11', role:'Team Member', team:'Team C',    personName:'',            urgent:false, sortOrder:0, roleCategory:'Technician', recruitmentStatus:'pending' },
-  { posId:'p16', parentId:'p15', role:'Team Member', team:'Reliving',  personName:'',            urgent:false, sortOrder:0, roleCategory:'Technician', recruitmentStatus:'pending' },
+  // Level 4 — Team Members
+  { posId:'p06', parentId:'p05', role:'Team Member', team:'Team A',   personName:'Mr. Krishna', urgent:false, sortOrder:0, roleCategory:'Technician', recruitmentStatus:'joined'  },
+  { posId:'p09', parentId:'p08', role:'Team Member', team:'Team B',   personName:'Mr. Rajan',   urgent:false, sortOrder:0, roleCategory:'Technician', recruitmentStatus:'joined'  },
+  { posId:'p12', parentId:'p11', role:'Team Member', team:'Team C',   personName:'',            urgent:false, sortOrder:0, roleCategory:'Technician', recruitmentStatus:'pending' },
+  { posId:'p16', parentId:'p15', role:'Team Member', team:'Reliving', personName:'',            urgent:false, sortOrder:0, roleCategory:'Technician', recruitmentStatus:'pending' },
 ];
 
 // GET all positions
