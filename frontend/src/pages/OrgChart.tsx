@@ -813,7 +813,7 @@ export default function OrgChart() {
             <div style={{ color:'#94a3b8', fontSize:14 }}>No positions found</div>
           </div>
         ) : (
-          {chartLayout && (
+          chartLayout && (
             <div style={{ minWidth: '100%', minHeight: '100%', display: 'flex', justifyContent: 'center', alignItems: 'flex-start', boxSizing: 'border-box', padding: '24px 24px 48px' }}>
               <div style={{
                 transform: `scale(${zoom})`, transformOrigin: 'top center', transition: 'transform 0.15s ease',
@@ -880,7 +880,7 @@ export default function OrgChart() {
                 })}
               </div>
             </div>
-          )}
+          )
         )}
       </div>
 
