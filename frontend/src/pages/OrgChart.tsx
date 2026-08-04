@@ -612,19 +612,18 @@ export default function OrgChart() {
   const collapseAll = useCallback(() => setCollapsedIds(new Set(allParentIds)), [allParentIds]);
 
   const fitToScreen = useCallback(() => {
-    if (!canvasRef.current || !tree.length) return;
+    if (!canvasRef.current || !chartLayout) return;
     const availW = canvasRef.current.clientWidth  - 80;
     const availH = canvasRef.current.clientHeight - 80;
-    const { totalW, totalH } = computeLayout(tree, collapsedIds);
-    const raw = Math.min(availW / totalW, availH / totalH, 1.0);
+    const raw = Math.min(availW / chartLayout.totalW, availH / chartLayout.totalH, 1.0);
     setZoom(Math.max(0.2, parseFloat((raw * 0.90).toFixed(2))));
-  }, [tree, collapsedIds]);
+  }, [chartLayout]);
 
-  // Auto-fit on first tree load
+  // Auto-fit when layout is first computed or tree changes
   useEffect(() => {
-    if (tree.length > 0) fitToScreen();
+    if (chartLayout) fitToScreen();
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tree.length]);
+  }, [chartLayout?.totalW, chartLayout?.totalH]);
 
   const handleSelect = useCallback((node: OrgNode) => {
     setSelectedNode(prev => prev?.pos.posId === node.pos.posId ? null : node);
@@ -678,6 +677,23 @@ export default function OrgChart() {
     vacant: positions.filter(p => !isFilled(p)).length,
     urgent: positions.filter(p => !isFilled(p) && p.urgent).length,
   }), [positions]);
+
+  // Pre-compute layout and visible node lists (avoids IIFE in JSX)
+  const chartLayout = useMemo(() => {
+    if (!tree.length) return null;
+    const { map, totalW, totalH } = computeLayout(tree, collapsedIds);
+    const visNodes: OrgNode[] = [];
+    const collectVis = (nodes: OrgNode[]) => {
+      nodes.forEach(n => { visNodes.push(n); if (!collapsedIds.has(n.pos.posId)) collectVis(n.children); });
+    };
+    collectVis(tree);
+    const connGroups: { parentId: string; childIds: string[] }[] = [];
+    visNodes.forEach(n => {
+      if (!collapsedIds.has(n.pos.posId) && n.children.length)
+        connGroups.push({ parentId: n.pos.posId, childIds: n.children.map(c => c.pos.posId) });
+    });
+    return { map, totalW, totalH, visNodes, connGroups };
+  }, [tree, collapsedIds]);
 
   if (loading) return (
     <div style={{ display:'flex', alignItems:'center', justifyContent:'center', height:400, flexDirection:'column', gap:12 }}>
@@ -797,90 +813,74 @@ export default function OrgChart() {
             <div style={{ color:'#94a3b8', fontSize:14 }}>No positions found</div>
           </div>
         ) : (
-          {(() => {
-            const { map, totalW, totalH } = computeLayout(tree, collapsedIds);
-
-            // Collect all visible nodes
-            const visNodes: OrgNode[] = [];
-            const collectVis = (nodes: OrgNode[]) => {
-              nodes.forEach(n => { visNodes.push(n); if (!collapsedIds.has(n.pos.posId)) collectVis(n.children); });
-            };
-            collectVis(tree);
-
-            // Build parent→children connector groups for SVG
-            const connGroups: { parentId: string; childIds: string[] }[] = [];
-            visNodes.forEach(n => {
-              if (!collapsedIds.has(n.pos.posId) && n.children.length)
-                connGroups.push({ parentId: n.pos.posId, childIds: n.children.map(c => c.pos.posId) });
-            });
-
-            const scaledW = totalW * zoom;
-            const scaledH = totalH * zoom;
-
-            return (
-              <div style={{ minWidth: '100%', minHeight: '100%', display: 'flex', justifyContent: 'center', alignItems: 'flex-start', boxSizing: 'border-box', padding: '24px 24px 48px' }}>
-                <div style={{ transform: `scale(${zoom})`, transformOrigin: 'top center', transition: 'transform 0.15s ease', width: totalW, height: totalH, position: 'relative', flexShrink: 0, marginBottom: scaledH - totalH, marginRight: (scaledW - totalW) / 2, marginLeft: (scaledW - totalW) / 2 }}>
-
-                  {/* SVG connector lines */}
-                  <svg style={{ position: 'absolute', top: 0, left: 0, width: totalW, height: totalH, pointerEvents: 'none', overflow: 'visible' }}>
-                    {connGroups.map(({ parentId, childIds }) => {
-                      const pPos = map.get(parentId);
-                      if (!pPos) return null;
-                      const cPosList = childIds.map(id => map.get(id)).filter((p): p is LPos => !!p).sort((a, b) => a.cx - b.cx);
-                      if (!cPosList.length) return null;
-                      const y1   = pPos.y + CONN_Y;
-                      const y2   = cPosList[0].y;
-                      const midY = Math.round((y1 + y2) / 2);
-                      return (
-                        <g key={parentId}>
-                          <line x1={pPos.cx} y1={y1} x2={pPos.cx} y2={midY} stroke={LINE_C} strokeWidth={LINE_W}/>
-                          {cPosList.length > 1 && (
-                            <line x1={cPosList[0].cx} y1={midY} x2={cPosList[cPosList.length - 1].cx} y2={midY} stroke={LINE_C} strokeWidth={LINE_W}/>
-                          )}
-                          {cPosList.map(cp => (
-                            <line key={cp.cx} x1={cp.cx} y1={midY} x2={cp.cx} y2={y2} stroke={LINE_C} strokeWidth={LINE_W}/>
-                          ))}
-                        </g>
-                      );
-                    })}
-                  </svg>
-
-                  {/* Cards + toggle buttons */}
-                  {visNodes.map(node => {
-                    const pos = map.get(node.pos.posId);
-                    if (!pos) return null;
-                    const isCollapsed = collapsedIds.has(node.pos.posId);
-                    const hasChildren = node.children.length > 0;
+          {chartLayout && (
+            <div style={{ minWidth: '100%', minHeight: '100%', display: 'flex', justifyContent: 'center', alignItems: 'flex-start', boxSizing: 'border-box', padding: '24px 24px 48px' }}>
+              <div style={{
+                transform: `scale(${zoom})`, transformOrigin: 'top center', transition: 'transform 0.15s ease',
+                width: chartLayout.totalW, height: chartLayout.totalH, position: 'relative', flexShrink: 0,
+                marginBottom: chartLayout.totalH * zoom - chartLayout.totalH,
+                marginLeft: (chartLayout.totalW * zoom - chartLayout.totalW) / 2,
+                marginRight: (chartLayout.totalW * zoom - chartLayout.totalW) / 2,
+              }}>
+                {/* SVG connector lines */}
+                <svg style={{ position: 'absolute', top: 0, left: 0, width: chartLayout.totalW, height: chartLayout.totalH, pointerEvents: 'none', overflow: 'visible' }}>
+                  {chartLayout.connGroups.map(({ parentId, childIds }) => {
+                    const pPos = chartLayout.map.get(parentId);
+                    if (!pPos) return null;
+                    const cPosList = childIds.map(id => chartLayout.map.get(id)).filter((p): p is LPos => !!p).sort((a, b) => a.cx - b.cx);
+                    if (!cPosList.length) return null;
+                    const y1   = pPos.y + CONN_Y;
+                    const y2   = cPosList[0].y;
+                    const midY = Math.round((y1 + y2) / 2);
                     return (
-                      <div key={node.pos.posId} style={{ position: 'absolute', left: pos.cx - CARD_W / 2, top: pos.y, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                        <PosCard node={node}
-                          selected={selectedNode?.pos.posId === node.pos.posId}
-                          searchMatch={searchMatch?.posId === node.pos.posId}
-                          onSelect={() => handleSelect(node)}
-                          onEdit={e => handleEdit(node, e)}/>
-                        {hasChildren && (
-                          <button
-                            onClick={e => { e.stopPropagation(); toggleCollapse(node.pos.posId); }}
-                            title={isCollapsed ? `Expand (${node.children.length})` : 'Collapse'}
-                            style={{
-                              width: BTN_H, height: BTN_H, borderRadius: '50%', marginTop: BTN_MT, flexShrink: 0,
-                              background: isCollapsed ? '#2563eb' : '#fff',
-                              border: `1.5px solid ${isCollapsed ? '#2563eb' : '#94a3b8'}`,
-                              color: isCollapsed ? '#fff' : '#64748b',
-                              cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                              fontSize: 14, lineHeight: 1, padding: 0, transition: 'all 0.2s',
-                              boxShadow: '0 1px 4px rgba(0,0,0,0.12)',
-                            }}>
-                            {isCollapsed ? '+' : '−'}
-                          </button>
+                      <g key={parentId}>
+                        <line x1={pPos.cx} y1={y1} x2={pPos.cx} y2={midY} stroke={LINE_C} strokeWidth={LINE_W}/>
+                        {cPosList.length > 1 && (
+                          <line x1={cPosList[0].cx} y1={midY} x2={cPosList[cPosList.length - 1].cx} y2={midY} stroke={LINE_C} strokeWidth={LINE_W}/>
                         )}
-                      </div>
+                        {cPosList.map(cp => (
+                          <line key={cp.cx} x1={cp.cx} y1={midY} x2={cp.cx} y2={y2} stroke={LINE_C} strokeWidth={LINE_W}/>
+                        ))}
+                      </g>
                     );
                   })}
-                </div>
+                </svg>
+
+                {/* Cards + toggle buttons */}
+                {chartLayout.visNodes.map(node => {
+                  const lp = chartLayout.map.get(node.pos.posId);
+                  if (!lp) return null;
+                  const isCollapsed = collapsedIds.has(node.pos.posId);
+                  const hasChildren = node.children.length > 0;
+                  return (
+                    <div key={node.pos.posId} style={{ position: 'absolute', left: lp.cx - CARD_W / 2, top: lp.y, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                      <PosCard node={node}
+                        selected={selectedNode?.pos.posId === node.pos.posId}
+                        searchMatch={searchMatch?.posId === node.pos.posId}
+                        onSelect={() => handleSelect(node)}
+                        onEdit={e => handleEdit(node, e)}/>
+                      {hasChildren && (
+                        <button
+                          onClick={e => { e.stopPropagation(); toggleCollapse(node.pos.posId); }}
+                          title={isCollapsed ? `Expand (${node.children.length})` : 'Collapse'}
+                          style={{
+                            width: BTN_H, height: BTN_H, borderRadius: '50%', marginTop: BTN_MT, flexShrink: 0,
+                            background: isCollapsed ? '#2563eb' : '#fff',
+                            border: `1.5px solid ${isCollapsed ? '#2563eb' : '#94a3b8'}`,
+                            color: isCollapsed ? '#fff' : '#64748b',
+                            cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            fontSize: 14, lineHeight: 1, padding: 0, transition: 'all 0.2s',
+                            boxShadow: '0 1px 4px rgba(0,0,0,0.12)',
+                          }}>
+                          {isCollapsed ? '+' : '−'}
+                        </button>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
-            );
-          })()}
+            </div>
+          )}
         )}
       </div>
 
