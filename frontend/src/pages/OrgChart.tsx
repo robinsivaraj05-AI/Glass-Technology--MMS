@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import {
   ZoomIn, ZoomOut, X, Phone, Mail, MapPin, ExternalLink, Search,
   Maximize2, Minimize2, Network, User, Edit2, Plus, Trash2, Save,
-  BarChart2, Download,
+  BarChart2, Download, RotateCcw,
 } from 'lucide-react';
 import { type FullEmployee } from '../data/employeeData';
 import { useEmployees } from '../context/EmployeeContext';
@@ -542,6 +542,8 @@ export default function OrgChart() {
   const [selectedNode, setSelectedNode] = useState<OrgNode | null>(null);
   const [editingNode,  setEditingNode]  = useState<OrgNode | null>(null);
   const [addingUnder,  setAddingUnder]  = useState<{ parentPosId: string; sortOrder: number } | null>(null);
+  const [resetConfirm, setResetConfirm] = useState(false);
+  const [resetting,    setResetting]    = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -598,6 +600,20 @@ export default function OrgChart() {
       const newPos: OrgPos = await apiFetch(API, { method:'POST', body:JSON.stringify(data) });
       setPositions(prev => [...prev, newPos]);
     } catch { /**/ }
+  }, []);
+
+  const handleReset = useCallback(async () => {
+    setResetting(true);
+    try {
+      await apiFetch(`${API}/reset`, { method: 'POST' });
+      const data: OrgPos[] = await apiFetch(API);
+      setPositions(data);
+      setCollapsedIds(new Set());
+      setSelectedNode(null);
+    } catch { /**/ } finally {
+      setResetting(false);
+      setResetConfirm(false);
+    }
   }, []);
 
   const stats = useMemo(() => ({
@@ -674,6 +690,13 @@ export default function OrgChart() {
           <Download size={12}/> {pdfExporting ? 'Generating…' : 'Download PDF'}
         </button>
 
+        {/* Reset Structure */}
+        <button onClick={() => setResetConfirm(true)} style={{
+          ...ctrlBtn, background:'#fff7ed', border:'1px solid #fed7aa', color:'#c2410c', fontWeight:600,
+        }}>
+          <RotateCcw size={12}/> Reset Structure
+        </button>
+
         {/* Stat counters */}
         <div style={{ marginLeft:'auto', display:'flex', gap:16, flexShrink:0 }}>
           {[
@@ -744,6 +767,48 @@ export default function OrgChart() {
       {addingUnder && (
         <AddModal parentPosId={addingUnder.parentPosId} defaultSortOrder={addingUnder.sortOrder}
           onSave={handleAddPos} onClose={() => setAddingUnder(null)}/>
+      )}
+
+      {/* Reset confirm modal */}
+      {resetConfirm && (
+        <div onClick={e => { if (e.target === e.currentTarget) setResetConfirm(false); }}
+          style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.45)', zIndex:1002, display:'flex', alignItems:'center', justifyContent:'center' }}>
+          <div style={{ width:400, borderRadius:14, background:'#fff', border:'1px solid #e2e8f0', boxShadow:'0 24px 60px rgba(0,0,0,0.15)', overflow:'hidden' }}>
+            <div style={{ padding:'16px 18px', borderBottom:'1px solid #f1f5f9', display:'flex', justifyContent:'space-between', alignItems:'center', background:'#fff7ed' }}>
+              <div style={{ display:'flex', alignItems:'center', gap:8 }}>
+                <RotateCcw size={15} color="#c2410c"/>
+                <span style={{ fontSize:13, fontWeight:700, color:'#c2410c' }}>Reset Org Structure</span>
+              </div>
+              <button onClick={() => setResetConfirm(false)} style={{ background:'none', border:'none', color:'#94a3b8', cursor:'pointer' }}><X size={16}/></button>
+            </div>
+            <div style={{ padding:'18px 20px' }}>
+              <p style={{ fontSize:13, color:'#374151', lineHeight:1.7, margin:0 }}>
+                This will <strong>delete all current positions</strong> and rebuild the org chart with the updated default structure:
+              </p>
+              <ul style={{ fontSize:12, color:'#64748b', margin:'12px 0 0', paddingLeft:18, lineHeight:2 }}>
+                <li>E&amp;I, IT Manager → E&amp;I, Deputy Manager</li>
+                <li>Deputy Manager → <strong>General E&amp;I Engineer · Automation Engineer · IT Engineer</strong></li>
+                <li>General E&amp;I Engineer → 4 Shift Engineers (A, B, C, Reliving)</li>
+                <li>Each Shift Engineer → Sub-role → Team Member</li>
+              </ul>
+              <p style={{ fontSize:11, color:'#ef4444', marginTop:12, fontWeight:600 }}>
+                ⚠ All manually assigned person names will be lost.
+              </p>
+            </div>
+            <div style={{ padding:'12px 18px', borderTop:'1px solid #f1f5f9', display:'flex', justifyContent:'flex-end', gap:8, background:'#f8fafc' }}>
+              <button onClick={() => setResetConfirm(false)} style={{ padding:'7px 16px', fontSize:12, background:'#f8fafc', border:'1px solid #e2e8f0', borderRadius:8, color:'#64748b', cursor:'pointer' }}>
+                Cancel
+              </button>
+              <button onClick={handleReset} disabled={resetting} style={{
+                padding:'7px 18px', fontSize:12, background: resetting ? '#f1f5f9' : '#c2410c', border:'none',
+                borderRadius:8, color: resetting ? '#94a3b8' : '#fff', cursor: resetting ? 'default' : 'pointer',
+                fontWeight:600, display:'flex', alignItems:'center', gap:5,
+              }}>
+                <RotateCcw size={12}/> {resetting ? 'Resetting…' : 'Yes, Reset Structure'}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
