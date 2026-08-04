@@ -812,76 +812,54 @@ export default function OrgChart() {
             <Network size={48} color="#e2e8f0"/>
             <div style={{ color:'#94a3b8', fontSize:14 }}>No positions found</div>
           </div>
-        ) : (
-          chartLayout && (
-            <div style={{ minWidth: '100%', minHeight: '100%', display: 'flex', justifyContent: 'center', alignItems: 'flex-start', boxSizing: 'border-box', padding: '24px 24px 48px' }}>
-              <div style={{
-                transform: `scale(${zoom})`, transformOrigin: 'top center', transition: 'transform 0.15s ease',
-                width: chartLayout.totalW, height: chartLayout.totalH, position: 'relative', flexShrink: 0,
-                marginBottom: chartLayout.totalH * zoom - chartLayout.totalH,
-                marginLeft: (chartLayout.totalW * zoom - chartLayout.totalW) / 2,
-                marginRight: (chartLayout.totalW * zoom - chartLayout.totalW) / 2,
-              }}>
-                {/* SVG connector lines */}
-                <svg style={{ position: 'absolute', top: 0, left: 0, width: chartLayout.totalW, height: chartLayout.totalH, pointerEvents: 'none', overflow: 'visible' }}>
-                  {chartLayout.connGroups.map(({ parentId, childIds }) => {
-                    const pPos = chartLayout.map.get(parentId);
-                    if (!pPos) return null;
-                    const cPosList = childIds.map(id => chartLayout.map.get(id)).filter((p): p is LPos => !!p).sort((a, b) => a.cx - b.cx);
-                    if (!cPosList.length) return null;
-                    const y1   = pPos.y + CONN_Y;
-                    const y2   = cPosList[0].y;
-                    const midY = Math.round((y1 + y2) / 2);
-                    return (
-                      <g key={parentId}>
-                        <line x1={pPos.cx} y1={y1} x2={pPos.cx} y2={midY} stroke={LINE_C} strokeWidth={LINE_W}/>
-                        {cPosList.length > 1 && (
-                          <line x1={cPosList[0].cx} y1={midY} x2={cPosList[cPosList.length - 1].cx} y2={midY} stroke={LINE_C} strokeWidth={LINE_W}/>
-                        )}
-                        {cPosList.map(cp => (
-                          <line key={cp.cx} x1={cp.cx} y1={midY} x2={cp.cx} y2={y2} stroke={LINE_C} strokeWidth={LINE_W}/>
-                        ))}
-                      </g>
-                    );
-                  })}
-                </svg>
+        ) : chartLayout ? (
+          <div style={{ minWidth:'100%', minHeight:'100%', display:'flex', justifyContent:'center', alignItems:'flex-start', padding:'32px 32px 64px', boxSizing:'border-box' }}>
+            <div style={{ transform:`scale(${zoom})`, transformOrigin:'top center', transition:'transform 0.15s ease', width:chartLayout.totalW, height:chartLayout.totalH, position:'relative', flexShrink:0 }}>
 
-                {/* Cards + toggle buttons */}
-                {chartLayout.visNodes.map(node => {
-                  const lp = chartLayout.map.get(node.pos.posId);
-                  if (!lp) return null;
-                  const isCollapsed = collapsedIds.has(node.pos.posId);
-                  const hasChildren = node.children.length > 0;
+              {/* SVG connector lines */}
+              <svg style={{ position:'absolute', top:0, left:0, width:chartLayout.totalW, height:chartLayout.totalH, pointerEvents:'none', overflow:'visible' }}>
+                {chartLayout.connGroups.map(({ parentId, childIds }) => {
+                  const pPos = chartLayout.map.get(parentId);
+                  if (!pPos) return null;
+                  const cList = childIds.map(id => chartLayout.map.get(id)).filter((p): p is LPos => !!p).sort((a, b) => a.cx - b.cx);
+                  if (!cList.length) return null;
+                  const y1 = pPos.y + CONN_Y, y2 = cList[0].y, midY = Math.round((y1 + y2) / 2);
                   return (
-                    <div key={node.pos.posId} style={{ position: 'absolute', left: lp.cx - CARD_W / 2, top: lp.y, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                      <PosCard node={node}
-                        selected={selectedNode?.pos.posId === node.pos.posId}
-                        searchMatch={searchMatch?.posId === node.pos.posId}
-                        onSelect={() => handleSelect(node)}
-                        onEdit={e => handleEdit(node, e)}/>
-                      {hasChildren && (
-                        <button
-                          onClick={e => { e.stopPropagation(); toggleCollapse(node.pos.posId); }}
-                          title={isCollapsed ? `Expand (${node.children.length})` : 'Collapse'}
-                          style={{
-                            width: BTN_H, height: BTN_H, borderRadius: '50%', marginTop: BTN_MT, flexShrink: 0,
-                            background: isCollapsed ? '#2563eb' : '#fff',
-                            border: `1.5px solid ${isCollapsed ? '#2563eb' : '#94a3b8'}`,
-                            color: isCollapsed ? '#fff' : '#64748b',
-                            cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                            fontSize: 14, lineHeight: 1, padding: 0, transition: 'all 0.2s',
-                            boxShadow: '0 1px 4px rgba(0,0,0,0.12)',
-                          }}>
-                          {isCollapsed ? '+' : '−'}
-                        </button>
-                      )}
-                    </div>
+                    <g key={parentId}>
+                      <line x1={pPos.cx} y1={y1} x2={pPos.cx} y2={midY} stroke={LINE_C} strokeWidth={LINE_W}/>
+                      {cList.length > 1 && <line x1={cList[0].cx} y1={midY} x2={cList[cList.length-1].cx} y2={midY} stroke={LINE_C} strokeWidth={LINE_W}/>}
+                      {cList.map(cp => <line key={cp.cx} x1={cp.cx} y1={midY} x2={cp.cx} y2={y2} stroke={LINE_C} strokeWidth={LINE_W}/>)}
+                    </g>
                   );
                 })}
-              </div>
+              </svg>
+
+              {/* Cards + toggle buttons */}
+              {chartLayout.visNodes.map(node => {
+                const lp = chartLayout.map.get(node.pos.posId);
+                if (!lp) return null;
+                const isCol = collapsedIds.has(node.pos.posId);
+                const hasCh = node.children.length > 0;
+                return (
+                  <div key={node.pos.posId} style={{ position:'absolute', left:lp.cx - CARD_W/2, top:lp.y, display:'flex', flexDirection:'column', alignItems:'center' }}>
+                    <PosCard node={node}
+                      selected={selectedNode?.pos.posId === node.pos.posId}
+                      searchMatch={searchMatch?.posId === node.pos.posId}
+                      onSelect={() => handleSelect(node)}
+                      onEdit={e => handleEdit(node, e)}/>
+                    {hasCh && (
+                      <button onClick={e => { e.stopPropagation(); toggleCollapse(node.pos.posId); }}
+                        title={isCol ? `Expand (${node.children.length})` : 'Collapse'}
+                        style={{ width:BTN_H, height:BTN_H, borderRadius:'50%', marginTop:BTN_MT, flexShrink:0, background:isCol?'#2563eb':'#fff', border:`1.5px solid ${isCol?'#2563eb':'#94a3b8'}`, color:isCol?'#fff':'#64748b', cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', fontSize:14, lineHeight:1, padding:0, transition:'all 0.2s', boxShadow:'0 1px 4px rgba(0,0,0,0.12)' }}>
+                        {isCol ? '+' : '−'}
+                      </button>
+                    )}
+                  </div>
+                );
+              })}
             </div>
-          )
-        )}
+          </div>
+        ) : null}
       </div>
 
       {/* Profile panel */}
