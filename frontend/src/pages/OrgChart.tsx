@@ -611,20 +611,6 @@ export default function OrgChart() {
   const expandAll   = useCallback(() => setCollapsedIds(new Set()), []);
   const collapseAll = useCallback(() => setCollapsedIds(new Set(allParentIds)), [allParentIds]);
 
-  const fitToScreen = useCallback(() => {
-    if (!canvasRef.current || !chartLayout) return;
-    const availW = canvasRef.current.clientWidth  - 80;
-    const availH = canvasRef.current.clientHeight - 80;
-    const raw = Math.min(availW / chartLayout.totalW, availH / chartLayout.totalH, 1.0);
-    setZoom(Math.max(0.2, parseFloat((raw * 0.90).toFixed(2))));
-  }, [chartLayout]);
-
-  // Auto-fit when layout is first computed or tree changes
-  useEffect(() => {
-    if (chartLayout) fitToScreen();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [chartLayout?.totalW, chartLayout?.totalH]);
-
   const handleSelect = useCallback((node: OrgNode) => {
     setSelectedNode(prev => prev?.pos.posId === node.pos.posId ? null : node);
     setEditingNode(null);
@@ -694,6 +680,20 @@ export default function OrgChart() {
     });
     return { map, totalW, totalH, visNodes, connGroups };
   }, [tree, collapsedIds]);
+
+  const fitToScreen = useCallback(() => {
+    if (!canvasRef.current || !chartLayout) return;
+    const availW = canvasRef.current.clientWidth  - 80;
+    const availH = canvasRef.current.clientHeight - 80;
+    const raw = Math.min(availW / chartLayout.totalW, availH / chartLayout.totalH, 1.0);
+    setZoom(Math.max(0.2, parseFloat((raw * 0.90).toFixed(2))));
+  }, [chartLayout]);
+
+  // Auto-fit when layout changes
+  useEffect(() => {
+    if (chartLayout) fitToScreen();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [chartLayout?.totalW, chartLayout?.totalH]);
 
   if (loading) return (
     <div style={{ display:'flex', alignItems:'center', justifyContent:'center', height:400, flexDirection:'column', gap:12 }}>
