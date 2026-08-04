@@ -54,32 +54,102 @@ function collectParentPosIds(nodes: OrgNode[]): string[] {
   return ids;
 }
 
-// ── Card constants ────────────────────────────────────────────────────────────
-const CARD_W  = 155;
-const CONN_H  = 28;
-const GAP     = 10;   // half-gap on each side of a leaf card
-const CARD_H  = 90;   // estimated rendered card height for auto-fit
-const LINE_C  = 'rgba(59,120,210,0.40)';
+// ── Layout constants ──────────────────────────────────────────────────────────
+const CARD_W  = 160;   // card width px
+const CARD_H  = 90;    // estimated card height (for layout math)
+const LEVEL_H = 148;   // vertical distance between card tops at adjacent levels
+const MIN_SEP = 20;    // minimum horizontal gap between adjacent card EDGES
+const PAD_X   = 48;    // left/right padding inside canvas
+const LINE_C  = 'rgba(59,120,210,0.45)';
 const LINE_W  = 2;
+const BTN_H   = 22;    // toggle button height
+const BTN_MT  = 5;     // margin-top of toggle button below card
+// connector starts below the toggle button:
+const CONN_Y  = CARD_H + BTN_MT + BTN_H + 3;  // ≈ 120px from card top
 
-// ── Equal-column slot computation ─────────────────────────────────────────────
-// All siblings of the same parent get the same slot width = max(sibling natural widths).
-// This ensures General E&I, Automation, and IT appear equally spaced.
-function computeSlot(node: OrgNode, collapsedIds: Set<string>): number {
-  if (collapsedIds.has(node.pos.posId) || !node.children.length) {
-    return CARD_W + 2 * GAP;
+// ── Tree-layout engine (proper minimum-separation algorithm) ──────────────────
+
+interface LPos { cx: number; y: number; }
+
+// Natural slot width: leaf = CARD_W + MIN_SEP, parent = sum of children
+function natW(node: OrgNode, colIds: Set<string>): number {
+  if (colIds.has(node.pos.posId) || !node.children.length) return CARD_W + MIN_SEP;
+  return node.children.reduce((s, c) => s + natW(c, colIds), 0);
+}
+
+// Pass 1 – place every node using its natural slot width
+function buildInitialLayout(
+  tree: OrgNode[], colIds: Set<string>, map: Map<string, LPos>
+): void {
+  function place(node: OrgNode, leftX: number, level: number) {
+    const w = natW(node, colIds);
+    map.set(node.pos.posId, { cx: leftX + w / 2, y: level * LEVEL_H });
+    if (!colIds.has(node.pos.posId)) {
+      let x = leftX;
+      for (const c of node.children) { place(c, x, level + 1); x += natW(c, colIds); }
+    }
   }
-  const childSlots = node.children.map(c => computeSlot(c, collapsedIds));
-  const maxChild   = Math.max(...childSlots);
-  return maxChild * node.children.length;  // equal columns
+  let x = 0;
+  for (const root of tree) { place(root, x, 0); x += natW(root, colIds); }
 }
-function forestTotalW(nodes: OrgNode[], collapsedIds: Set<string>): number {
-  return nodes.reduce((s, n) => s + computeSlot(n, collapsedIds), 0);
+
+// Shift a node and its entire subtree by dx
+function shiftSubtree(node: OrgNode, dx: number, colIds: Set<string>, map: Map<string, LPos>) {
+  const p = map.get(node.pos.posId);
+  if (p) map.set(node.pos.posId, { cx: p.cx + dx, y: p.y });
+  if (!colIds.has(node.pos.posId)) node.children.forEach(c => shiftSubtree(c, dx, colIds, map));
 }
-function forestDepth(nodes: OrgNode[]): number {
-  if (!nodes.length) return 0;
-  return 1 + Math.max(...nodes.map(n => forestDepth(n.children)));
+
+// Pass 2 – enforce minimum card-edge separation at every level
+function enforceSep(tree: OrgNode[], colIds: Set<string>, map: Map<string, LPos>) {
+  const byLevel = new Map<number, OrgNode[]>();
+  function collect(n: OrgNode, lv: number) {
+    const arr = byLevel.get(lv) ?? [];
+    arr.push(n);
+    byLevel.set(lv, arr);
+    if (!colIds.has(n.pos.posId)) n.children.forEach(c => collect(c, lv + 1));
+  }
+  tree.forEach(r => collect(r, 0));
+  byLevel.forEach(nodes => {
+    nodes.sort((a, b) => (map.get(a.pos.posId)?.cx ?? 0) - (map.get(b.pos.posId)?.cx ?? 0));
+    for (let i = 1; i < nodes.length; i++) {
+      const prevCx = map.get(nodes[i - 1].pos.posId)!.cx;
+      const cur    = map.get(nodes[i].pos.posId)!;
+      const need   = prevCx + CARD_W + MIN_SEP;
+      if (cur.cx < need) shiftSubtree(nodes[i], need - cur.cx, colIds, map);
+    }
+  });
 }
+
+// Pass 3 – re-centre every parent above its (possibly shifted) children
+function recenterParents(node: OrgNode, colIds: Set<string>, map: Map<string, LPos>) {
+  if (!colIds.has(node.pos.posId) && node.children.length) {
+    node.children.forEach(c => recenterParents(c, colIds, map));
+    const cxs   = node.children.map(c => map.get(c.pos.posId)!.cx);
+    const newCx = (Math.min(...cxs) + Math.max(...cxs)) / 2;
+    map.set(node.pos.posId, { ...map.get(node.pos.posId)!, cx: newCx });
+  }
+}
+
+function computeLayout(tree: OrgNode[], colIds: Set<string>): {
+  map: Map<string, LPos>; totalW: number; totalH: number;
+} {
+  const map = new Map<string, LPos>();
+  buildInitialLayout(tree, colIds, map);
+  enforceSep(tree, colIds, map);
+  tree.forEach(r => recenterParents(r, colIds, map));
+  // Normalise: shift leftmost card to PAD_X
+  const vals = Array.from(map.values());
+  const minCx = Math.min(...vals.map(p => p.cx)) - CARD_W / 2;
+  if (minCx < PAD_X) {
+    const shift = PAD_X - minCx;
+    map.forEach((p, k) => map.set(k, { cx: p.cx + shift, y: p.y }));
+  }
+  const maxCx = Math.max(...Array.from(map.values()).map(p => p.cx)) + CARD_W / 2;
+  const maxY  = Math.max(...Array.from(map.values()).map(p => p.y));
+  return { map, totalW: maxCx + PAD_X, totalH: maxY + LEVEL_H + 40 };
+}
+
 
 function isFilled(pos: OrgPos) { return pos.personName.trim() !== ''; }
 function cardAccent(pos: OrgPos) {
@@ -157,73 +227,6 @@ function PosCard({ node, selected, searchMatch, onSelect, onEdit }: {
   );
 }
 
-// ── TreeNode ──────────────────────────────────────────────────────────────────
-function TreeNode({ node, collapsedIds, onToggle, onSelect, onEdit, selectedPosId, searchPosId }: {
-  node: OrgNode; collapsedIds: Set<string>;
-  onToggle: (id: string) => void; onSelect: (n: OrgNode) => void;
-  onEdit: (n: OrgNode, e: React.MouseEvent) => void;
-  selectedPosId: string | null; searchPosId: string | null;
-}) {
-  const { pos, children } = node;
-  const isCollapsed = collapsedIds.has(pos.posId);
-  const hasChildren = children.length > 0;
-  const isOnly      = children.length === 1;
-
-  // Equal-column: every sibling gets the same slot = max(natural slot of all siblings)
-  const childSlotW = (hasChildren && !isCollapsed)
-    ? Math.max(...children.map(c => computeSlot(c, collapsedIds)))
-    : 0;
-
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-      <PosCard node={node} selected={selectedPosId === pos.posId} searchMatch={searchPosId === pos.posId}
-        onSelect={() => onSelect(node)} onEdit={e => onEdit(node, e)}/>
-
-      {hasChildren && (
-        <button onClick={e => { e.stopPropagation(); onToggle(pos.posId); }} title={isCollapsed ? `Expand (${children.length})` : 'Collapse'} style={{
-          width: 22, height: 22, borderRadius: '50%', marginTop: 5, flexShrink: 0,
-          background: isCollapsed ? '#2563eb' : '#fff',
-          border: `1.5px solid ${isCollapsed ? '#2563eb' : '#94a3b8'}`,
-          color: isCollapsed ? '#fff' : '#64748b',
-          cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
-          fontSize: 14, lineHeight: 1, padding: 0, transition: 'all 0.2s',
-          boxShadow: '0 1px 4px rgba(0,0,0,0.12)',
-        }}>{isCollapsed ? '+' : '−'}</button>
-      )}
-
-      {hasChildren && !isCollapsed && (
-        <>
-          <div style={{ width: LINE_W, height: CONN_H / 2, background: LINE_C }}/>
-          <div style={{ display: 'flex', alignItems: 'flex-start' }}>
-            {children.map((child, idx) => {
-              const isFirst = idx === 0;
-              const isLast  = idx === children.length - 1;
-              return (
-                // Each child column is forced to the SAME width (equal columns)
-                // so sibling cards are always evenly spaced.
-                <div key={child.pos.posId} style={{
-                  position: 'relative',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  alignItems: 'center',
-                  width: childSlotW,
-                  flexShrink: 0,
-                  paddingTop: CONN_H / 2,
-                }}>
-                  {/* Horizontal connector bar across siblings */}
-                  {!isOnly && <div style={{ position: 'absolute', top: 0, height: LINE_W, background: LINE_C, left: isFirst ? '50%' : 0, right: isLast ? '50%' : 0 }}/>}
-                  {/* Vertical drop to this child */}
-                  <div style={{ position: 'absolute', top: 0, left: '50%', transform: 'translateX(-50%)', width: LINE_W, height: CONN_H / 2, background: LINE_C }}/>
-                  <TreeNode node={child} collapsedIds={collapsedIds} onToggle={onToggle} onSelect={onSelect} onEdit={onEdit} selectedPosId={selectedPosId} searchPosId={searchPosId}/>
-                </div>
-              );
-            })}
-          </div>
-        </>
-      )}
-    </div>
-  );
-}
 
 // ── Edit Modal ────────────────────────────────────────────────────────────────
 const RS_OPTIONS = [
@@ -610,15 +613,11 @@ export default function OrgChart() {
 
   const fitToScreen = useCallback(() => {
     if (!canvasRef.current || !tree.length) return;
-    const padW = 112; // 56px left + right padding
-    const padH = 108; // 36px top + 72px bottom padding
-    const availW = canvasRef.current.clientWidth  - padW;
-    const availH = canvasRef.current.clientHeight - padH;
-    const tw    = forestTotalW(tree, collapsedIds);
-    const depth = forestDepth(tree);
-    const th    = depth * (CARD_H + CONN_H + 27);
-    const raw   = Math.min(availW / tw, availH / th, 1.0);
-    setZoom(Math.max(0.2, parseFloat((raw * 0.88).toFixed(2))));
+    const availW = canvasRef.current.clientWidth  - 80;
+    const availH = canvasRef.current.clientHeight - 80;
+    const { totalW, totalH } = computeLayout(tree, collapsedIds);
+    const raw = Math.min(availW / totalW, availH / totalH, 1.0);
+    setZoom(Math.max(0.2, parseFloat((raw * 0.90).toFixed(2))));
   }, [tree, collapsedIds]);
 
   // Auto-fit on first tree load
@@ -798,17 +797,90 @@ export default function OrgChart() {
             <div style={{ color:'#94a3b8', fontSize:14 }}>No positions found</div>
           </div>
         ) : (
-          <div style={{ minWidth:'100%', minHeight:'100%', display:'flex', justifyContent:'center', alignItems:'flex-start', padding:'36px 56px 72px', boxSizing:'border-box' }}>
-            <div style={{ transform:`scale(${zoom})`, transformOrigin:'top center', transition:'transform 0.15s ease', display:'inline-block' }}>
-              <div style={{ display:'flex', justifyContent:'center', alignItems:'flex-start' }}>
-                {tree.map(root => (
-                  <TreeNode key={root.pos.posId} node={root} collapsedIds={collapsedIds} onToggle={toggleCollapse}
-                    onSelect={handleSelect} onEdit={handleEdit}
-                    selectedPosId={selectedNode?.pos.posId ?? null} searchPosId={searchMatch?.posId ?? null}/>
-                ))}
+          {(() => {
+            const { map, totalW, totalH } = computeLayout(tree, collapsedIds);
+
+            // Collect all visible nodes
+            const visNodes: OrgNode[] = [];
+            const collectVis = (nodes: OrgNode[]) => {
+              nodes.forEach(n => { visNodes.push(n); if (!collapsedIds.has(n.pos.posId)) collectVis(n.children); });
+            };
+            collectVis(tree);
+
+            // Build parent→children connector groups for SVG
+            const connGroups: { parentId: string; childIds: string[] }[] = [];
+            visNodes.forEach(n => {
+              if (!collapsedIds.has(n.pos.posId) && n.children.length)
+                connGroups.push({ parentId: n.pos.posId, childIds: n.children.map(c => c.pos.posId) });
+            });
+
+            const scaledW = totalW * zoom;
+            const scaledH = totalH * zoom;
+
+            return (
+              <div style={{ minWidth: '100%', minHeight: '100%', display: 'flex', justifyContent: 'center', alignItems: 'flex-start', boxSizing: 'border-box', padding: '24px 24px 48px' }}>
+                <div style={{ transform: `scale(${zoom})`, transformOrigin: 'top center', transition: 'transform 0.15s ease', width: totalW, height: totalH, position: 'relative', flexShrink: 0, marginBottom: scaledH - totalH, marginRight: (scaledW - totalW) / 2, marginLeft: (scaledW - totalW) / 2 }}>
+
+                  {/* SVG connector lines */}
+                  <svg style={{ position: 'absolute', top: 0, left: 0, width: totalW, height: totalH, pointerEvents: 'none', overflow: 'visible' }}>
+                    {connGroups.map(({ parentId, childIds }) => {
+                      const pPos = map.get(parentId);
+                      if (!pPos) return null;
+                      const cPosList = childIds.map(id => map.get(id)).filter((p): p is LPos => !!p).sort((a, b) => a.cx - b.cx);
+                      if (!cPosList.length) return null;
+                      const y1   = pPos.y + CONN_Y;
+                      const y2   = cPosList[0].y;
+                      const midY = Math.round((y1 + y2) / 2);
+                      return (
+                        <g key={parentId}>
+                          <line x1={pPos.cx} y1={y1} x2={pPos.cx} y2={midY} stroke={LINE_C} strokeWidth={LINE_W}/>
+                          {cPosList.length > 1 && (
+                            <line x1={cPosList[0].cx} y1={midY} x2={cPosList[cPosList.length - 1].cx} y2={midY} stroke={LINE_C} strokeWidth={LINE_W}/>
+                          )}
+                          {cPosList.map(cp => (
+                            <line key={cp.cx} x1={cp.cx} y1={midY} x2={cp.cx} y2={y2} stroke={LINE_C} strokeWidth={LINE_W}/>
+                          ))}
+                        </g>
+                      );
+                    })}
+                  </svg>
+
+                  {/* Cards + toggle buttons */}
+                  {visNodes.map(node => {
+                    const pos = map.get(node.pos.posId);
+                    if (!pos) return null;
+                    const isCollapsed = collapsedIds.has(node.pos.posId);
+                    const hasChildren = node.children.length > 0;
+                    return (
+                      <div key={node.pos.posId} style={{ position: 'absolute', left: pos.cx - CARD_W / 2, top: pos.y, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                        <PosCard node={node}
+                          selected={selectedNode?.pos.posId === node.pos.posId}
+                          searchMatch={searchMatch?.posId === node.pos.posId}
+                          onSelect={() => handleSelect(node)}
+                          onEdit={e => handleEdit(node, e)}/>
+                        {hasChildren && (
+                          <button
+                            onClick={e => { e.stopPropagation(); toggleCollapse(node.pos.posId); }}
+                            title={isCollapsed ? `Expand (${node.children.length})` : 'Collapse'}
+                            style={{
+                              width: BTN_H, height: BTN_H, borderRadius: '50%', marginTop: BTN_MT, flexShrink: 0,
+                              background: isCollapsed ? '#2563eb' : '#fff',
+                              border: `1.5px solid ${isCollapsed ? '#2563eb' : '#94a3b8'}`,
+                              color: isCollapsed ? '#fff' : '#64748b',
+                              cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                              fontSize: 14, lineHeight: 1, padding: 0, transition: 'all 0.2s',
+                              boxShadow: '0 1px 4px rgba(0,0,0,0.12)',
+                            }}>
+                            {isCollapsed ? '+' : '−'}
+                          </button>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
-            </div>
-          </div>
+            );
+          })()}
         )}
       </div>
 
