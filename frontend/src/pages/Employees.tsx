@@ -155,16 +155,38 @@ export default function Employees() {
 
   const depts = Array.from(new Set(employees.map(e => e.department)));
   const nationalities = Array.from(new Set(employees.map(e => e.nationality)));
-  const filtered = employees.filter(e => {
-    if (e.status === 'resigned') return false;
-    const t = search.toLowerCase();
-    const matchSearch = !t || e.name.toLowerCase().includes(t) || e.empId.toLowerCase().includes(t) ||
-      (e.companyEmail || '').toLowerCase().includes(t) || e.uaePhone.includes(t);
-    const matchDept   = filterDept === 'all' || e.department === filterDept;
-    const matchStatus = filterStatus === 'all' || e.status === filterStatus;
-    const matchNat    = filterNat === 'all' || e.nationality === filterNat;
-    return matchSearch && matchDept && matchStatus && matchNat;
-  });
+  // Designation sort rank — lower number = higher in list
+  function designationRank(d: string): number {
+    const s = d.toLowerCase();
+    if (s.includes('manager') && !s.includes('deputy') && !s.includes('asst')) return 0;
+    if (s.includes('deputy'))          return 1;
+    if (s.includes('automation'))      return 2;
+    if (s.includes('general') && s.includes('shift')) return 3;
+    if (s.includes('shift'))           return 4;
+    if (s.includes('junior'))          return 5;
+    if (s.includes('team'))            return 6;
+    if (s.includes('it') || s.includes('system')) return 7;
+    return 8;
+  }
+
+  const filtered = employees
+    .filter(e => {
+      if (e.status === 'resigned') return false;
+      const t = search.toLowerCase();
+      const email = e.companyEmail || e.personalEmail || '';
+      const matchSearch = !t || e.name.toLowerCase().includes(t) || e.empId.toLowerCase().includes(t) ||
+        email.toLowerCase().includes(t) || e.uaePhone.includes(t);
+      const matchDept   = filterDept === 'all' || e.department === filterDept;
+      const matchStatus = filterStatus === 'all' || e.status === filterStatus;
+      const matchNat    = filterNat === 'all' || e.nationality === filterNat;
+      return matchSearch && matchDept && matchStatus && matchNat;
+    })
+    .sort((a, b) => {
+      const rankDiff = designationRank(a.designation) - designationRank(b.designation);
+      if (rankDiff !== 0) return rankDiff;
+      // Same designation level → sort by experience descending
+      return (b.yearsOfExperience ?? 0) - (a.yearsOfExperience ?? 0);
+    });
 
   const activeEmployees = employees.filter(e => e.status === 'active' || e.status === 'on_leave');
 
@@ -359,15 +381,31 @@ export default function Employees() {
                 </tr>
               </thead>
               <tbody>
-                {filtered.map(e => (
+                {filtered.map(e => {
+                  const displayEmail = e.companyEmail || e.personalEmail || '';
+                  const isPersonalEmail = !e.companyEmail && !!e.personalEmail;
+                  return (
                   <tr key={e.id} style={{ cursor: 'pointer' }} onClick={() => navigate(`/employees/${e.id}`)}>
                     <td style={{ fontFamily: 'monospace', color: '#60a5fa', fontSize: 11 }}>{e.empId}</td>
-                    <td style={{ fontWeight: 600, color: '#e2e8f0' }}>{e.name}</td>
+                    <td style={{ fontWeight: 600, color: '#e2e8f0' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        {e.photo ? (
+                          <img src={e.photo} alt={e.name} style={{ width: 28, height: 28, borderRadius: '50%', objectFit: 'cover', flexShrink: 0, border: '1px solid rgba(59,130,246,0.4)' }} />
+                        ) : (
+                          <div style={{ width: 28, height: 28, borderRadius: '50%', background: 'linear-gradient(135deg,#3b82f6,#8b5cf6)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontWeight: 700, color: 'white', flexShrink: 0 }}>
+                            {e.name.split(' ').map((n: string) => n[0]).join('').slice(0, 2)}
+                          </div>
+                        )}
+                        {e.name}
+                      </div>
+                    </td>
                     <td style={{ fontSize: 11, color: '#94a3b8' }}>{e.department}</td>
                     <td><span className="badge badge-blue" style={{ fontSize: 10 }}>{e.designation}</span></td>
                     <td style={{ fontSize: 11, color: '#64748b' }}>{e.reportingManager}</td>
                     <td style={{ fontSize: 11, color: '#64748b' }}>{e.uaePhone}</td>
-                    <td style={{ fontSize: 11, color: '#64748b' }}>{e.companyEmail}</td>
+                    <td style={{ fontSize: 11, color: isPersonalEmail ? '#f59e0b' : '#64748b' }} title={isPersonalEmail ? 'Personal email (no company email)' : ''}>
+                      {displayEmail || '—'}
+                    </td>
                     <td style={{ fontSize: 11, color: '#64748b' }}>{e.joiningDate}</td>
                     <td style={{ fontSize: 11, color: '#94a3b8' }}>{e.yearsOfExperience} yrs</td>
                     <td>
@@ -391,7 +429,8 @@ export default function Employees() {
                       </div>
                     </td>
                   </tr>
-                ))}
+                  );
+                })}
                 {filtered.length === 0 && (
                   <tr><td colSpan={11} style={{ textAlign: 'center', color: '#475569', padding: 32, fontSize: 13 }}>No employees found</td></tr>
                 )}
