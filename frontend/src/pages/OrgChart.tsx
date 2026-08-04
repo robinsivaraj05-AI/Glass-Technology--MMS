@@ -55,20 +55,26 @@ function collectParentPosIds(nodes: OrgNode[]): string[] {
 }
 
 // ── Card constants ────────────────────────────────────────────────────────────
-const CARD_W  = 160;
+const CARD_W  = 155;
 const CONN_H  = 28;
-const GAP     = 8;
-const CARD_H  = 88; // estimated rendered card height for auto-fit
-const LINE_C  = 'rgba(59,120,210,0.35)';
+const GAP     = 10;   // half-gap on each side of a leaf card
+const CARD_H  = 90;   // estimated rendered card height for auto-fit
+const LINE_C  = 'rgba(59,120,210,0.40)';
 const LINE_W  = 2;
 
-// ── Tree dimension helpers (for auto-fit zoom) ────────────────────────────────
-function subtreeW(node: OrgNode): number {
-  if (!node.children.length) return CARD_W + 2 * GAP;
-  return node.children.reduce((s, c) => s + subtreeW(c), 0);
+// ── Equal-column slot computation ─────────────────────────────────────────────
+// All siblings of the same parent get the same slot width = max(sibling natural widths).
+// This ensures General E&I, Automation, and IT appear equally spaced.
+function computeSlot(node: OrgNode, collapsedIds: Set<string>): number {
+  if (collapsedIds.has(node.pos.posId) || !node.children.length) {
+    return CARD_W + 2 * GAP;
+  }
+  const childSlots = node.children.map(c => computeSlot(c, collapsedIds));
+  const maxChild   = Math.max(...childSlots);
+  return maxChild * node.children.length;  // equal columns
 }
-function forestW(nodes: OrgNode[]): number {
-  return nodes.reduce((s, n) => s + subtreeW(n), 0);
+function forestTotalW(nodes: OrgNode[], collapsedIds: Set<string>): number {
+  return nodes.reduce((s, n) => s + computeSlot(n, collapsedIds), 0);
 }
 function forestDepth(nodes: OrgNode[]): number {
   if (!nodes.length) return 0;
@@ -163,6 +169,11 @@ function TreeNode({ node, collapsedIds, onToggle, onSelect, onEdit, selectedPosI
   const hasChildren = children.length > 0;
   const isOnly      = children.length === 1;
 
+  // Equal-column: every sibling gets the same slot = max(natural slot of all siblings)
+  const childSlotW = (hasChildren && !isCollapsed)
+    ? Math.max(...children.map(c => computeSlot(c, collapsedIds)))
+    : 0;
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
       <PosCard node={node} selected={selectedPosId === pos.posId} searchMatch={searchPosId === pos.posId}
@@ -188,8 +199,20 @@ function TreeNode({ node, collapsedIds, onToggle, onSelect, onEdit, selectedPosI
               const isFirst = idx === 0;
               const isLast  = idx === children.length - 1;
               return (
-                <div key={child.pos.posId} style={{ position: 'relative', display: 'flex', flexDirection: 'column', alignItems: 'center', paddingLeft: GAP, paddingRight: GAP, paddingTop: CONN_H / 2 }}>
+                // Each child column is forced to the SAME width (equal columns)
+                // so sibling cards are always evenly spaced.
+                <div key={child.pos.posId} style={{
+                  position: 'relative',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  width: childSlotW,
+                  flexShrink: 0,
+                  paddingTop: CONN_H / 2,
+                }}>
+                  {/* Horizontal connector bar across siblings */}
                   {!isOnly && <div style={{ position: 'absolute', top: 0, height: LINE_W, background: LINE_C, left: isFirst ? '50%' : 0, right: isLast ? '50%' : 0 }}/>}
+                  {/* Vertical drop to this child */}
                   <div style={{ position: 'absolute', top: 0, left: '50%', transform: 'translateX(-50%)', width: LINE_W, height: CONN_H / 2, background: LINE_C }}/>
                   <TreeNode node={child} collapsedIds={collapsedIds} onToggle={onToggle} onSelect={onSelect} onEdit={onEdit} selectedPosId={selectedPosId} searchPosId={searchPosId}/>
                 </div>
@@ -591,13 +614,12 @@ export default function OrgChart() {
     const padH = 108; // 36px top + 72px bottom padding
     const availW = canvasRef.current.clientWidth  - padW;
     const availH = canvasRef.current.clientHeight - padH;
-    const tw = forestW(tree);
+    const tw    = forestTotalW(tree, collapsedIds);
     const depth = forestDepth(tree);
-    // Each level: card + connector + toggle button + margin
-    const th = depth * (CARD_H + CONN_H + 27);
-    const raw = Math.min(availW / tw, availH / th, 1.0);
-    setZoom(Math.max(0.25, parseFloat((raw * 0.88).toFixed(2))));
-  }, [tree]);
+    const th    = depth * (CARD_H + CONN_H + 27);
+    const raw   = Math.min(availW / tw, availH / th, 1.0);
+    setZoom(Math.max(0.2, parseFloat((raw * 0.88).toFixed(2))));
+  }, [tree, collapsedIds]);
 
   // Auto-fit on first tree load
   useEffect(() => {
