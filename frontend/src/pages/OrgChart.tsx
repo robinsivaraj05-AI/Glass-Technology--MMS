@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback, useEffect } from 'react';
+import { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   ZoomIn, ZoomOut, X, Phone, Mail, MapPin, ExternalLink, Search,
@@ -55,11 +55,25 @@ function collectParentPosIds(nodes: OrgNode[]): string[] {
 }
 
 // ── Card constants ────────────────────────────────────────────────────────────
-const CARD_W = 210;
-const CONN_H = 40;
-const GAP    = 14;
-const LINE_C = 'rgba(59,120,210,0.35)';
-const LINE_W = 2;
+const CARD_W  = 160;
+const CONN_H  = 28;
+const GAP     = 8;
+const CARD_H  = 88; // estimated rendered card height for auto-fit
+const LINE_C  = 'rgba(59,120,210,0.35)';
+const LINE_W  = 2;
+
+// ── Tree dimension helpers (for auto-fit zoom) ────────────────────────────────
+function subtreeW(node: OrgNode): number {
+  if (!node.children.length) return CARD_W + 2 * GAP;
+  return node.children.reduce((s, c) => s + subtreeW(c), 0);
+}
+function forestW(nodes: OrgNode[]): number {
+  return nodes.reduce((s, n) => s + subtreeW(n), 0);
+}
+function forestDepth(nodes: OrgNode[]): number {
+  if (!nodes.length) return 0;
+  return 1 + Math.max(...nodes.map(n => forestDepth(n.children)));
+}
 
 function isFilled(pos: OrgPos) { return pos.personName.trim() !== ''; }
 function cardAccent(pos: OrgPos) {
@@ -544,6 +558,7 @@ export default function OrgChart() {
   const [addingUnder,  setAddingUnder]  = useState<{ parentPosId: string; sortOrder: number } | null>(null);
   const [resetConfirm, setResetConfirm] = useState(false);
   const [resetting,    setResetting]    = useState(false);
+  const canvasRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     (async () => {
@@ -569,6 +584,26 @@ export default function OrgChart() {
   }, []);
   const expandAll   = useCallback(() => setCollapsedIds(new Set()), []);
   const collapseAll = useCallback(() => setCollapsedIds(new Set(allParentIds)), [allParentIds]);
+
+  const fitToScreen = useCallback(() => {
+    if (!canvasRef.current || !tree.length) return;
+    const padW = 112; // 56px left + right padding
+    const padH = 108; // 36px top + 72px bottom padding
+    const availW = canvasRef.current.clientWidth  - padW;
+    const availH = canvasRef.current.clientHeight - padH;
+    const tw = forestW(tree);
+    const depth = forestDepth(tree);
+    // Each level: card + connector + toggle button + margin
+    const th = depth * (CARD_H + CONN_H + 27);
+    const raw = Math.min(availW / tw, availH / th, 1.0);
+    setZoom(Math.max(0.25, parseFloat((raw * 0.88).toFixed(2))));
+  }, [tree]);
+
+  // Auto-fit on first tree load
+  useEffect(() => {
+    if (tree.length > 0) fitToScreen();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tree.length]);
 
   const handleSelect = useCallback((node: OrgNode) => {
     setSelectedNode(prev => prev?.pos.posId === node.pos.posId ? null : node);
@@ -657,16 +692,19 @@ export default function OrgChart() {
         </div>
         {divider}
 
-        <button style={ctrlBtn} onClick={expandAll}><Maximize2 size={12}/> Expand All</button>
+        <button style={ctrlBtn} onClick={expandAll}><Plus size={12}/> Expand All</button>
         <button style={ctrlBtn} onClick={collapseAll}><Minimize2 size={12}/> Collapse All</button>
         {divider}
 
         {/* Zoom */}
         <div style={{ display:'flex', alignItems:'center', gap:4 }}>
-          <button style={{ ...ctrlBtn, padding:'0 8px' }} onClick={() => setZoom(z => Math.max(0.3,+(z-0.1).toFixed(1)))}><ZoomOut size={13}/></button>
+          <button style={{ ...ctrlBtn, padding:'0 8px' }} onClick={() => setZoom(z => Math.max(0.2,+(z-0.05).toFixed(2)))}><ZoomOut size={13}/></button>
           <span style={{ fontSize:12, color:'#64748b', minWidth:38, textAlign:'center', fontWeight:600 }}>{Math.round(zoom*100)}%</span>
-          <button style={{ ...ctrlBtn, padding:'0 8px' }} onClick={() => setZoom(z => Math.min(2.0,+(z+0.1).toFixed(1)))}><ZoomIn size={13}/></button>
-          <button style={{ ...ctrlBtn, padding:'0 10px' }} onClick={() => setZoom(1)}>Reset</button>
+          <button style={{ ...ctrlBtn, padding:'0 8px' }} onClick={() => setZoom(z => Math.min(2.0,+(z+0.05).toFixed(2)))}><ZoomIn size={13}/></button>
+          <button style={{ ...ctrlBtn, padding:'0 10px', background:'#eff6ff', border:'1px solid #bfdbfe', color:'#2563eb', fontWeight:600 }} onClick={fitToScreen}>
+            <Maximize2 size={12}/> Fit
+          </button>
+          <button style={{ ...ctrlBtn, padding:'0 10px' }} onClick={() => setZoom(1)}>100%</button>
         </div>
         {divider}
 
@@ -729,7 +767,8 @@ export default function OrgChart() {
       </div>
 
       {/* ── Chart canvas ─────────────────────────────────────────────────── */}
-      <div style={{ flex:1, overflow:'auto', background:'#ffffff', borderRadius:12, border:'1px solid #e2e8f0', boxShadow:'0 1px 4px rgba(0,0,0,0.05)', display:'flex', justifyContent:'flex-start' }}
+      <div ref={canvasRef}
+        style={{ flex:1, overflow:'auto', background:'#f8fafc', borderRadius:12, border:'1px solid #e2e8f0', boxShadow:'0 1px 4px rgba(0,0,0,0.05)' }}
         onClick={e => { if (e.target === e.currentTarget) setSelectedNode(null); }}>
         {tree.length === 0 ? (
           <div style={{ display:'flex', alignItems:'center', justifyContent:'center', width:'100%', height:'100%', flexDirection:'column', gap:10 }}>
@@ -738,8 +777,8 @@ export default function OrgChart() {
           </div>
         ) : (
           <div style={{ minWidth:'100%', minHeight:'100%', display:'flex', justifyContent:'center', alignItems:'flex-start', padding:'36px 56px 72px', boxSizing:'border-box' }}>
-            <div style={{ transform:`scale(${zoom})`, transformOrigin:'top center', transition:'transform 0.2s ease', display:'inline-block' }}>
-              <div style={{ display:'flex', gap:36, justifyContent:'center', alignItems:'flex-start' }}>
+            <div style={{ transform:`scale(${zoom})`, transformOrigin:'top center', transition:'transform 0.15s ease', display:'inline-block' }}>
+              <div style={{ display:'flex', justifyContent:'center', alignItems:'flex-start' }}>
                 {tree.map(root => (
                   <TreeNode key={root.pos.posId} node={root} collapsedIds={collapsedIds} onToggle={toggleCollapse}
                     onSelect={handleSelect} onEdit={handleEdit}
