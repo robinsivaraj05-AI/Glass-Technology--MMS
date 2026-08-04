@@ -51,6 +51,29 @@ function certStatus(expiry: string): 'valid' | 'expiring' | 'expired' | 'none' {
 function daysDiff(date: string) {
   return Math.ceil((new Date(date).getTime() - Date.now()) / 86400000);
 }
+function tenure(joinDate: string, endDate?: string): string {
+  const from = new Date(joinDate);
+  const to   = endDate ? new Date(endDate) : new Date();
+  if (isNaN(from.getTime())) return '—';
+  let years  = to.getFullYear() - from.getFullYear();
+  let months = to.getMonth() - from.getMonth();
+  if (months < 0) { years--; months += 12; }
+  if (years === 0) return `${months}m`;
+  if (months === 0) return `${years}y`;
+  return `${years}y ${months}m`;
+}
+function totalExp(prevYears: number, joinDate: string, endDate?: string): string {
+  const from = new Date(joinDate);
+  const to   = endDate ? new Date(endDate) : new Date();
+  if (isNaN(from.getTime())) return `${prevYears}y`;
+  let tenureY = to.getFullYear() - from.getFullYear();
+  let tenureM = to.getMonth() - from.getMonth();
+  if (tenureM < 0) { tenureY--; tenureM += 12; }
+  const totalM = prevYears * 12 + tenureY * 12 + tenureM;
+  const y = Math.floor(totalM / 12);
+  const m = totalM % 12;
+  return m === 0 ? `${y}y` : `${y}y ${m}m`;
+}
 
 const lbl: React.CSSProperties = { fontSize: 11, color: '#64748b', display: 'block', marginBottom: 4 };
 const inp: React.CSSProperties = { width: '100%', padding: '8px 10px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 7, color: '#f1f5f9', fontSize: 12, outline: 'none', boxSizing: 'border-box', colorScheme: 'dark' };
@@ -284,7 +307,7 @@ export default function Employees() {
       body: filtered.map(e => [
         e.empId, e.name, e.department, e.designation, e.nationality,
         e.uaePhone, e.companyEmail, e.joiningDate,
-        `${e.yearsOfExperience}y`, STATUS_LABEL[e.status] ?? e.status,
+        `${totalExp(e.yearsOfExperience, e.joiningDate)} (${tenure(e.joiningDate)})`, STATUS_LABEL[e.status] ?? e.status,
       ]),
       styles: { fontSize: 7.5 },
       headStyles: { fillColor: [59, 130, 246] },
@@ -407,7 +430,10 @@ export default function Employees() {
                       {displayEmail || '—'}
                     </td>
                     <td style={{ fontSize: 11, color: '#64748b' }}>{e.joiningDate}</td>
-                    <td style={{ fontSize: 11, color: '#94a3b8' }}>{e.yearsOfExperience} yrs</td>
+                    <td style={{ fontSize: 11, color: '#94a3b8', whiteSpace: 'nowrap' }}>
+                      {totalExp(e.yearsOfExperience, e.joiningDate)}{' '}
+                      <span style={{ color: '#64748b', fontSize: 10 }}>({tenure(e.joiningDate)})</span>
+                    </td>
                     <td>
                       <span style={{ fontSize: 10, fontWeight: 600, color: STATUS_COLOR[e.status], background: STATUS_COLOR[e.status] + '20', padding: '2px 8px', borderRadius: 20 }}>
                         {STATUS_LABEL[e.status]}
@@ -474,7 +500,10 @@ export default function Employees() {
                       <td><span className="badge badge-gray" style={{ fontSize: 10 }}>{e.designation}</span></td>
                       <td style={{ fontSize: 11, color: '#64748b' }}>{e.joiningDate}</td>
                       <td style={{ fontSize: 11, color: '#64748b' }}>{res.lastWorkingDate}</td>
-                      <td style={{ fontSize: 11, color: '#94a3b8' }}>{svc} yrs</td>
+                      <td style={{ fontSize: 11, color: '#94a3b8', whiteSpace: 'nowrap' }}>
+                        {totalExp(e.yearsOfExperience, e.joiningDate, res.lastWorkingDate)}{' '}
+                        <span style={{ color: '#64748b', fontSize: 10 }}>({tenure(e.joiningDate, res.lastWorkingDate)})</span>
+                      </td>
                       <td style={{ fontSize: 11, color: '#64748b' }}>{e.reportingManager}</td>
                       <td>
                         <span style={{ fontSize: 10, color: res.exitInterviewDate ? '#22c55e' : '#f59e0b', fontWeight: 600 }}>

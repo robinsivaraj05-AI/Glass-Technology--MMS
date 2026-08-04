@@ -131,6 +131,7 @@ export interface Project {
   startDate: string;
   endDate: string;
   projectManager: string;
+  teamMembers: string[];
   description: string;
 }
 
