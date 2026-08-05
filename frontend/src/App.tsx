@@ -28,6 +28,7 @@ import ContractMaster from './pages/ContractMaster';
 import OutsourceEntry from './pages/OutsourceEntry';
 import OutsourceReport from './pages/OutsourceReport';
 import EquipmentMaster from './pages/EquipmentMaster';
+import Training from './pages/Training';
 import EquipmentEntry from './pages/EquipmentEntry';
 import AccessoriesEntry from './pages/AccessoriesEntry';
 import RentalReport from './pages/RentalReport';
@@ -84,7 +85,7 @@ export default function App() {
             <Route path="/attendance" element={<Attendance />} />
             {/* Manpower */}
             <Route path="/manpower" element={<Manpower />} />
-            <Route path="/training" element={<Placeholder title="Training Management" description="Training calendar, skill development, certificates, training history, and competency matrix management." />} />
+            <Route path="/training" element={<Training />} />
             {/* Finance */}
             <Route path="/budget" element={<Placeholder title="Budget Management" description="Annual and monthly budget planning, maintenance cost tracking, utility costs, variance analysis, and budget approvals." />} />
             <Route path="/vendors" element={<Placeholder title="Vendor Management" description="Vendor details, AMC contracts, service history, performance ratings, and invoice management." />} />
