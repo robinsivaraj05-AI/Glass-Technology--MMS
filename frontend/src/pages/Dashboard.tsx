@@ -1,4 +1,4 @@
-﻿import { useState } from 'react';
+﻿import { useState, useEffect } from 'react';
 import {
   AreaChart, Area, BarChart, Bar, LineChart, Line, PieChart, Pie, Cell,
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend
@@ -6,12 +6,15 @@ import {
 import {
   AlertTriangle, CheckCircle, Clock, Zap, TrendingUp, TrendingDown,
   Users, Package, Activity, Wrench, DollarSign, BarChart3,
-  Calendar, Bell, ThermometerSun, Wind, Gauge
+  Calendar, Bell, ThermometerSun, Wind, Gauge, UserCheck, UserClock,
+  UserX, Briefcase, Building2
 } from 'lucide-react';
 import {
   mockKPIs, mockBreakdowns, mockPMSchedules, mockMachines, mockEnergyData,
-  monthlyBreakdowns, pmComplianceData, topBreakdownMachines, departmentEnergyData, shiftInfo
+  monthlyBreakdowns, pmComplianceData, topBreakdownMachines, departmentEnergyData, shiftInfo,
+  mockProjects,
 } from '../data/mockData';
+import type { Project } from '../types';
 import { useAuth } from '../context/AuthContext';
 
 function KPICard({ title, value, unit, icon, color, trend, trendVal, subtitle }: any) {
@@ -83,6 +86,37 @@ export default function Dashboard() {
   const criticalMachines = mockMachines.filter(m => m.status === 'breakdown').length;
   const runningMachines = mockMachines.filter(m => m.status === 'running').length;
 
+  // Org position stats
+  const [orgStats, setOrgStats] = useState({ total: 0, joined: 0, readyToJoin: 0, hrProcess: 0, pending: 0 });
+  useEffect(() => {
+    fetch('/api/org-positions')
+      .then(r => r.json())
+      .then((positions: any[]) => {
+        const total       = positions.length;
+        const joined      = positions.filter(p => p.recruitmentStatus === 'joined').length;
+        const readyToJoin = positions.filter(p => p.recruitmentStatus === 'ready_to_join').length;
+        const hrProcess   = positions.filter(p => p.recruitmentStatus === 'hr_process').length;
+        const pending     = positions.filter(p => p.recruitmentStatus === 'pending').length;
+        setOrgStats({ total, joined, readyToJoin, hrProcess, pending });
+      })
+      .catch(() => {});
+  }, []);
+
+  // Project financial stats (live from localStorage, fall back to mock)
+  const projects: Project[] = (() => {
+    try { const s = localStorage.getItem('mms_projects'); return s ? JSON.parse(s) : mockProjects; }
+    catch { return mockProjects; }
+  })();
+  const totalBudget   = projects.reduce((a, p) => a + p.budget, 0);
+  const totalSpent    = projects.reduce((a, p) => a + p.spent, 0);
+  const totalRemaining = totalBudget - totalSpent;
+  const budgetUsedPct = totalBudget ? Math.round((totalSpent / totalBudget) * 100) : 0;
+  const projByType = ['electrical','automation','energy-saving','capex','opex'].map(t => ({
+    name: t.charAt(0).toUpperCase() + t.slice(1),
+    budget: projects.filter(p => p.type === t).reduce((a, p) => a + p.budget, 0) / 100000,
+    spent:  projects.filter(p => p.type === t).reduce((a, p) => a + p.spent,  0) / 100000,
+  })).filter(t => t.budget > 0);
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
       {/* Welcome Banner */}
@@ -145,6 +179,93 @@ export default function Dashboard() {
             </div>
           </div>
         ))}
+      </div>
+
+      {/* Staffing / Position Status */}
+      <div>
+        <div style={{ fontSize: 13, fontWeight: 600, color: '#94a3b8', marginBottom: 10, display: 'flex', alignItems: 'center', gap: 6 }}>
+          <Users size={14} /> Staffing Overview
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 12 }}>
+          {[
+            { label: 'Total Positions', value: orgStats.total, pct: null,        icon: <Building2 size={18} />, color: '#3b82f6', bg: 'rgba(59,130,246,0.1)',  border: 'rgba(59,130,246,0.25)' },
+            { label: 'Joined',          value: orgStats.joined,      pct: orgStats.total ? Math.round(orgStats.joined / orgStats.total * 100) : 0,      icon: <UserCheck size={18} />,  color: '#22c55e', bg: 'rgba(34,197,94,0.1)',   border: 'rgba(34,197,94,0.25)'  },
+            { label: 'Ready to Join',   value: orgStats.readyToJoin, pct: orgStats.total ? Math.round(orgStats.readyToJoin / orgStats.total * 100) : 0,  icon: <UserClock size={18} />,  color: '#06b6d4', bg: 'rgba(6,182,212,0.1)',   border: 'rgba(6,182,212,0.25)'  },
+            { label: 'HR Process',      value: orgStats.hrProcess,   pct: orgStats.total ? Math.round(orgStats.hrProcess / orgStats.total * 100) : 0,    icon: <Users size={18} />,      color: '#8b5cf6', bg: 'rgba(139,92,246,0.1)', border: 'rgba(139,92,246,0.25)' },
+            { label: 'Pending',         value: orgStats.pending,     pct: orgStats.total ? Math.round(orgStats.pending / orgStats.total * 100) : 0,      icon: <UserX size={18} />,      color: '#f59e0b', bg: 'rgba(245,158,11,0.1)', border: 'rgba(245,158,11,0.25)' },
+          ].map(s => (
+            <div key={s.label} className="glass-card" style={{ padding: '14px 16px', background: s.bg, border: `1px solid ${s.border}`, borderRadius: 12 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
+                <div style={{ color: s.color, opacity: 0.8 }}>{s.icon}</div>
+                {s.pct !== null && (
+                  <span style={{ fontSize: 10, fontWeight: 700, color: s.color, background: s.border, padding: '2px 6px', borderRadius: 10 }}>{s.pct}%</span>
+                )}
+              </div>
+              <div style={{ fontSize: 28, fontWeight: 700, color: '#f1f5f9', lineHeight: 1 }}>{s.value}</div>
+              <div style={{ fontSize: 11, color: s.color, marginTop: 4 }}>{s.label}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Project Financial Summary */}
+      <div>
+        <div style={{ fontSize: 13, fontWeight: 600, color: '#94a3b8', marginBottom: 10, display: 'flex', alignItems: 'center', gap: 6 }}>
+          <Briefcase size={14} /> Project Financials
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 2fr', gap: 12 }}>
+          {/* Budget cards */}
+          {[
+            { label: 'Total Budget',    value: `₹${(totalBudget / 100000).toFixed(1)}L`,    icon: <DollarSign size={16} />, color: '#8b5cf6', bg: 'rgba(139,92,246,0.1)', border: 'rgba(139,92,246,0.25)', sub: `${projects.length} projects` },
+            { label: 'Total Spent',     value: `₹${(totalSpent / 100000).toFixed(1)}L`,     icon: <TrendingUp size={16} />, color: '#ef4444', bg: 'rgba(239,68,68,0.1)',  border: 'rgba(239,68,68,0.25)',  sub: `${budgetUsedPct}% utilised` },
+            { label: 'Remaining',       value: `₹${(totalRemaining / 100000).toFixed(1)}L`, icon: <CheckCircle size={16} />, color: '#22c55e', bg: 'rgba(34,197,94,0.1)',  border: 'rgba(34,197,94,0.25)',  sub: `${100 - budgetUsedPct}% available` },
+          ].map(c => (
+            <div key={c.label} className="glass-card" style={{ padding: '14px 16px', background: c.bg, border: `1px solid ${c.border}`, borderRadius: 12 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                <div style={{ color: c.color }}>{c.icon}</div>
+                <span style={{ fontSize: 11, color: '#64748b', fontWeight: 600 }}>{c.label}</span>
+              </div>
+              <div style={{ fontSize: 24, fontWeight: 700, color: '#f1f5f9' }}>{c.value}</div>
+              <div style={{ fontSize: 10, color: c.color, marginTop: 4 }}>{c.sub}</div>
+              <div className="progress-bar" style={{ marginTop: 8, height: 4 }}>
+                <div className="progress-fill" style={{
+                  width: c.label === 'Total Spent' ? `${budgetUsedPct}%` : c.label === 'Remaining' ? `${100 - budgetUsedPct}%` : '100%',
+                  background: c.color,
+                }} />
+              </div>
+            </div>
+          ))}
+
+          {/* Budget vs Spent by type chart */}
+          <div className="glass-card" style={{ padding: '14px 16px', borderRadius: 12 }}>
+            <div style={{ fontSize: 12, fontWeight: 600, color: '#94a3b8', marginBottom: 10 }}>Budget vs Spent by Type (₹L)</div>
+            <ResponsiveContainer width="100%" height={100}>
+              <BarChart data={projByType} barGap={3} margin={{ left: -20, right: 0, top: 0, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" />
+                <XAxis dataKey="name" tick={{ fontSize: 9, fill: '#64748b' }} axisLine={false} tickLine={false} />
+                <YAxis tick={{ fontSize: 9, fill: '#64748b' }} axisLine={false} tickLine={false} tickFormatter={v => `${v}L`} />
+                <Tooltip formatter={(v: any) => [`₹${Number(v).toFixed(1)}L`]} contentStyle={{ background: '#0d0d1a', border: '1px solid rgba(59,130,246,0.3)', borderRadius: 6, fontSize: 11 }} />
+                <Bar dataKey="budget" name="Budget" fill="rgba(139,92,246,0.5)" radius={[3,3,0,0]} />
+                <Bar dataKey="spent"  name="Spent"  fill="#3b82f6"              radius={[3,3,0,0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+
+        {/* Project status row */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 10, marginTop: 10 }}>
+          {[
+            { label: 'Planning',    count: projects.filter(p => p.status === 'planning').length,    color: '#3b82f6', bg: 'rgba(59,130,246,0.08)'  },
+            { label: 'In Progress', count: projects.filter(p => p.status === 'in-progress').length, color: '#f59e0b', bg: 'rgba(245,158,11,0.08)'  },
+            { label: 'On Hold',     count: projects.filter(p => p.status === 'on-hold').length,     color: '#64748b', bg: 'rgba(100,116,139,0.08)' },
+            { label: 'Completed',   count: projects.filter(p => p.status === 'completed').length,   color: '#22c55e', bg: 'rgba(34,197,94,0.08)'   },
+          ].map(s => (
+            <div key={s.label} className="glass-card" style={{ padding: '10px 14px', background: s.bg, borderRadius: 10, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <span style={{ fontSize: 12, color: '#64748b' }}>{s.label}</span>
+              <span style={{ fontSize: 20, fontWeight: 700, color: s.color }}>{s.count}</span>
+            </div>
+          ))}
+        </div>
       </div>
 
       {/* Tab Navigation */}
