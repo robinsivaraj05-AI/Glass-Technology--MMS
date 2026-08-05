@@ -5,7 +5,7 @@ import app from './app';
 
 dns.setServers(['8.8.8.8', '8.8.4.4']);
 
-const PORT = process.env.PORT || 5000;
+const PORT = process.env.PORT || 5001;
 const MONGO_URI = process.env.MONGO_URI || 'mongodb://localhost:27017/mms_db';
 
 async function start() {

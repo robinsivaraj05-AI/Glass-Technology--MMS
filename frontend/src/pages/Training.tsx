@@ -24,6 +24,7 @@ type FlatRecord = TrainingRecord & { emp: FullEmployee };
 export default function Training() {
   const navigate   = useNavigate();
   const { employees, updateEmployee } = useEmployees();
+  const activeEmployees = employees.filter(e => e.status !== 'resigned');
 
   const [search, setSearch]           = useState('');
   const [filterType, setFilterType]   = useState('all');
@@ -215,7 +216,7 @@ export default function Training() {
         </div>
         <select value={filterEmp} onChange={e => setFilterEmp(e.target.value)} className="input-dark" style={{ width: 170 }}>
           <option value="all">All Employees</option>
-          {employees.map(e => <option key={e.id} value={e.id}>{e.name}</option>)}
+          {activeEmployees.map(e => <option key={e.id} value={e.id}>{e.name}</option>)}
         </select>
         <select value={filterType} onChange={e => setFilterType(e.target.value)} className="input-dark" style={{ width: 130 }}>
           <option value="all">All Types</option>
@@ -372,7 +373,7 @@ export default function Training() {
                 <label style={{ fontSize: 12, color: '#94a3b8', display: 'block', marginBottom: 5 }}>Employee *</label>
                 <select className="input-dark" value={form.empId} onChange={e => setF('empId', e.target.value)}>
                   <option value="">— Select Employee —</option>
-                  {employees.map(e => <option key={e.id} value={e.id}>{e.name} — {e.designation}</option>)}
+                  {activeEmployees.map(e => <option key={e.id} value={e.id}>{e.name} — {e.designation}</option>)}
                 </select>
               </div>
               <div>

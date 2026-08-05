@@ -76,6 +76,7 @@ function ProjectCard({ p, onView, onDelete }: { p: Project; onView: (p: Project)
 
 export default function Projects() {
   const { employees } = useEmployees();
+  const activeEmployees = employees.filter(e => e.status !== 'resigned');
   const [projects, setProjects] = useState<Project[]>(() => {
     try {
       const stored = localStorage.getItem('mms_projects');
@@ -361,7 +362,7 @@ export default function Projects() {
                 <label style={{ fontSize: 12, color: '#94a3b8', display: 'block', marginBottom: 5 }}>Project Manager</label>
                 <select className="input-dark" value={form.projectManager} onChange={e => setField('projectManager', e.target.value)}>
                   <option value="">— Select Employee —</option>
-                  {employees.map(e => (
+                  {activeEmployees.map(e => (
                     <option key={e.id} value={e.name}>{e.name}{e.designation ? ` — ${e.designation}` : ''}</option>
                   ))}
                 </select>
@@ -417,7 +418,7 @@ export default function Projects() {
                   }}
                 >
                   <option value="">— Add member —</option>
-                  {employees
+                  {activeEmployees
                     .filter(e => e.name !== form.projectManager && !form.teamMembers.includes(e.name))
                     .map(e => <option key={e.id} value={e.name}>{e.name}{e.designation ? ` — ${e.designation}` : ''}</option>)
                   }
