@@ -6,7 +6,7 @@ import {
 import {
   AlertTriangle, CheckCircle, Clock, Zap, TrendingUp, TrendingDown,
   Users, Package, Activity, Wrench, DollarSign, BarChart3,
-  Calendar, Bell, ThermometerSun, Wind, Gauge, UserCheck, UserClock,
+  Calendar, Bell, ThermometerSun, Wind, Gauge, UserCheck, UserCog,
   UserX, Briefcase, Building2
 } from 'lucide-react';
 import {
@@ -190,7 +190,7 @@ export default function Dashboard() {
           {[
             { label: 'Total Positions', value: orgStats.total, pct: null,        icon: <Building2 size={18} />, color: '#3b82f6', bg: 'rgba(59,130,246,0.1)',  border: 'rgba(59,130,246,0.25)' },
             { label: 'Joined',          value: orgStats.joined,      pct: orgStats.total ? Math.round(orgStats.joined / orgStats.total * 100) : 0,      icon: <UserCheck size={18} />,  color: '#22c55e', bg: 'rgba(34,197,94,0.1)',   border: 'rgba(34,197,94,0.25)'  },
-            { label: 'Ready to Join',   value: orgStats.readyToJoin, pct: orgStats.total ? Math.round(orgStats.readyToJoin / orgStats.total * 100) : 0,  icon: <UserClock size={18} />,  color: '#06b6d4', bg: 'rgba(6,182,212,0.1)',   border: 'rgba(6,182,212,0.25)'  },
+            { label: 'Ready to Join',   value: orgStats.readyToJoin, pct: orgStats.total ? Math.round(orgStats.readyToJoin / orgStats.total * 100) : 0,  icon: <UserCog size={18} />,    color: '#06b6d4', bg: 'rgba(6,182,212,0.1)',   border: 'rgba(6,182,212,0.25)'  },
             { label: 'HR Process',      value: orgStats.hrProcess,   pct: orgStats.total ? Math.round(orgStats.hrProcess / orgStats.total * 100) : 0,    icon: <Users size={18} />,      color: '#8b5cf6', bg: 'rgba(139,92,246,0.1)', border: 'rgba(139,92,246,0.25)' },
             { label: 'Pending',         value: orgStats.pending,     pct: orgStats.total ? Math.round(orgStats.pending / orgStats.total * 100) : 0,      icon: <UserX size={18} />,      color: '#f59e0b', bg: 'rgba(245,158,11,0.1)', border: 'rgba(245,158,11,0.25)' },
           ].map(s => (
