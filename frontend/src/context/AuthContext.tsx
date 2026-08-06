@@ -37,7 +37,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     await new Promise(r => setTimeout(r, 800));
     const cred = DEMO_CREDENTIALS.find(c => c.email === email && c.password === password);
     if (cred) {
-      const u: User = { ...mockUser, id: cred.empId, name: cred.name, email: cred.email, role: cred.role, employeeId: cred.empId, department: cred.department };
+      // Restore any profile fields the user previously saved for this account
+      let savedProfile: Partial<User> = {};
+      try {
+        const raw = localStorage.getItem('mms_user');
+        if (raw) {
+          const prev = JSON.parse(raw) as User;
+          if (prev.id === cred.empId) {
+            savedProfile = { phone: prev.phone, shift: prev.shift, dateOfJoining: prev.dateOfJoining, employeeId: prev.employeeId };
+          }
+        }
+      } catch {}
+      const u: User = {
+        ...mockUser,
+        ...savedProfile,
+        id: cred.empId,
+        name: cred.name,
+        email: cred.email,
+        role: cred.role,
+        employeeId: savedProfile.employeeId ?? cred.empId,
+        department: cred.department,
+      };
       setUser(u);
       localStorage.setItem('mms_user', JSON.stringify(u));
       localStorage.setItem('mms_token', 'demo-jwt-token-' + cred.role);

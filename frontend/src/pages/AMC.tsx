@@ -188,6 +188,36 @@ function daysUntil(dateStr?: string): number | null {
   return Math.floor((d.getTime() - now.getTime()) / 86400000);
 }
 
+// Robustly convert any Excel date value to "YYYY-MM-DD" string.
+// Handles: ISO strings, DD/MM/YYYY, MM/DD/YYYY, Excel serial numbers.
+function parseExcelDate(val: unknown): string {
+  if (val === null || val === undefined || val === '') return '';
+  const s = String(val).trim();
+
+  // Already YYYY-MM-DD
+  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
+
+  // DD/MM/YYYY
+  const dmy = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  if (dmy) {
+    const d = new Date(Number(dmy[3]), Number(dmy[2]) - 1, Number(dmy[1]));
+    if (!isNaN(d.getTime()) && d.getFullYear() >= 2000) return d.toISOString().split('T')[0];
+  }
+
+  // Any parseable date string (ISO, MM/DD/YYYY, etc.)
+  const direct = new Date(s);
+  if (!isNaN(direct.getTime()) && direct.getFullYear() >= 2000) return direct.toISOString().split('T')[0];
+
+  // Excel date serial number (numeric string or actual number)
+  const n = typeof val === 'number' ? val : parseFloat(s);
+  if (!isNaN(n) && n > 1000) { // serials for 1902+ are > ~730
+    const d = new Date(Date.UTC(1899, 11, 30) + n * 86400000);
+    if (!isNaN(d.getTime()) && d.getFullYear() >= 2000) return d.toISOString().split('T')[0];
+  }
+
+  return '';
+}
+
 function getVisitsPerYear(freq: string, customDays: number): number {
   if (freq === 'Monthly') return 12;
   if (freq === 'Quarterly') return 4;
@@ -543,53 +573,56 @@ export default function AMC() {
     const reader = new FileReader();
     reader.onload = (ev) => {
       try {
-        const wb = XLSX.read(ev.target?.result, { type: 'binary' });
+        const wb = XLSX.read(ev.target?.result, { type: 'binary', cellDates: true });
         const ws = wb.Sheets[wb.SheetNames[0]];
-        const rows = XLSX.utils.sheet_to_json<Record<string, string>>(ws);
+        const rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(ws, { raw: false, dateNF: 'yyyy-mm-dd' });
         const year = new Date().getFullYear();
+        const str = (v: unknown) => (v != null ? String(v) : '');
         const parsed: AMCRecord[] = rows.map((r, idx) => {
-          const cv  = parseFloat(r['Contract Value'] || '0') || 0;
-          const vat = parseFloat(r['VAT Percent'] || '5') || 5;
+          const cv  = parseFloat(str(r['Contract Value'])  || '0') || 0;
+          const vat = parseFloat(str(r['VAT Percent'])     || '5') || 5;
+          const freq = str(r['Frequency']) || 'Yearly';
+          const custDays = parseInt(str(r['Custom Interval Days']) || '0') || 0;
           return {
             ...BLANK,
-            amcNumber:          r['AMC Number'] || `AMC-${year}-${String(amcList.length + idx + 1).padStart(3,'0')}`,
-            department:         r['Department'] || '',
-            area:               r['Area'] || '',
-            equipmentCategory:  r['Equipment Category'] || '',
-            equipmentName:      r['Equipment Name'] || '',
-            equipmentCode:      r['Equipment Code'] || '',
-            manufacturer:       r['Manufacturer'] || '',
-            modelNumber:        r['Model Number'] || '',
-            serialNumber:       r['Serial Number'] || '',
-            assetId:            r['Asset ID'] || '',
-            amcType:            r['AMC Type'] || 'Service Contract',
-            frequency:          r['Frequency'] || 'Yearly',
-            customIntervalDays: parseInt(r['Custom Interval Days'] || '0') || 0,
-            visitsPerYear:      getVisitsPerYear(r['Frequency'] || 'Yearly', parseInt(r['Custom Interval Days'] || '0') || 0),
-            startDate:          r['Start Date (YYYY-MM-DD)'] || '',
-            endDate:            r['End Date (YYYY-MM-DD)'] || '',
-            autoRenewal:        (r['Auto Renewal (Yes/No)'] || '').toLowerCase() === 'yes',
-            gracePeriodDays:    parseInt(r['Grace Period Days'] || '30') || 30,
-            criticality:        r['Criticality'] || 'Medium',
-            status:             r['Status'] || 'Active',
-            contractorCompany:  r['Contractor Company'] || '',
-            contactPerson:      r['Contact Person'] || '',
-            mobile:             r['Mobile'] || '',
-            email:              r['Email'] || '',
-            address:            r['Address'] || '',
-            tradeLicense:       r['Trade License'] || '',
-            trnNumber:          r['TRN Number'] || '',
-            contractNumber:     r['Contract Number'] || '',
-            poNumber:           r['PO Number'] || '',
-            agreementNumber:    r['Agreement Number'] || '',
-            invoiceNumber:      r['Invoice Number'] || '',
-            currency:           r['Currency'] || 'AED',
+            amcNumber:          str(r['AMC Number']) || `AMC-${year}-${String(amcList.length + idx + 1).padStart(3,'0')}`,
+            department:         str(r['Department']),
+            area:               str(r['Area']),
+            equipmentCategory:  str(r['Equipment Category']),
+            equipmentName:      str(r['Equipment Name']),
+            equipmentCode:      str(r['Equipment Code']),
+            manufacturer:       str(r['Manufacturer']),
+            modelNumber:        str(r['Model Number']),
+            serialNumber:       str(r['Serial Number']),
+            assetId:            str(r['Asset ID']),
+            amcType:            str(r['AMC Type'])            || 'Service Contract',
+            frequency:          freq,
+            customIntervalDays: custDays,
+            visitsPerYear:      getVisitsPerYear(freq, custDays),
+            startDate:          parseExcelDate(r['Start Date (YYYY-MM-DD)'] ?? r['Start Date']),
+            endDate:            parseExcelDate(r['End Date (YYYY-MM-DD)']   ?? r['End Date']),
+            autoRenewal:        str(r['Auto Renewal (Yes/No)']).toLowerCase() === 'yes',
+            gracePeriodDays:    parseInt(str(r['Grace Period Days']) || '30') || 30,
+            criticality:        str(r['Criticality'])         || 'Medium',
+            status:             str(r['Status'])              || 'Active',
+            contractorCompany:  str(r['Contractor Company']),
+            contactPerson:      str(r['Contact Person']),
+            mobile:             str(r['Mobile']),
+            email:              str(r['Email']),
+            address:            str(r['Address']),
+            tradeLicense:       str(r['Trade License']),
+            trnNumber:          str(r['TRN Number']),
+            contractNumber:     str(r['Contract Number']),
+            poNumber:           str(r['PO Number']),
+            agreementNumber:    str(r['Agreement Number']),
+            invoiceNumber:      str(r['Invoice Number']),
+            currency:           str(r['Currency'])            || 'AED',
             contractValue:      cv,
             vatPercent:         vat,
             vatAmount:          Math.round(cv * vat / 100 * 100) / 100,
             totalContractValue: Math.round(cv * (1 + vat / 100) * 100) / 100,
-            paymentTerms:       r['Payment Terms'] || 'Yearly',
-            remarks:            r['Remarks'] || '',
+            paymentTerms:       str(r['Payment Terms'])       || 'Yearly',
+            remarks:            str(r['Remarks']),
           };
         });
         if (parsed.length === 0) { toast.error('No data rows found in the file'); return; }
