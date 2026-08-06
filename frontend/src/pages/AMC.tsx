@@ -433,11 +433,16 @@ export default function AMC() {
   // ── Schedules ──────────────────────────────────────────────────────────────
   const [schedules, setSchedules] = useState<AMCScheduleRecord[]>([]);
   const [loadingSch, setLoadingSch] = useState(false);
-  const [schedFilter, setSchedFilter] = useState('All');
+  const [schedFilter, setSchedFilter] = useState('Overdue & Next Due');
   const [showCompleteModal, setShowCompleteModal] = useState(false);
   const [completingSchedule, setCompletingSchedule] = useState<AMCScheduleRecord | null>(null);
   const [completeForm, setCompleteForm] = useState({
     engineerName: '', workDone: '', observations: '', partsReplaced: '', recommendations: '',
+  });
+  const [editingSchedule, setEditingSchedule] = useState<AMCScheduleRecord | null>(null);
+  const [editSchedForm, setEditSchedForm] = useState({
+    scheduledDate: '', status: 'Scheduled', engineerName: '', workDone: '',
+    observations: '', partsReplaced: '', recommendations: '', completionDate: '',
   });
 
   // ── Budget ─────────────────────────────────────────────────────────────────
@@ -910,6 +915,50 @@ export default function AMC() {
     }
   };
 
+  // ── Edit / Delete schedule ─────────────────────────────────────────────────
+
+  const openEditSchedule = (sch: AMCScheduleRecord) => {
+    setEditingSchedule(sch);
+    setEditSchedForm({
+      scheduledDate: toDateInput(sch.scheduledDate),
+      status: sch.status,
+      engineerName: sch.engineerName || '',
+      workDone: sch.workDone || '',
+      observations: sch.observations || '',
+      partsReplaced: sch.partsReplaced || '',
+      recommendations: sch.recommendations || '',
+      completionDate: toDateInput((sch as any).completionDate),
+    });
+  };
+
+  const saveEditSchedule = async () => {
+    if (!editingSchedule?._id) return;
+    try {
+      const r = await fetch(`${API}/schedules/${editingSchedule._id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(editSchedForm),
+      });
+      if (!r.ok) throw new Error('Failed to update schedule');
+      toast.success('Schedule updated');
+      setEditingSchedule(null);
+      fetchSchedules();
+    } catch (e: unknown) {
+      toast.error(e instanceof Error ? e.message : 'Failed');
+    }
+  };
+
+  const deleteSchedule = async (id: string) => {
+    if (!window.confirm('Delete this schedule entry?')) return;
+    try {
+      await fetch(`${API}/schedules/${id}`, { method: 'DELETE' });
+      toast.success('Schedule deleted');
+      fetchSchedules();
+    } catch {
+      toast.error('Failed to delete');
+    }
+  };
+
   // ── Budget CRUD ────────────────────────────────────────────────────────────
 
   const saveBudget = async () => {
@@ -1134,6 +1183,17 @@ export default function AMC() {
   // ── Filtered schedules ─────────────────────────────────────────────────────
 
   const filteredSchedules = useMemo(() => {
+    if (schedFilter === 'Overdue & Next Due') {
+      const today = new Date(); today.setHours(0, 0, 0, 0);
+      const overdue = schedules.filter(s => new Date(s.scheduledDate) < today && s.status === 'Scheduled');
+      const seen = new Set<string>();
+      const nextDue = schedules
+        .filter(s => s.status === 'Scheduled' && new Date(s.scheduledDate) >= today)
+        .sort((a, b) => new Date(a.scheduledDate).getTime() - new Date(b.scheduledDate).getTime())
+        .filter(s => { if (seen.has(s.amcId)) return false; seen.add(s.amcId); return true; });
+      return [...overdue, ...nextDue]
+        .sort((a, b) => new Date(a.scheduledDate).getTime() - new Date(b.scheduledDate).getTime());
+    }
     return schedules.filter(s => schedFilter === 'All' || s.status === schedFilter);
   }, [schedules, schedFilter]);
 
@@ -1379,11 +1439,13 @@ export default function AMC() {
       {/* ── SCHEDULES TAB ── */}
       {tab === 'schedules' && (
         <div>
-          <div style={{ display: 'flex', gap: 8, marginBottom: 14, alignItems: 'center' }}>
-            <div style={{ fontSize: 13, color: '#94a3b8', fontWeight: 500 }}>Filter by status:</div>
-            {['All', 'Scheduled', 'Completed', 'Overdue', 'Cancelled'].map(s => (
+          <div style={{ display: 'flex', gap: 8, marginBottom: 14, alignItems: 'center', flexWrap: 'wrap' }}>
+            {(['Overdue & Next Due', 'All', 'Scheduled', 'Completed', 'Cancelled'] as const).map(s => (
               <button key={s} onClick={() => setSchedFilter(s)}
-                style={{ ...S.btn, padding: '5px 14px', fontSize: 12, background: schedFilter === s ? 'rgba(37,99,235,0.2)' : 'rgba(255,255,255,0.04)', color: schedFilter === s ? '#60a5fa' : '#64748b', border: schedFilter === s ? '1px solid rgba(37,99,235,0.4)' : '1px solid rgba(255,255,255,0.06)' }}>
+                style={{ ...S.btn, padding: '5px 14px', fontSize: 12,
+                  background: schedFilter === s ? (s === 'Overdue & Next Due' ? 'rgba(239,68,68,0.18)' : 'rgba(37,99,235,0.2)') : 'rgba(255,255,255,0.04)',
+                  color: schedFilter === s ? (s === 'Overdue & Next Due' ? '#f87171' : '#60a5fa') : '#64748b',
+                  border: schedFilter === s ? (s === 'Overdue & Next Due' ? '1px solid rgba(239,68,68,0.4)' : '1px solid rgba(37,99,235,0.4)') : '1px solid rgba(255,255,255,0.06)' }}>
                 {s}
               </button>
             ))}
@@ -1425,18 +1487,71 @@ export default function AMC() {
                         <td style={S.td}><ScheduleStatusBadge status={s.status} /></td>
                         <td style={S.td}>{s.engineerName || '—'}</td>
                         <td style={S.td}>
-                          {s.status !== 'Completed' && s.status !== 'Cancelled' && (
-                            <button onClick={() => openCompleteModal(s)} style={{ background: 'rgba(16,185,129,0.15)', border: 'none', borderRadius: 5, padding: '5px 10px', color: '#10B981', cursor: 'pointer', fontSize: 11, fontWeight: 600 }}>
-                              Mark Complete
+                          <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
+                            {s.status !== 'Completed' && s.status !== 'Cancelled' && (
+                              <button onClick={() => openCompleteModal(s)} style={{ background: 'rgba(16,185,129,0.15)', border: 'none', borderRadius: 5, padding: '4px 8px', color: '#10B981', cursor: 'pointer', fontSize: 11, fontWeight: 600 }}>
+                                ✓ Complete
+                              </button>
+                            )}
+                            <button onClick={() => openEditSchedule(s)} style={{ background: 'rgba(37,99,235,0.15)', border: 'none', borderRadius: 5, padding: '4px 8px', color: '#60a5fa', cursor: 'pointer', fontSize: 11 }}>
+                              <Pencil size={11} />
                             </button>
-                          )}
-                          {s.status === 'Completed' && <span style={{ fontSize: 11, color: '#10B981' }}>✓ Done {fmtDate(s.completionDate)}</span>}
+                            <button onClick={() => s._id && deleteSchedule(s._id)} style={{ background: 'rgba(239,68,68,0.12)', border: 'none', borderRadius: 5, padding: '4px 8px', color: '#EF4444', cursor: 'pointer', fontSize: 11 }}>
+                              <Trash2 size={11} />
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     );
                   })}
                 </tbody>
               </table>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── EDIT SCHEDULE MODAL ── */}
+      {editingSchedule && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
+          <div style={{ background: '#0d1526', border: '1px solid rgba(59,130,246,0.3)', borderRadius: 12, width: '100%', maxWidth: 560 }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 22px', borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
+              <div style={{ fontSize: 15, fontWeight: 700, color: '#f1f5f9' }}>Edit Schedule — {editingSchedule.equipmentName} Visit #{editingSchedule.visitNumber}</div>
+              <button onClick={() => setEditingSchedule(null)} style={{ background: 'none', border: 'none', color: '#64748b', cursor: 'pointer' }}><X size={16} /></button>
+            </div>
+            <div style={{ padding: '18px 22px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+              <Field label="Scheduled Date">
+                <DateInput value={editSchedForm.scheduledDate} onChange={v => setEditSchedForm(p => ({ ...p, scheduledDate: v }))} />
+              </Field>
+              <Field label="Status">
+                <select value={editSchedForm.status} onChange={e => setEditSchedForm(p => ({ ...p, status: e.target.value }))} style={S.select}>
+                  {['Scheduled', 'Completed', 'Cancelled'].map(st => <option key={st}>{st}</option>)}
+                </select>
+              </Field>
+              {editSchedForm.status === 'Completed' && (
+                <Field label="Completion Date">
+                  <DateInput value={editSchedForm.completionDate} onChange={v => setEditSchedForm(p => ({ ...p, completionDate: v }))} />
+                </Field>
+              )}
+              <Field label="Engineer Name">
+                <input value={editSchedForm.engineerName} onChange={e => setEditSchedForm(p => ({ ...p, engineerName: e.target.value }))} style={S.input} placeholder="Assigned engineer" />
+              </Field>
+              <Field label="Work Done" style={{ gridColumn: '1 / -1' }}>
+                <textarea value={editSchedForm.workDone} onChange={e => setEditSchedForm(p => ({ ...p, workDone: e.target.value }))} style={{ ...S.input, height: 60, resize: 'vertical' }} placeholder="Work carried out…" />
+              </Field>
+              <Field label="Observations" style={{ gridColumn: '1 / -1' }}>
+                <textarea value={editSchedForm.observations} onChange={e => setEditSchedForm(p => ({ ...p, observations: e.target.value }))} style={{ ...S.input, height: 50, resize: 'vertical' }} />
+              </Field>
+              <Field label="Parts Replaced">
+                <input value={editSchedForm.partsReplaced} onChange={e => setEditSchedForm(p => ({ ...p, partsReplaced: e.target.value }))} style={S.input} />
+              </Field>
+              <Field label="Recommendations">
+                <input value={editSchedForm.recommendations} onChange={e => setEditSchedForm(p => ({ ...p, recommendations: e.target.value }))} style={S.input} />
+              </Field>
+            </div>
+            <div style={{ padding: '12px 22px', borderTop: '1px solid rgba(255,255,255,0.06)', display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+              <button onClick={() => setEditingSchedule(null)} style={{ ...S.btn, ...S.btnGhost }}>Cancel</button>
+              <button onClick={saveEditSchedule} style={{ ...S.btn, ...S.btnPrimary }}>Save Changes</button>
             </div>
           </div>
         </div>
