@@ -324,111 +324,184 @@ export default function Training() {
     XLSX.writeFile(wb, `GT-E&I-Training-Report-${xlsPeriod}.xlsx`);
   };
 
-  const exportPDF = () => {
-    // ── Title & period strings ─────────────────────────────────────────────
+  const exportPDF = async () => {
+    // ── Load Glass Technology logo (canvas → PNG) ─────────────────────────
+    const logoDataUrl = await new Promise<string>((resolve) => {
+      const canvas = document.createElement('canvas');
+      canvas.width = 810; canvas.height = 162; // 3× oversampled for sharpness
+      const ctx = canvas.getContext('2d');
+      if (!ctx) { resolve(''); return; }
+      const img = new Image();
+      img.onload  = () => { ctx.drawImage(img, 0, 0, 810, 162); resolve(canvas.toDataURL('image/png')); };
+      img.onerror = () => resolve('');
+      img.src = '/logo.svg';
+    });
+
+    // ── Title & period ─────────────────────────────────────────────────────
     const monthLabel  = fMonth !== 'all' ? MONTHS_FULL[parseInt(fMonth,10)-1] : '';
-    const yearLabel   = fYear  !== 'all' ? fYear  : String(new Date().getFullYear());
+    const yearLabel   = fYear  !== 'all' ? fYear : String(new Date().getFullYear());
     const periodLabel = monthLabel ? `${monthLabel} ${yearLabel}` : yearLabel;
     const todayStr    = new Date().toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'});
     const reportTitle = `GT-E&I-Training Report - ${periodLabel} - ${todayStr}`;
     const fileName    = `GT-E&I-Training-Report-${yearLabel}${fMonth!=='all'?'-'+String(fMonth).padStart(2,'0'):''}.pdf`;
 
-    const doc = new jsPDF({ orientation:'landscape', unit:'mm', format:'a4' });
-    const pw  = doc.internal.pageSize.getWidth();
-    const ph  = doc.internal.pageSize.getHeight();
+    const doc  = new jsPDF({ orientation:'landscape', unit:'mm', format:'a4' });
+    const pw   = doc.internal.pageSize.getWidth();
+    const ph   = doc.internal.pageSize.getHeight();
+    const ML   = 12;   // left margin
+    const MR   = 12;   // right margin
+    const MT   = 8;    // top margin (continuation pages)
+    const FOOT = 9;    // footer reserved height
+    const GAP  = 4;    // gap between sections
+    const SH   = 7;    // section header bar height
+    const usableH = ph - FOOT;
 
-    // ── Shared helpers ─────────────────────────────────────────────────────
-    const sectionHeader = (title: string, y: number) => {
-      doc.setFillColor(30,58,138); doc.rect(0,y,pw,9,'F');
-      doc.setTextColor(255,255,255); doc.setFontSize(9); doc.setFont('helvetica','bold');
-      doc.text(title, 14, y+6.2);
-    };
-    const tblStyles = {
-      styles:             { fontSize:7, cellPadding:2.5, textColor:[30,41,59] as [number,number,number], fillColor:[255,255,255] as [number,number,number], lineColor:[226,232,240] as [number,number,number], lineWidth:0.2 },
-      headStyles:         { fillColor:[30,58,138] as [number,number,number], textColor:[219,234,254] as [number,number,number], fontStyle:'bold' as const, fontSize:7 },
-      alternateRowStyles: { fillColor:[248,250,252] as [number,number,number] },
-    };
-    const resultColor = (v: string) => {
-      const l = v.toLowerCase();
-      if (l==='pass'||l==='attended'||l==='completed') return [22,163,74]  as [number,number,number];
-      if (l.includes('progress'))                       return [217,119,6]  as [number,number,number];
-      if (l==='fail'||l==='not attended')               return [220,38,38]  as [number,number,number];
-      return [100,116,139] as [number,number,number];
+    // ── Shared colour helpers ──────────────────────────────────────────────
+    const RC = (v: string): [number,number,number] => {
+      const l = (v||'').toLowerCase();
+      if (l==='pass'||l==='attended'||l==='completed') return [22,163,74];
+      if (l.includes('progress'))                       return [217,119,6];
+      if (l==='fail'||l==='not attended')               return [220,38,38];
+      return [100,116,139];
     };
 
+    // ── Shared autoTable defaults ──────────────────────────────────────────
+    const TS = {
+      styles:             { fontSize:7, cellPadding:2.2, textColor:[30,41,59]   as [number,number,number], fillColor:[255,255,255] as [number,number,number], lineColor:[226,232,240] as [number,number,number], lineWidth:0.15 },
+      headStyles:         { fillColor:[30,58,138]        as [number,number,number], textColor:[219,234,254] as [number,number,number], fontStyle:'bold' as const, fontSize:6.5 },
+      alternateRowStyles: { fillColor:[248,250,252]      as [number,number,number] },
+      showHead:           'everyPage' as const,
+      margin:             { left:ML, right:MR, bottom:FOOT },
+    };
+
+    // ── Current Y tracker ─────────────────────────────────────────────────
+    let cy = 0;
+
+    // Mini-header drawn on CONTINUATION pages only (page 2+)
+    // Colour: medium blue strip — clearly different from main navy banner
+    const drawPageHeader = () => {
+      const pgNum = (doc.internal as any).getCurrentPageInfo().pageNumber;
+      if (pgNum <= 1) return; // page 1 has the full main banner already
+      // Medium blue strip
+      doc.setFillColor(29,78,216); doc.rect(0,0,pw,10,'F');
+      // Small logo badge
+      doc.setFillColor(255,255,255); doc.roundedRect(ML,1.5,22,7,1,1,'F');
+      if (logoDataUrl) {
+        doc.addImage(logoDataUrl, 'PNG', ML+0.5, 2, 21, 4.2);
+      }
+      // Title text (white) — starts after the 22mm logo badge
+      doc.setTextColor(255,255,255); doc.setFontSize(7.5); doc.setFont('helvetica','bold');
+      doc.text(reportTitle, ML+26, 6.5);
+      // Right: period label (sky-blue)
+      doc.setFontSize(6.5); doc.setFont('helvetica','normal'); doc.setTextColor(147,197,253);
+      doc.text(`Period: ${periodLabel}`, pw-MR, 6.5, { align:'right' });
+    };
+
+    // Section header bar — teal colour distinct from banner & mini-header
+    const secHdr = (title: string): number => {
+      if (cy + SH + 20 > usableH) { doc.addPage(); drawPageHeader(); cy = MT + 2; }
+      // Teal section bar
+      doc.setFillColor(8,145,178); doc.rect(0, cy, pw, SH+1, 'F');
+      // Left accent stripe (dark navy)
+      doc.setFillColor(12,31,63); doc.rect(0, cy, 3, SH+1, 'F');
+      doc.setTextColor(255,255,255); doc.setFontSize(7.5); doc.setFont('helvetica','bold');
+      doc.text(title, ML, cy + 5.5);
+      cy += SH + 2;
+      return cy;
+    };
+
+    // After each autoTable, sync cy
+    const syncY = () => { cy = ((doc as any).lastAutoTable?.finalY ?? cy) + GAP; };
+
     // ══════════════════════════════════════════════════════════════════════
-    // PAGE 1 — Cover + KPI Overview
+    // SECTION 1 — Full-width title banner (page 1 only)
     // ══════════════════════════════════════════════════════════════════════
-    doc.setFillColor(30,58,138); doc.rect(0,0,pw,26,'F');
-    // Company logo placeholder
-    doc.setFillColor(255,255,255); doc.roundedRect(10,4,18,18,2,2,'F');
-    doc.setTextColor(30,58,138); doc.setFontSize(7); doc.setFont('helvetica','bold');
-    doc.text('GT-E&I', 19, 14, { align:'center' });
-    // Title
+    const BH = 34; // banner height
+    // Deep navy background
+    doc.setFillColor(12,31,63); doc.rect(0,0,pw,BH,'F');
+    // Accent bottom line (teal)
+    doc.setFillColor(8,145,178); doc.rect(0,BH-1.5,pw,1.5,'F');
+
+    // ── Logo panel — white rounded box with Glass Technology logo image
+    const LX = ML, LY = 4, LW = 66, LH = 26;
+    doc.setFillColor(255,255,255); doc.roundedRect(LX, LY, LW, LH, 2, 2, 'F');
+    if (logoDataUrl) {
+      // SVG viewBox 270×54 → aspect ratio 5:1
+      const imgW = 62, imgH = 12.4;
+      doc.addImage(logoDataUrl, 'PNG', LX + (LW - imgW) / 2, LY + (LH - imgH) / 2, imgW, imgH);
+    }
+
+    // ── Text block (right of logo panel)
+    const TX = LX + LW + 6;
+    // Line 1 — Report title (WHITE, prominent)
     doc.setTextColor(255,255,255); doc.setFontSize(14); doc.setFont('helvetica','bold');
-    doc.text(reportTitle, 32, 12);
-    doc.setFontSize(8); doc.setFont('helvetica','normal'); doc.setTextColor(180,210,255);
-    const periodLine = `Period: ${periodLabel}   |   Generated: ${todayStr}   |   Total Records: ${sorted.length}   |   Pass Rate: ${stats.passRate}%`;
-    doc.text(periodLine, 32, 20);
+    doc.text(reportTitle, TX, 13);
+    // Line 2 — Period & generated date (cyan)
+    doc.setTextColor(103,232,249); doc.setFontSize(8); doc.setFont('helvetica','normal');
+    doc.text(`Period: ${periodLabel}   |   Generated: ${todayStr}`, TX, 21);
+    // Line 3 — Summary stats (sky blue)
+    doc.setTextColor(147,197,253); doc.setFontSize(7); doc.setFont('helvetica','normal');
+    doc.text(`Total Records: ${sorted.length}   |   Pass Rate: ${stats.passRate}%   |   Internal: ${stats.internal}   |   External: ${stats.external}`, TX, 28.5);
 
-    // KPI summary boxes
-    let kpiY = 32;
-    doc.setFontSize(8); doc.setFont('helvetica','bold'); doc.setTextColor(30,41,59);
-    doc.text('KEY PERFORMANCE INDICATORS', 14, kpiY + 5);
+    cy = BH + 3;
+
+    // KPI boxes (compact, single row)
     const kpis = [
-      { label:'Total Sessions',    value:String(stats.total),       color:[37,99,235]   as [number,number,number] },
-      { label:'Internal',          value:String(stats.internal),    color:[8,145,178]   as [number,number,number] },
-      { label:'External',          value:String(stats.external),    color:[124,58,237]  as [number,number,number] },
-      { label:'Completed',         value:String(stats.completed),   color:[22,163,74]   as [number,number,number] },
-      { label:'In Progress',       value:String(stats.inProgress),  color:[217,119,6]   as [number,number,number] },
-      { label:'Not Attended',      value:String(stats.notAttended), color:[220,38,38]   as [number,number,number] },
-      { label:'Pass Rate',         value:`${stats.passRate}%`,      color:[15,118,110]  as [number,number,number] },
-      { label:'Employees Trained', value:String(stats.uniqueEmps),  color:[124,58,237]  as [number,number,number] },
+      { label:'Total Sessions',    value:String(stats.total),      color:[37,99,235]  as [number,number,number] },
+      { label:'Internal',          value:String(stats.internal),   color:[8,145,178]  as [number,number,number] },
+      { label:'External',          value:String(stats.external),   color:[124,58,237] as [number,number,number] },
+      { label:'Completed',         value:String(stats.completed),  color:[22,163,74]  as [number,number,number] },
+      { label:'In Progress',       value:String(stats.inProgress), color:[217,119,6]  as [number,number,number] },
+      { label:'Not Attended',      value:String(stats.notAttended),color:[220,38,38]  as [number,number,number] },
+      { label:'Pass Rate',         value:`${stats.passRate}%`,     color:[15,118,110] as [number,number,number] },
+      { label:'Employees Trained', value:String(stats.uniqueEmps), color:[124,58,237] as [number,number,number] },
     ];
-    const boxW = (pw - 28) / 8;
+    const bw = (pw - ML - MR) / 8;
+    const bh = 16;
     kpis.forEach((k,i) => {
-      const bx = 14 + i * boxW;
-      const by = kpiY + 9;
-      doc.setFillColor(248,250,252); doc.setDrawColor(k.color[0],k.color[1],k.color[2]);
-      doc.setLineWidth(0.5); doc.roundedRect(bx, by, boxW-2, 20, 1.5, 1.5, 'FD');
+      const bx = ML + i*bw;
+      doc.setFillColor(248,250,252);
+      doc.setDrawColor(k.color[0],k.color[1],k.color[2]);
+      doc.setLineWidth(0.4);
+      doc.roundedRect(bx, cy, bw-1, bh, 1, 1, 'FD');
       doc.setTextColor(k.color[0],k.color[1],k.color[2]);
-      doc.setFontSize(14); doc.setFont('helvetica','bold');
-      doc.text(k.value, bx + (boxW-2)/2, by+12, { align:'center' });
-      doc.setFontSize(5.5); doc.setFont('helvetica','normal');
-      doc.text(k.label, bx + (boxW-2)/2, by+17.5, { align:'center' });
+      doc.setFontSize(11); doc.setFont('helvetica','bold');
+      doc.text(k.value, bx+bw/2-0.5, cy+9, { align:'center' });
+      doc.setFontSize(5); doc.setFont('helvetica','normal');
+      doc.text(k.label, bx+bw/2-0.5, cy+14, { align:'center' });
     });
+    cy += bh + GAP;
 
-    // Training status summary table (compact)
-    const summaryY = kpiY + 34;
-    sectionHeader('TRAINING SUMMARY BY STATUS', summaryY);
+    // usable page width = pw(297) - ML(12) - MR(12) = 273mm
+    const UW = pw - ML - MR; // 273
+
+    // ── SECTION 2 — Training Summary by Status ─────────────────────────────
+    // cols: 78 + 20 + 18 + 157 = 273
+    secHdr('TRAINING SUMMARY BY STATUS');
     autoTable(doc, {
-      startY: summaryY + 10,
-      head:[['Status','Count','Percentage','Description']],
+      startY: cy, tableWidth: UW,
+      head:[['Status','Count','%','Description']],
       body:[
-        ['Completed / Pass / Attended', stats.completed,   `${stats.passRate}%`,                                        'Employees who completed the training'],
-        ['In Progress',                  stats.inProgress,  `${sorted.length?Math.round(stats.inProgress/sorted.length*100):0}%`, 'Trainings currently ongoing'],
-        ['Not Attended / Fail',          stats.notAttended, `${sorted.length?Math.round(stats.notAttended/sorted.length*100):0}%`,'Employees who did not attend'],
-        ['TOTAL',                        sorted.length,     '100%',                                                      `Internal: ${stats.internal}  |  External: ${stats.external}`],
+        ['Completed / Pass / Attended', stats.completed,  `${stats.passRate}%`, 'Employees who completed the training'],
+        ['In Progress',                  stats.inProgress, `${sorted.length?Math.round(stats.inProgress/sorted.length*100):0}%`, 'Trainings currently ongoing'],
+        ['Not Attended / Fail',          stats.notAttended,`${sorted.length?Math.round(stats.notAttended/sorted.length*100):0}%`,'Employees who did not attend'],
+        ['TOTAL',                        sorted.length,    '100%', `Internal: ${stats.internal}  |  External: ${stats.external}`],
       ],
-      columnStyles: { 0:{ cellWidth:70 }, 1:{ cellWidth:25, halign:'center' }, 2:{ cellWidth:25, halign:'center' }, 3:{ cellWidth:'auto' as any } },
-      ...tblStyles,
+      columnStyles:{ 0:{cellWidth:78}, 1:{cellWidth:20,halign:'center'}, 2:{cellWidth:18,halign:'center'}, 3:{cellWidth:157} },
+      ...TS,
       didParseCell(d) {
         if (d.section==='body' && d.row.index===3) { d.cell.styles.fontStyle='bold'; d.cell.styles.fillColor=[239,246,255]; }
-        if (d.section==='body' && d.column.index===0 && d.row.index<3) d.cell.styles.textColor=resultColor(d.cell.raw as string);
+        if (d.section==='body' && d.column.index===0 && d.row.index<3) d.cell.styles.textColor=RC(d.cell.raw as string);
       },
+      didDrawPage() { drawPageHeader(); },
     });
+    syncY();
 
-    // ══════════════════════════════════════════════════════════════════════
-    // PAGE 2 — All Training Records
-    // ══════════════════════════════════════════════════════════════════════
-    doc.addPage();
-    doc.setFillColor(30,58,138); doc.rect(0,0,pw,14,'F');
-    doc.setTextColor(255,255,255); doc.setFontSize(11); doc.setFont('helvetica','bold');
-    doc.text(reportTitle, 14, 10);
-    sectionHeader('ALL TRAINING RECORDS', 16);
-
+    // ── SECTION 3 — All Training Records ──────────────────────────────────
+    // cols: 8+38+28+24+48+20+18+28+22+18+21 = 273
+    secHdr('ALL TRAINING RECORDS');
     autoTable(doc, {
-      startY: 27,
+      startY: cy, tableWidth: UW,
       head:[['#','Employee','Designation','Department','Training Name','Type','Mode','Trainer','Date','Duration','Result']],
       body: sorted.map((r,i) => [
         i+1, r.emp.name, r.emp.designation, empDept(r.emp),
@@ -436,31 +509,25 @@ export default function Training() {
         fmtDate(r.date), r.duration||'—', r.result||'—',
       ]),
       columnStyles:{
-        0:{cellWidth:8,  halign:'center'},
-        1:{cellWidth:32}, 2:{cellWidth:28}, 3:{cellWidth:24},
-        4:{cellWidth:40}, 5:{cellWidth:20}, 6:{cellWidth:18},
-        7:{cellWidth:28}, 8:{cellWidth:22}, 9:{cellWidth:18},
-        10:{cellWidth:22},
+        0:{cellWidth:8, halign:'center'}, 1:{cellWidth:38}, 2:{cellWidth:28},
+        3:{cellWidth:24},                 4:{cellWidth:48}, 5:{cellWidth:20},
+        6:{cellWidth:18},                 7:{cellWidth:28}, 8:{cellWidth:22},
+        9:{cellWidth:18},                10:{cellWidth:21},
       },
-      ...tblStyles,
+      ...TS,
       didParseCell(d) {
-        if (d.section==='body' && d.column.index===10)
-          d.cell.styles.textColor = resultColor(d.cell.raw as string);
+        if (d.section==='body' && d.column.index===10) d.cell.styles.textColor=RC(d.cell.raw as string);
       },
+      didDrawPage() { drawPageHeader(); },
     });
+    syncY();
 
-    // ══════════════════════════════════════════════════════════════════════
-    // PAGE 3 — Training-wise Consolidated
-    // ══════════════════════════════════════════════════════════════════════
-    doc.addPage();
-    doc.setFillColor(30,58,138); doc.rect(0,0,pw,14,'F');
-    doc.setTextColor(255,255,255); doc.setFontSize(11); doc.setFont('helvetica','bold');
-    doc.text(reportTitle, 14, 10);
-    sectionHeader('TRAINING-WISE CONSOLIDATED ATTENDANCE', 16);
-
+    // ── SECTION 4 — Training-wise Consolidated ────────────────────────────
+    // cols: 8+65+22+42+22+18+17+18+18+20+23 = 273
+    secHdr('TRAINING-WISE CONSOLIDATED ATTENDANCE');
     autoTable(doc, {
-      startY: 27,
-      head:[['#','Training Name','Type','Trainer','Date','Duration','Total Emp.','Completed','In Progress','Not Attended','Attendance %']],
+      startY: cy, tableWidth: UW,
+      head:[['#','Training Name','Type','Trainer','Date','Duration','Total','Attended','In Prog.','Not Att.','Attend %']],
       body: byTraining.map((g,i) => {
         const c  = g.records.filter(r=>classify(r.result)==='completed').length;
         const ip = g.records.filter(r=>classify(r.result)==='inprogress').length;
@@ -469,130 +536,114 @@ export default function Training() {
         return [i+1, g.name, g.type||'—', g.trainer||'—', fmtDate(g.date), g.duration||'—', g.records.length, c, ip, na, `${pct}%`];
       }),
       columnStyles:{
-        0:{cellWidth:8,  halign:'center'},
-        1:{cellWidth:50},2:{cellWidth:22},3:{cellWidth:30},
-        4:{cellWidth:22},5:{cellWidth:18},6:{cellWidth:18,halign:'center'},
-        7:{cellWidth:18,halign:'center'},8:{cellWidth:18,halign:'center'},
-        9:{cellWidth:22,halign:'center'},10:{cellWidth:20,halign:'center'},
+        0:{cellWidth:8, halign:'center'}, 1:{cellWidth:65}, 2:{cellWidth:22},
+        3:{cellWidth:42},                 4:{cellWidth:22}, 5:{cellWidth:18},
+        6:{cellWidth:17,halign:'center'}, 7:{cellWidth:18,halign:'center'},
+        8:{cellWidth:18,halign:'center'}, 9:{cellWidth:20,halign:'center'},
+       10:{cellWidth:23,halign:'center'},
       },
-      ...tblStyles,
+      ...TS,
       didParseCell(d) {
-        if (d.section==='body' && d.column.index===10) {
-          const pct=parseInt((d.cell.raw as string)||'0');
-          d.cell.styles.textColor = pct>=80?[22,163,74]:pct>=50?[217,119,6]:[220,38,38];
-          d.cell.styles.fontStyle='bold';
+        if (d.section==='body') {
+          if (d.column.index===10) { const p=parseInt((d.cell.raw as string)||'0'); d.cell.styles.textColor=p>=80?[22,163,74]:p>=50?[217,119,6]:[220,38,38]; d.cell.styles.fontStyle='bold'; }
+          if (d.column.index===7) d.cell.styles.textColor=[22,163,74];
+          if (d.column.index===8) d.cell.styles.textColor=[217,119,6];
+          if (d.column.index===9) d.cell.styles.textColor=[220,38,38];
         }
-        if (d.section==='body' && d.column.index===7) d.cell.styles.textColor=[22,163,74];
-        if (d.section==='body' && d.column.index===8) d.cell.styles.textColor=[217,119,6];
-        if (d.section==='body' && d.column.index===9) d.cell.styles.textColor=[220,38,38];
       },
+      didDrawPage() { drawPageHeader(); },
     });
+    syncY();
 
-    // ══════════════════════════════════════════════════════════════════════
-    // PAGE 4 — Employee Training History
-    // ══════════════════════════════════════════════════════════════════════
-    doc.addPage();
-    doc.setFillColor(30,58,138); doc.rect(0,0,pw,14,'F');
-    doc.setTextColor(255,255,255); doc.setFontSize(11); doc.setFont('helvetica','bold');
-    doc.text(reportTitle, 14, 10);
-    sectionHeader('EMPLOYEE TRAINING HISTORY SUMMARY', 16);
-
+    // ── SECTION 5 — Employee Training History ─────────────────────────────
+    // cols: 8+50+32+38+14+20+18+18+18+28+29 = 273
+    secHdr('EMPLOYEE TRAINING HISTORY');
     autoTable(doc, {
-      startY: 27,
-      head:[['#','Employee Name','Department','Designation','Total','Completed','In Progress','Not Attended','Attendance %','Last Training','Status']],
+      startY: cy, tableWidth: UW,
+      head:[['#','Employee','Department','Designation','Total','Completed','In Prog.','Not Att.','Attend %','Last Training','Status']],
       body: byEmployee.map((d,i) => [
         i+1, d.emp.name, empDept(d.emp), d.emp.designation,
         d.total, d.completed, d.inProg, d.notAtt,
         `${d.attPct}%`, fmtDate(d.lastDate)||'—',
-        d.attPct>=80?'On Track':d.attPct>=50?'Needs Attention':'Low Completion',
+        d.attPct>=80?'On Track':d.attPct>=50?'Needs Attn':'Low',
       ]),
       columnStyles:{
-        0:{cellWidth:8,halign:'center'},
-        1:{cellWidth:36},2:{cellWidth:28},3:{cellWidth:30},
-        4:{cellWidth:14,halign:'center'},5:{cellWidth:18,halign:'center'},
-        6:{cellWidth:18,halign:'center'},7:{cellWidth:22,halign:'center'},
-        8:{cellWidth:20,halign:'center'},9:{cellWidth:24},10:{cellWidth:26},
+        0:{cellWidth:8, halign:'center'}, 1:{cellWidth:50}, 2:{cellWidth:32},
+        3:{cellWidth:38},                 4:{cellWidth:14,halign:'center'},
+        5:{cellWidth:20,halign:'center'}, 6:{cellWidth:18,halign:'center'},
+        7:{cellWidth:18,halign:'center'}, 8:{cellWidth:18,halign:'center'},
+        9:{cellWidth:28},                10:{cellWidth:29},
       },
-      ...tblStyles,
+      ...TS,
       didParseCell(d) {
-        if (d.section==='body' && d.column.index===8) {
-          const pct=parseInt((d.cell.raw as string)||'0');
-          d.cell.styles.textColor=pct>=80?[22,163,74]:pct>=50?[217,119,6]:[220,38,38];
-          d.cell.styles.fontStyle='bold';
+        if (d.section==='body') {
+          if (d.column.index===8) { const p=parseInt((d.cell.raw as string)||'0'); d.cell.styles.textColor=p>=80?[22,163,74]:p>=50?[217,119,6]:[220,38,38]; d.cell.styles.fontStyle='bold'; }
+          if (d.column.index===10) { const v=d.cell.raw as string; d.cell.styles.textColor=v==='On Track'?[22,163,74]:v==='Needs Attn'?[217,119,6]:[220,38,38]; d.cell.styles.fontStyle='bold'; }
+          if (d.column.index===5) d.cell.styles.textColor=[22,163,74];
+          if (d.column.index===6) d.cell.styles.textColor=[217,119,6];
+          if (d.column.index===7) d.cell.styles.textColor=[220,38,38];
         }
-        if (d.section==='body' && d.column.index===10) {
-          const v=d.cell.raw as string;
-          d.cell.styles.textColor=v==='On Track'?[22,163,74]:v==='Needs Attention'?[217,119,6]:[220,38,38];
-          d.cell.styles.fontStyle='bold';
-        }
-        if (d.section==='body' && d.column.index===5) d.cell.styles.textColor=[22,163,74];
-        if (d.section==='body' && d.column.index===6) d.cell.styles.textColor=[217,119,6];
-        if (d.section==='body' && d.column.index===7) d.cell.styles.textColor=[220,38,38];
       },
+      didDrawPage() { drawPageHeader(); },
     });
+    syncY();
 
-    // ══════════════════════════════════════════════════════════════════════
-    // PAGE 5 — Pending Training
-    // ══════════════════════════════════════════════════════════════════════
-    doc.addPage();
-    doc.setFillColor(30,58,138); doc.rect(0,0,pw,14,'F');
-    doc.setTextColor(255,255,255); doc.setFontSize(11); doc.setFont('helvetica','bold');
-    doc.text(reportTitle, 14, 10);
-    sectionHeader('IN-PROGRESS TRAININGS', 16);
-
+    // ── SECTION 6 — In-Progress Trainings ─────────────────────────────────
+    // cols: 8+40+32+34+56+22+34+24+23 = 273
+    secHdr('IN-PROGRESS TRAININGS');
     if (pendingRecords.length > 0) {
       autoTable(doc, {
-        startY: 27,
+        startY: cy, tableWidth: UW,
         head:[['#','Employee','Department','Designation','Training Name','Type','Trainer','Date Started','Duration']],
         body: pendingRecords.map((r,i)=>[
           i+1, r.emp.name, empDept(r.emp), r.emp.designation,
           r.name, r.type||'—', r.trainer||'—', fmtDate(r.date), r.duration||'—',
         ]),
         columnStyles:{
-          0:{cellWidth:8,halign:'center'},1:{cellWidth:34},2:{cellWidth:26},
-          3:{cellWidth:28},4:{cellWidth:44},5:{cellWidth:20},
-          6:{cellWidth:28},7:{cellWidth:22},8:{cellWidth:18},
+          0:{cellWidth:8, halign:'center'}, 1:{cellWidth:40}, 2:{cellWidth:32},
+          3:{cellWidth:34},                 4:{cellWidth:56}, 5:{cellWidth:22},
+          6:{cellWidth:34},                 7:{cellWidth:24}, 8:{cellWidth:23},
         },
-        ...tblStyles,
+        ...TS,
+        didDrawPage() { drawPageHeader(); },
       });
+      syncY();
     } else {
-      (doc as any).setFontSize(9); doc.setTextColor(22,163,74);
-      doc.text('✓  No in-progress trainings — all trainings are completed or scheduled.', 14, 34);
+      doc.setFontSize(8); doc.setTextColor(22,163,74);
+      doc.text('✓  No in-progress trainings — all trainings are completed or scheduled.', ML, cy+5);
+      cy += 10;
     }
 
-    // Employees with no training
-    const noTrainY = (doc as any).lastAutoTable?.finalY ?? 34;
-    sectionHeader('EMPLOYEES WITH NO TRAINING RECORDS', noTrainY + 10);
+    // ── SECTION 7 — Employees with No Training ────────────────────────────
+    // cols: 10+72+60+65+66 = 273
+    secHdr('EMPLOYEES WITH NO TRAINING RECORDS');
     if (noTrainingEmps.length > 0) {
       autoTable(doc, {
-        startY: noTrainY + 21,
-        head:[['#','Employee Name','Department','Designation','Employee ID','Status']],
-        body: noTrainingEmps.map((e,i)=>[i+1, e.name, empDept(e), e.designation, e.id, 'No Training Assigned']),
+        startY: cy, tableWidth: UW,
+        head:[['#','Employee Name','Department','Designation','Status']],
+        body: noTrainingEmps.map((e,i)=>[i+1, e.name, empDept(e), e.designation, 'No Training Assigned']),
         columnStyles:{
-          0:{cellWidth:10,halign:'center'},1:{cellWidth:50},2:{cellWidth:38},
-          3:{cellWidth:40},4:{cellWidth:30},5:{cellWidth:50},
+          0:{cellWidth:10,halign:'center'}, 1:{cellWidth:72}, 2:{cellWidth:60},
+          3:{cellWidth:65},                 4:{cellWidth:66},
         },
-        ...tblStyles,
-        didParseCell(d) {
-          if (d.section==='body' && d.column.index===5)
-            d.cell.styles.textColor=[220,38,38];
-        },
+        ...TS,
+        didParseCell(d) { if (d.section==='body' && d.column.index===4) d.cell.styles.textColor=[220,38,38]; },
+        didDrawPage() { drawPageHeader(); },
       });
     } else {
-      const ny2 = noTrainY + 20;
-      doc.setFontSize(9); doc.setTextColor(22,163,74);
-      doc.text('✓  All active employees have at least one training record.', 14, ny2 + 8);
+      doc.setFontSize(8); doc.setTextColor(22,163,74);
+      doc.text('✓  All active employees have at least one training record.', ML, cy+5);
     }
 
-    // ── Footer on every page ───────────────────────────────────────────────
+    // ── Footer stamp on every page ─────────────────────────────────────────
     const totalPages = (doc.internal as any).getNumberOfPages();
-    for (let i=1; i<=totalPages; i++) {
-      doc.setPage(i);
-      doc.setFillColor(245,248,252); doc.rect(0,ph-8,pw,8,'F');
-      doc.setDrawColor(226,232,240); doc.setLineWidth(0.3); doc.line(0,ph-8,pw,ph-8);
-      doc.setTextColor(100,116,139); doc.setFontSize(6.5); doc.setFont('helvetica','normal');
-      doc.text(`GT-E&I Maintenance Management System  |  ${reportTitle}`, 14, ph-3);
-      doc.text(`Page ${i} of ${totalPages}`, pw-14, ph-3, { align:'right' });
+    for (let p=1; p<=totalPages; p++) {
+      doc.setPage(p);
+      doc.setFillColor(245,248,252); doc.rect(0,ph-FOOT,pw,FOOT,'F');
+      doc.setDrawColor(226,232,240); doc.setLineWidth(0.25); doc.line(0,ph-FOOT,pw,ph-FOOT);
+      doc.setTextColor(100,116,139); doc.setFontSize(6); doc.setFont('helvetica','normal');
+      doc.text(`GT-E&I Maintenance Management System  |  ${reportTitle}`, ML, ph-2.8);
+      doc.text(`Page ${p} of ${totalPages}`, pw-MR, ph-2.8, { align:'right' });
     }
 
     doc.save(fileName);
