@@ -43,6 +43,9 @@ interface Entry {
   supervisorName: string;
   completionStatus: 'Completed' | 'In Progress' | 'Pending';
   remarks: string;
+  subTotal?: number;
+  vatPercent?: number;
+  vatAmount?: number;
 }
 
 interface FormBase {
@@ -53,6 +56,7 @@ interface FormBase {
   costType: 'daily' | 'package'; packageCost: number;
   approvedBy: string; supervisorName: string;
   completionStatus: 'Completed' | 'In Progress' | 'Pending'; remarks: string;
+  vatPercent: number;
   // OT Authorization
   otStartTime: string; otEndTime: string;
   otRatePercent: number;   // e.g. 125 = 1.25× (OT hourly = dayRate/8 × otRatePercent/100)
@@ -72,6 +76,7 @@ const BLANK_BASE: FormBase = {
   otRatePercent: 125,
   otReason: '', otReasonDetails: '',
   otApprovedBy: '', otApprovalRef: '',
+  vatPercent: 5,
 };
 
 const OT_REASONS = [
@@ -160,7 +165,9 @@ export default function OutsourceEntry() {
   const [otExpanded, setOtExpanded] = useState(false);
   const hasOT     = workers.some(w => w.overtimeHours > 0);
   const isPackage = formBase.costType === 'package';
-  const totalCost = calcTotal(workers, formBase.costType, formBase.packageCost, formBase.otRatePercent);
+  const totalCost  = calcTotal(workers, formBase.costType, formBase.packageCost, formBase.otRatePercent);
+  const vatAmount  = Math.round(totalCost * (formBase.vatPercent / 100) * 100) / 100;
+  const grandTotal = Math.round((totalCost + vatAmount) * 100) / 100;
 
   // ── Data loaders ────────────────────────────────────────────────────────────
   const loadContracts = useCallback(async () => {
@@ -219,6 +226,7 @@ export default function OutsourceEntry() {
       otReasonDetails: (e as any).otReasonDetails ?? '',
       otApprovedBy: (e as any).otApprovedBy ?? '',
       otApprovalRef: (e as any).otApprovalRef ?? '',
+      vatPercent: (e as any).vatPercent ?? 5,
     });
     // Use new workers array if available, else create one row from legacy fields
     if (e.workers && e.workers.length > 0) {
@@ -249,6 +257,7 @@ export default function OutsourceEntry() {
       otStartTime: '', otEndTime: '',
       otRatePercent: (e as any).otRatePercent ?? Math.round(((e as any).otMultiplier ?? 1.25) * 100),
       otReason: '', otReasonDetails: '', otApprovedBy: '', otApprovalRef: '',
+      vatPercent: (e as any).vatPercent ?? 5,
     });
     if (e.workers?.length > 0) {
       setWorkers(e.workers.map(w => ({ ...w, id: `w${++rowKey}` })));
@@ -425,7 +434,9 @@ export default function OutsourceEntry() {
       ...formBase,
       workers: workerPayload,
       numberOfPersons: workers.length,
-      totalCost,
+      subTotal: totalCost,
+      vatAmount,
+      totalCost: grandTotal,
     };
 
     setSaving(true);
@@ -613,8 +624,13 @@ export default function OutsourceEntry() {
                           {e.costType === 'package' ? 'Package' : 'Per Day'}
                         </span>
                       </td>
-                      <td style={{ padding: '10px 12px', fontSize: 13, fontWeight: 800, color: '#0f766e', whiteSpace: 'nowrap' }}>
-                        AED {e.totalCost.toLocaleString('en-AE')}
+                      <td style={{ padding: '10px 12px', whiteSpace: 'nowrap' }}>
+                        <div style={{ fontSize: 13, fontWeight: 800, color: '#0f766e' }}>AED {e.totalCost.toLocaleString('en-AE')}</div>
+                        {(e as any).vatPercent ? (
+                          <div style={{ fontSize: 10, color: '#0f766e', background: '#d1fae5', borderRadius: 6, padding: '1px 5px', display: 'inline-block', marginTop: 2 }}>
+                            VAT {(e as any).vatPercent}% incl.
+                          </div>
+                        ) : null}
                       </td>
                       <td style={{ padding: '10px 12px' }}>
                         <span style={{ padding: '3px 9px', borderRadius: 12, fontSize: 11, fontWeight: 700, background: st.bg, color: st.color }}>{e.completionStatus}</span>
@@ -844,17 +860,34 @@ export default function OutsourceEntry() {
                 </div>
 
                 {/* Total cost badge */}
-                <div style={{ marginTop: 10, padding: '12px 20px', background: isPackage ? '#f5f3ff' : '#f0fdfa', borderRadius: 10, border: `2px solid ${isPackage ? '#7c3aed' : '#0f766e'}`, display: 'flex', alignItems: 'center' }}>
+                <div style={{ marginTop: 10, padding: '14px 20px', background: isPackage ? '#f5f3ff' : '#f0fdfa', borderRadius: 10, border: `2px solid ${isPackage ? '#7c3aed' : '#0f766e'}`, display: 'flex', alignItems: 'center', gap: 24, flexWrap: 'wrap' }}>
                   <div>
-                    <div style={{ fontSize: 11, color: '#64748b', fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.7 }}>Total Cost for this Entry</div>
-                    <div style={{ fontSize: 28, fontWeight: 800, color: isPackage ? '#7c3aed' : '#0f766e' }}>
+                    <div style={{ fontSize: 11, color: '#64748b', fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.7 }}>Subtotal</div>
+                    <div style={{ fontSize: 22, fontWeight: 800, color: isPackage ? '#a78bfa' : '#34d399' }}>
                       AED {totalCost.toLocaleString('en-AE')}
                     </div>
                   </div>
-                  <div style={{ marginLeft: 'auto', textAlign: 'right', fontSize: 12, color: '#64748b' }}>
-                    <div style={{ marginBottom: 2 }}>{workers.length} worker{workers.length !== 1 ? 's' : ''}</div>
-                    <div style={{ fontWeight: 700, color: isPackage ? '#7c3aed' : '#0f766e' }}>
-                      {isPackage ? 'Package / Lump Sum' : 'Per Person Per Day'}
+                  {/* VAT input */}
+                  <div>
+                    <div style={{ fontSize: 11, color: '#64748b', fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.7 }}>VAT %</div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 4 }}>
+                      <input
+                        type="number" min="0" max="100" step="0.5"
+                        style={{ width: 74, height: 32, padding: '0 8px', border: `1.5px solid ${isPackage ? '#c4b5fd' : '#6ee7b7'}`, borderRadius: 7, fontSize: 14, fontWeight: 700, color: isPackage ? '#7c3aed' : '#0f766e', background: '#fff', outline: 'none' }}
+                        value={formBase.vatPercent}
+                        onChange={e => setFormBase(f => ({ ...f, vatPercent: Math.max(0, Number(e.target.value)) }))}
+                      />
+                      <span style={{ fontSize: 14, fontWeight: 700, color: isPackage ? '#7c3aed' : '#0f766e' }}>%</span>
+                    </div>
+                    <div style={{ fontSize: 11, color: '#64748b', marginTop: 2 }}>= AED {vatAmount.toLocaleString('en-AE')}</div>
+                  </div>
+                  <div style={{ marginLeft: 'auto', textAlign: 'right' }}>
+                    <div style={{ fontSize: 11, color: '#64748b', fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.7 }}>Grand Total (incl. VAT {formBase.vatPercent}%)</div>
+                    <div style={{ fontSize: 28, fontWeight: 800, color: isPackage ? '#7c3aed' : '#0f766e' }}>
+                      AED {grandTotal.toLocaleString('en-AE')}
+                    </div>
+                    <div style={{ fontSize: 11, color: '#64748b', marginTop: 2 }}>
+                      {workers.length} worker{workers.length !== 1 ? 's' : ''} · {isPackage ? 'Package / Lump Sum' : 'Per Person Per Day'}
                     </div>
                   </div>
                 </div>

@@ -40,6 +40,8 @@ interface Entry {
   approvedBy: string;
   supervisorName: string;
   remarks: string;
+  vatPercent?: number;
+  vatAmount?: number;
 }
 
 interface FormState {
@@ -51,6 +53,7 @@ interface FormState {
   rateType: 'Daily' | 'Hourly' | 'Monthly'; rate: number;
   completionStatus: 'Completed' | 'In Progress' | 'Pending';
   approvedBy: string; supervisorName: string; remarks: string;
+  vatPercent: number;
 }
 
 const BLANK: FormState = {
@@ -62,6 +65,7 @@ const BLANK: FormState = {
   workDescription: '', maintenanceType: 'Preventive',
   rateType: 'Daily', rate: 0,
   completionStatus: 'Completed', approvedBy: '', supervisorName: '', remarks: '',
+  vatPercent: 5,
 };
 
 const MAINTENANCE_TYPES = ['Preventive', 'Corrective', 'Breakdown', 'Project', 'Shutdown', 'Installation', 'Commissioning', 'Inspection', 'Other'];
@@ -116,7 +120,9 @@ export default function EquipmentEntry() {
     <div style={{ fontSize: 11, fontWeight: 700, color: '#7c3aed', textTransform: 'uppercase', letterSpacing: 1, gridColumn: '1/-1', borderBottom: '1px solid #ede9fe', paddingBottom: 4, marginTop: 6 }}>{t}</div>
   );
 
-  const cost = calcCost(form);
+  const cost       = calcCost(form);
+  const vatAmount  = Math.round(cost.total * (form.vatPercent / 100) * 100) / 100;
+  const grandTotal = Math.round((cost.total + vatAmount) * 100) / 100;
 
   const loadEquipment = useCallback(async () => {
     try { setEquipment(await apiFetch('/api/equipment/active')); } catch {}
@@ -160,6 +166,7 @@ export default function EquipmentEntry() {
       rateType: e.rateType, rate: e.rate,
       completionStatus: e.completionStatus, approvedBy: e.approvedBy ?? '',
       supervisorName: e.supervisorName ?? '', remarks: e.remarks ?? '',
+      vatPercent: e.vatPercent ?? 5,
     });
     setModal(true);
   };
@@ -183,7 +190,7 @@ export default function EquipmentEntry() {
     if (!form.equipmentName.trim()) { toast.error('Select an equipment'); return; }
     if (!form.workDate) { toast.error('Work date is required'); return; }
     const c = calcCost(form);
-    const payload = { ...form, regularCost: c.regular, otCost: c.ot, totalCost: c.total };
+    const payload = { ...form, regularCost: c.regular, otCost: c.ot, subTotal: c.total, vatAmount, totalCost: grandTotal };
     setSaving(true);
     try {
       if (editing) {
@@ -407,8 +414,13 @@ export default function EquipmentEntry() {
                         <span style={{ fontSize: 10, color: '#7c3aed', fontWeight: 600, background: '#ede9fe', padding: '1px 6px', borderRadius: 8 }}>{e.rateType}</span>
                         {' '}AED {(e.rate || 0).toLocaleString('en-AE')}
                       </td>
-                      <td style={{ ...tdStyle, textAlign: 'right', fontWeight: 700, color: '#7c3aed' }}>
-                        AED {(e.totalCost || 0).toLocaleString('en-AE')}
+                      <td style={{ ...tdStyle, textAlign: 'right' }}>
+                        <div style={{ fontWeight: 800, color: '#7c3aed', fontSize: 13 }}>AED {(e.totalCost || 0).toLocaleString('en-AE')}</div>
+                        {e.vatPercent ? (
+                          <div style={{ fontSize: 10, color: '#7c3aed', background: '#ede9fe', borderRadius: 6, padding: '1px 5px', display: 'inline-block', marginTop: 2 }}>
+                            VAT {e.vatPercent}% incl.
+                          </div>
+                        ) : null}
                       </td>
                       <td style={tdStyle}>
                         <span style={{ padding: '2px 8px', borderRadius: 10, fontSize: 11, fontWeight: 600, ...statusStyle[e.completionStatus] }}>{e.completionStatus}</span>
@@ -547,7 +559,7 @@ export default function EquipmentEntry() {
                 </div>
 
                 {/* Cost breakdown */}
-                <div style={{ gridColumn: '1/-1', background: '#f5f3ff', border: '2px solid #7c3aed', borderRadius: 12, padding: '14px 18px', display: 'flex', alignItems: 'center', gap: 32, flexWrap: 'wrap' }}>
+                <div style={{ gridColumn: '1/-1', background: '#f5f3ff', border: '2px solid #7c3aed', borderRadius: 12, padding: '14px 18px', display: 'flex', alignItems: 'center', gap: 24, flexWrap: 'wrap' }}>
                   <div>
                     <div style={{ fontSize: 11, color: '#7c3aed', fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.6 }}>Regular Cost</div>
                     <div style={{ fontSize: 20, fontWeight: 800, color: '#7c3aed' }}>AED {cost.regular.toLocaleString('en-AE')}</div>
@@ -566,9 +578,25 @@ export default function EquipmentEntry() {
                       </div>
                     </div>
                   )}
+                  {/* VAT input */}
+                  <div>
+                    <div style={{ fontSize: 11, color: '#7c3aed', fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.6 }}>VAT %</div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 4 }}>
+                      <input
+                        type="number" min="0" max="100" step="0.5"
+                        style={{ width: 72, height: 32, padding: '0 8px', border: '1.5px solid #c4b5fd', borderRadius: 7, fontSize: 14, fontWeight: 700, color: '#7c3aed', background: '#fff', outline: 'none' }}
+                        value={form.vatPercent}
+                        onChange={e => setForm(f => ({ ...f, vatPercent: Math.max(0, Number(e.target.value)) }))}
+                      />
+                      <span style={{ fontSize: 14, fontWeight: 700, color: '#7c3aed' }}>%</span>
+                    </div>
+                    <div style={{ fontSize: 10, color: '#a78bfa', marginTop: 2 }}>AED {vatAmount.toLocaleString('en-AE')}</div>
+                  </div>
                   <div style={{ marginLeft: 'auto', textAlign: 'right' }}>
-                    <div style={{ fontSize: 11, color: '#7c3aed', fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.6 }}>Total Cost</div>
-                    <div style={{ fontSize: 28, fontWeight: 900, color: '#7c3aed' }}>AED {cost.total.toLocaleString('en-AE')}</div>
+                    <div style={{ fontSize: 11, color: '#7c3aed', fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.6 }}>Subtotal</div>
+                    <div style={{ fontSize: 15, fontWeight: 700, color: '#a78bfa' }}>AED {cost.total.toLocaleString('en-AE')}</div>
+                    <div style={{ fontSize: 11, color: '#7c3aed', fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.6, marginTop: 6 }}>Grand Total (incl. VAT)</div>
+                    <div style={{ fontSize: 28, fontWeight: 900, color: '#7c3aed' }}>AED {grandTotal.toLocaleString('en-AE')}</div>
                   </div>
                 </div>
 

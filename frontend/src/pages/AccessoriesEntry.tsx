@@ -26,6 +26,9 @@ interface AccessoryEntry {
   totalCost: number;
   approvedBy: string;
   remarks: string;
+  subTotal?: number;
+  vatPercent?: number;
+  vatAmount?: number;
 }
 
 interface FormState {
@@ -37,6 +40,7 @@ interface FormState {
   area: string;
   approvedBy: string;
   remarks: string;
+  vatPercent: number;
 }
 
 const CATEGORIES = ['Fuel', 'Lubricant', 'Electrical', 'Water', 'Chemical', 'Safety', 'Other'];
@@ -65,6 +69,7 @@ const BLANK_FORM: FormState = {
   entryDate: new Date().toISOString().slice(0, 10),
   equipmentId: '', equipmentName: '', poNumber: '',
   department: 'E&I', area: '', approvedBy: '', remarks: '',
+  vatPercent: 5,
 };
 
 async function apiFetch(url: string, opts?: RequestInit) {
@@ -93,7 +98,9 @@ export default function AccessoriesEntry() {
   const lbl: React.CSSProperties = { fontSize: 11, color: '#64748b', fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.6, display: 'block', marginBottom: 3 };
   const cellInp: React.CSSProperties = { width: '100%', boxSizing: 'border-box', height: 30, padding: '0 6px', border: '1px solid #e2e8f0', borderRadius: 6, fontSize: 12, color: '#1e293b', background: '#fff', outline: 'none' };
 
-  const totalCost = items.reduce((s, i) => s + i.totalCost, 0);
+  const totalCost  = items.reduce((s, i) => s + i.totalCost, 0);
+  const vatAmount  = Math.round(totalCost * (form.vatPercent / 100) * 100) / 100;
+  const grandTotal = Math.round((totalCost + vatAmount) * 100) / 100;
 
   const loadEquipment = useCallback(async () => {
     try { setEquipment(await apiFetch('/api/equipment/active')); } catch {}
@@ -123,6 +130,7 @@ export default function AccessoriesEntry() {
       equipmentId: e.equipmentId ?? '', equipmentName: e.equipmentName ?? '',
       poNumber: e.poNumber ?? '', department: e.department, area: e.area,
       approvedBy: e.approvedBy ?? '', remarks: e.remarks ?? '',
+      vatPercent: e.vatPercent ?? 5,
     });
     setItems(e.items.map(it => ({ ...it, id: `i${++rowKey}` })));
     setModal(true);
@@ -158,7 +166,10 @@ export default function AccessoriesEntry() {
     const payload = {
       ...form,
       items: items.map(({ id: _id, ...it }) => it),
-      totalCost,
+      subTotal: totalCost,
+      vatPercent: form.vatPercent,
+      vatAmount,
+      totalCost: grandTotal,
     };
     setSaving(true);
     try {
@@ -284,8 +295,13 @@ export default function AccessoriesEntry() {
                             {e.items.length > 3 && <span style={{ fontSize: 10, color: '#94a3b8' }}>+{e.items.length - 3} more</span>}
                           </div>
                         </td>
-                        <td style={{ ...tdStyle, textAlign: 'right', fontWeight: 700, color: '#d97706' }}>
-                          AED {(e.totalCost || 0).toLocaleString('en-AE')}
+                        <td style={{ ...tdStyle, textAlign: 'right' }}>
+                          <div style={{ fontWeight: 800, color: '#d97706', fontSize: 13 }}>AED {(e.totalCost || 0).toLocaleString('en-AE')}</div>
+                          {e.vatPercent ? (
+                            <div style={{ fontSize: 10, color: '#92400e', background: '#fef3c7', borderRadius: 6, padding: '1px 5px', display: 'inline-block', marginTop: 2 }}>
+                              VAT {e.vatPercent}% incl.
+                            </div>
+                          ) : null}
                         </td>
                         <td style={{ ...tdStyle, whiteSpace: 'nowrap' }} onClick={ev => ev.stopPropagation()}>
                           <button onClick={() => openEdit(e)} style={{ background: 'none', border: 'none', color: '#3b82f6', cursor: 'pointer', padding: 3 }}><Edit2 size={13}/></button>
@@ -319,9 +335,21 @@ export default function AccessoriesEntry() {
                               </tbody>
                               <tfoot>
                                 <tr>
-                                  <td colSpan={5} style={{ padding: '6px 8px', fontWeight: 700, color: '#92400e', borderTop: '2px solid #f59e0b', fontSize: 12 }}>TOTAL</td>
-                                  <td style={{ padding: '6px 8px', textAlign: 'right', fontWeight: 800, color: '#92400e', borderTop: '2px solid #f59e0b', fontSize: 14 }}>AED {(e.totalCost || 0).toLocaleString('en-AE')}</td>
+                                  <td colSpan={5} style={{ padding: '6px 8px', fontWeight: 700, color: '#92400e', borderTop: '2px solid #f59e0b', fontSize: 12 }}>SUBTOTAL</td>
+                                  <td style={{ padding: '6px 8px', textAlign: 'right', fontWeight: 700, color: '#92400e', borderTop: '2px solid #f59e0b', fontSize: 13 }}>AED {(e.subTotal ?? e.items.reduce((s,i)=>s+i.totalCost,0)).toLocaleString('en-AE')}</td>
                                 </tr>
+                                {(e.vatPercent ?? 0) > 0 && (
+                                  <tr style={{ background: '#fef9c3' }}>
+                                    <td colSpan={5} style={{ padding: '5px 8px', fontWeight: 600, color: '#92400e', fontSize: 12 }}>VAT ({e.vatPercent}%)</td>
+                                    <td style={{ padding: '5px 8px', textAlign: 'right', fontWeight: 700, color: '#d97706', fontSize: 12 }}>AED {(e.vatAmount ?? 0).toLocaleString('en-AE')}</td>
+                                  </tr>
+                                )}
+                                {(e.vatPercent ?? 0) > 0 && (
+                                  <tr style={{ background: '#fde68a' }}>
+                                    <td colSpan={5} style={{ padding: '7px 8px', fontWeight: 800, color: '#78350f', fontSize: 12 }}>GRAND TOTAL (incl. VAT)</td>
+                                    <td style={{ padding: '7px 8px', textAlign: 'right', fontWeight: 900, color: '#92400e', fontSize: 15 }}>AED {(e.totalCost || 0).toLocaleString('en-AE')}</td>
+                                  </tr>
+                                )}
                               </tfoot>
                             </table>
                             {e.remarks && <div style={{ marginTop: 8, fontSize: 11, color: '#92400e' }}><strong>Remarks:</strong> {e.remarks}</div>}
@@ -443,12 +471,45 @@ export default function AccessoriesEntry() {
                       ))}
                     </tbody>
                     <tfoot>
+                      {/* Subtotal row */}
                       <tr style={{ background: '#fef3c7', borderTop: '2px solid #d97706' }}>
-                        <td colSpan={5} style={{ padding: '9px 10px', fontWeight: 700, color: '#92400e', fontSize: 12 }}>
-                          TOTAL — {items.length} item{items.length !== 1 ? 's' : ''}
+                        <td colSpan={5} style={{ padding: '8px 10px', fontWeight: 700, color: '#92400e', fontSize: 12 }}>
+                          SUBTOTAL — {items.length} item{items.length !== 1 ? 's' : ''}
                         </td>
-                        <td style={{ padding: '9px 10px', textAlign: 'right', fontWeight: 900, color: '#d97706', fontSize: 16 }}>
+                        <td style={{ padding: '8px 10px', textAlign: 'right', fontWeight: 800, color: '#d97706', fontSize: 14 }}>
                           AED {totalCost.toLocaleString('en-AE')}
+                        </td>
+                        <td/>
+                      </tr>
+                      {/* VAT row */}
+                      <tr style={{ background: '#fef9c3' }}>
+                        <td colSpan={3} style={{ padding: '7px 10px', fontWeight: 700, color: '#92400e', fontSize: 12 }}>
+                          VAT
+                        </td>
+                        <td colSpan={2} style={{ padding: '7px 6px' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                            <input
+                              type="number" min="0" max="100" step="0.5"
+                              style={{ ...cellInp, width: 70, height: 26 }}
+                              value={form.vatPercent}
+                              onChange={e => setForm(f => ({ ...f, vatPercent: Math.max(0, Number(e.target.value)) }))}
+                              placeholder="0"
+                            />
+                            <span style={{ fontSize: 13, fontWeight: 700, color: '#92400e' }}>%</span>
+                          </div>
+                        </td>
+                        <td style={{ padding: '7px 10px', textAlign: 'right', fontWeight: 700, color: '#d97706', fontSize: 13 }}>
+                          AED {vatAmount.toLocaleString('en-AE')}
+                        </td>
+                        <td/>
+                      </tr>
+                      {/* Grand Total row */}
+                      <tr style={{ background: '#fde68a', borderTop: '2px solid #d97706' }}>
+                        <td colSpan={5} style={{ padding: '10px 10px', fontWeight: 800, color: '#78350f', fontSize: 13 }}>
+                          GRAND TOTAL (incl. VAT {form.vatPercent}%)
+                        </td>
+                        <td style={{ padding: '10px 10px', textAlign: 'right', fontWeight: 900, color: '#92400e', fontSize: 17 }}>
+                          AED {grandTotal.toLocaleString('en-AE')}
                         </td>
                         <td/>
                       </tr>
