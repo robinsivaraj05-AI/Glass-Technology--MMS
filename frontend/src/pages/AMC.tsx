@@ -644,11 +644,14 @@ export default function AMC() {
     for (const rec of uploadRows) {
       try {
         if (uploadMode === 'update') {
-          const existing = amcList.find(a => a.amcNumber === rec.amcNumber);
+          const existing = amcList.find(a => a.equipmentCode && a.equipmentCode === rec.equipmentCode);
           if (existing?._id) {
-            const r = await fetch(`${API}/${existing._id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(rec) });
-            if (r.ok) { success++; continue; }
+            const r = await fetch(`${API}/${existing._id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...rec, _id: existing._id }) });
+            if (r.ok) success++; else failed++;
+          } else {
+            failed++; // no match by Equipment Code — skip, do not create
           }
+          continue;
         }
         const r = await fetch(API, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(rec) });
         if (r.ok) success++; else failed++;
@@ -657,7 +660,7 @@ export default function AMC() {
     setUploading(false);
     setShowUploadModal(false);
     setUploadRows([]);
-    toast.success(`${success} record(s) saved${failed > 0 ? `, ${failed} failed` : ''}`);
+    toast.success(`${success} record(s) ${uploadMode === 'update' ? 'updated' : 'added'}${failed > 0 ? ` · ${failed} skipped (no match)` : ''}`);
     fetchAmc();
   };
 
@@ -1886,11 +1889,11 @@ export default function AMC() {
                 <label key={m} style={{ display: 'flex', alignItems: 'center', gap: 7, cursor: 'pointer', fontSize: 13, color: uploadMode === m ? '#60a5fa' : '#94a3b8', fontWeight: uploadMode === m ? 600 : 400 }}>
                   <input type="radio" name="uploadMode" value={m} checked={uploadMode === m} onChange={() => setUploadMode(m)}
                     style={{ accentColor: '#2563EB' }} />
-                  {m === 'new' ? '➕ Add as New Records' : '✏️ Update Existing (match by AMC Number)'}
+                  {m === 'new' ? '➕ Add as New Records' : '✏️ Update Existing (match by Equipment Code)'}
                 </label>
               ))}
               {uploadMode === 'update' && (
-                <span style={{ fontSize: 11, color: '#F59E0B', marginLeft: 4 }}>If AMC number is not found it will be created as new.</span>
+                <span style={{ fontSize: 11, color: '#94a3b8', marginLeft: 4 }}>Rows with no matching Equipment Code will be skipped.</span>
               )}
             </div>
 
