@@ -459,7 +459,7 @@ export default function AMC() {
 
   // ── Auth / role gate ───────────────────────────────────────────────────────
   const { user } = useAuth();
-  const isAdmin = user?.role === 'manager';
+  const isAdmin = user?.role === 'manager' || user?.role === 'deputy_manager';
 
   // ── Excel bulk-upload state ────────────────────────────────────────────────
   const [showUploadModal, setShowUploadModal] = useState(false);
