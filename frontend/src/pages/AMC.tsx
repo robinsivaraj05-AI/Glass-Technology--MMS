@@ -381,6 +381,7 @@ export default function AMC() {
 
   // ── AMC Master state ───────────────────────────────────────────────────────
   const [amcList, setAmcList] = useState<AMCRecord[]>([]);
+  const [vendors, setVendors] = useState<Array<{ _id: string; contractorCompany: string; contactPerson: string; mobile: string; email: string }>>([]);
   const [loadingAmc, setLoadingAmc] = useState(false);
   const [showModal, setShowModal] = useState(false);
   const [editRecord, setEditRecord] = useState<AMCRecord | null>(null);
@@ -451,6 +452,22 @@ export default function AMC() {
     }
   };
 
+  const fetchVendors = async () => {
+    try {
+      const r = await fetch('/api/contracts');
+      if (r.ok) {
+        const data = await r.json();
+        setVendors(data.map((c: any) => ({
+          _id: c._id,
+          contractorCompany: c.contractorCompany || '',
+          contactPerson:     c.contactPerson    || '',
+          mobile:            c.mobile           || '',
+          email:             c.email            || '',
+        })));
+      }
+    } catch {}
+  };
+
   const fetchSchedules = async () => {
     setLoadingSch(true);
     try {
@@ -487,7 +504,7 @@ export default function AMC() {
     }
   };
 
-  useEffect(() => { fetchAmc(); }, []);
+  useEffect(() => { fetchAmc(); fetchVendors(); }, []);
   useEffect(() => { if (tab === 'schedules') fetchSchedules(); }, [tab]);
   useEffect(() => { if (tab === 'finance') { fetchBudgets(); fetchPayments(); } }, [tab, budgetYear, paymentStatusFilter]);
 
@@ -1638,6 +1655,36 @@ export default function AMC() {
               {/* Section 3: Contractor Information */}
               <SectionHeader title="3. Contractor Information" color="#F59E0B" />
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 12, marginBottom: 20 }}>
+
+                {/* Vendor master quick-fill */}
+                <div style={{ gridColumn: '1 / -1' }}>
+                  <Field label="Select from Vendor Master (auto-fill)">
+                    <div style={{ position: 'relative' }}>
+                      <select
+                        defaultValue=""
+                        onChange={e => {
+                          const v = vendors.find(x => x._id === e.target.value);
+                          if (!v) return;
+                          handleFormChange('contractorCompany', v.contractorCompany);
+                          handleFormChange('contactPerson',     v.contactPerson);
+                          handleFormChange('mobile',            v.mobile);
+                          handleFormChange('email',             v.email);
+                        }}
+                        style={{ ...S.select, paddingLeft: 36 }}
+                      >
+                        <option value="">— Choose a vendor to auto-fill contractor fields —</option>
+                        {vendors.length === 0 && <option disabled>No vendors in Contract Master</option>}
+                        {vendors.map(v => (
+                          <option key={v._id} value={v._id}>
+                            {v.contractorCompany}{v.contactPerson ? `  ·  ${v.contactPerson}` : ''}
+                          </option>
+                        ))}
+                      </select>
+                      <Building size={13} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: '#F59E0B', pointerEvents: 'none' }} />
+                    </div>
+                  </Field>
+                </div>
+
                 <Field label="Contractor Company">
                   <input value={form.contractorCompany} onChange={e => handleFormChange('contractorCompany', e.target.value)} style={S.input} />
                 </Field>
