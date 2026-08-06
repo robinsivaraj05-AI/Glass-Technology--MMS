@@ -115,7 +115,7 @@ interface AMCPaymentRecord {
 
 // ── Constants ──────────────────────────────────────────────────────────────────
 
-const API = 'http://localhost:5001/api/amc';
+const API = '/api/amc';
 
 const BLANK: AMCRecord = {
   amcNumber: '', department: '', area: '', equipmentCategory: '',
