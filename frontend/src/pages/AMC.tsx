@@ -160,6 +160,15 @@ const CHART_COLORS = ['#2563EB', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#0
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
 
+// Safely convert any ISO / partial date string to YYYY-MM-DD for <input type="date">.
+// Returns '' if the date is invalid or epoch (1970), preventing "01/01/1970" display.
+function toDateInput(val?: string | null): string {
+  if (!val) return '';
+  const d = new Date(val);
+  if (isNaN(d.getTime()) || d.getFullYear() < 2000) return '';
+  return d.toISOString().split('T')[0];
+}
+
 function fmtDate(d?: string): string {
   if (!d) return '—';
   try { return new Date(d).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }); }
@@ -309,6 +318,31 @@ function KpiCard({ label, value, icon, color, sub }: { label: string; value: str
         <div style={{ fontSize: 11, color: '#64748b', marginTop: 2 }}>{label}</div>
         {sub && <div style={{ fontSize: 11, color: '#475569', marginTop: 1 }}>{sub}</div>}
       </div>
+    </div>
+  );
+}
+
+// ── Date picker input with calendar icon button ───────────────────────────────
+
+function DateInput({ value, onChange, style }: { value: string; onChange: (v: string) => void; style?: React.CSSProperties }) {
+  const ref = useRef<HTMLInputElement>(null);
+  return (
+    <div style={{ position: 'relative' }}>
+      <input
+        ref={ref}
+        type="date"
+        value={value}
+        onChange={e => onChange(e.target.value)}
+        style={{ ...S.input, paddingRight: 38, cursor: 'pointer', ...style }}
+      />
+      <button
+        type="button"
+        onClick={() => { ref.current?.showPicker?.(); ref.current?.focus(); }}
+        style={{ position: 'absolute', right: 0, top: 0, bottom: 0, width: 34, background: 'rgba(37,99,235,0.18)', border: 'none', borderRadius: '0 6px 6px 0', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#60a5fa' }}
+        tabIndex={-1}
+      >
+        <Calendar size={14} />
+      </button>
     </div>
   );
 }
@@ -677,8 +711,8 @@ export default function AMC() {
     setEditRecord(rec);
     setForm({
       ...rec,
-      startDate: rec.startDate ? rec.startDate.split('T')[0] : '',
-      endDate: rec.endDate ? rec.endDate.split('T')[0] : '',
+      startDate: toDateInput(rec.startDate),
+      endDate:   toDateInput(rec.endDate),
     });
     setShowModal(true);
   };
@@ -1580,10 +1614,10 @@ export default function AMC() {
                   <input type="number" value={form.visitsPerYear} readOnly style={{ ...S.input, opacity: 0.7 }} />
                 </Field>
                 <Field label="Start Date *">
-                  <input type="date" value={form.startDate} onChange={e => handleFormChange('startDate', e.target.value)} style={S.input} />
+                  <DateInput value={form.startDate} onChange={v => handleFormChange('startDate', v)} />
                 </Field>
                 <Field label="End Date *">
-                  <input type="date" value={form.endDate} onChange={e => handleFormChange('endDate', e.target.value)} style={S.input} />
+                  <DateInput value={form.endDate} onChange={v => handleFormChange('endDate', v)} />
                 </Field>
                 <Field label="Payment Terms">
                   <select value={form.paymentTerms} onChange={e => handleFormChange('paymentTerms', e.target.value)} style={S.select}>
