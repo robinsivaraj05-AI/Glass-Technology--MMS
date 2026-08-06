@@ -209,7 +209,7 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
             <div key={item.label}>
               <button
                 onClick={() => !collapsed && toggleGroup(item.label)}
-                className={`sidebar-link ${hasActiveChild && !isOpen ? 'active' : ''}`}
+                className={`sidebar-link sidebar-parent-btn ${hasActiveChild && !isOpen ? 'active' : ''}`}
                 style={{
                   width: '100%', textAlign: 'left', background: 'none', border: 'none',
                   justifyContent: collapsed ? 'center' : undefined,
@@ -234,7 +234,7 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
                       key={child.path}
                       to={child.path}
                       className={({ isActive }) => `sidebar-link ${isActive ? 'active' : ''}`}
-                      style={{ fontSize: 12, padding: '7px 12px' }}
+                      style={({ isActive }) => ({ fontSize: 12, padding: '7px 12px', color: isActive ? '#60a5fa' : '#6b7280' })}
                     >
                       {child.icon && <span style={{ flexShrink: 0 }}>{child.icon}</span>}
                       <span>{child.label}</span>
