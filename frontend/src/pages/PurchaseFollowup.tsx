@@ -577,8 +577,8 @@ export default function PurchaseFollowup() {
                   <td style={{ fontSize:12, color:'#60a5fa', fontFamily:'monospace' }}>{r.prNumber||'—'}</td>
                   <td style={{ fontSize:11, color:'#94a3b8', whiteSpace:'nowrap' }}>{r.reqDate ? fmtMonYear(r.reqDate) : '—'}</td>
                   <td style={{ textAlign:'right', fontSize:12, color:'#22c55e', fontWeight:600 }}>{r.budget ? r.budget.toLocaleString() : '—'}</td>
-                  <td style={{ fontSize:12, color:'#94a3b8', whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }} title={r.leadTime}>{r.leadTime||'—'}</td>
-                  <td style={{ fontSize:12, color:'#94a3b8', whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }} title={r.workingTime}>{r.workingTime||'—'}</td>
+                  <td style={{ fontSize:12, color:'#94a3b8', whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis', textAlign:'center' }} title={r.leadTime}>{r.leadTime||'—'}</td>
+                  <td style={{ fontSize:12, color:'#94a3b8', whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis', textAlign:'center' }} title={r.workingTime}>{r.workingTime||'—'}</td>
                   <td style={{ position:'sticky', right:0, background:'#0b0b18', zIndex:2, boxShadow:'-3px 0 8px rgba(0,0,0,0.5)', padding:'4px', textAlign:'center' }}>
                     <button onClick={e=>openMenu(e,r)} style={{ width:30, height:28, borderRadius:6, background:'rgba(255,255,255,0.07)', border:'1px solid rgba(255,255,255,0.13)', color:'#94a3b8', cursor:'pointer', fontSize:16, lineHeight:1, display:'flex', alignItems:'center', justifyContent:'center' }} title="Actions">⋮</button>
                   </td>
