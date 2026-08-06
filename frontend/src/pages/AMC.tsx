@@ -1295,13 +1295,13 @@ export default function AMC() {
                       { k: 'equipmentCode', l: 'Equip. ID' }, { k: 'equipmentName', l: 'Equipment' },
                       { k: 'department', l: 'Dept' }, { k: 'contractorCompany', l: 'Contractor' },
                       { k: 'frequency', l: 'Freq' }, { k: 'endDate', l: 'End Date' },
-                      { k: 'totalContractValue', l: 'Value (AED)' }, { k: 'status', l: 'Status' },
+                      { k: 'totalContractValue', l: 'Value (AED)', center: true }, { k: 'status', l: 'Status' },
                       { k: 'criticality', l: 'Priority' },
                     ].map(col => (
-                      <th key={col.k} style={S.th}>
+                      <th key={col.k} style={{ ...S.th, textAlign: (col as any).center ? 'center' : 'left' }}>
                         <button
                           onClick={() => { if (sortKey === col.k) setSortDir(d => d === 'asc' ? 'desc' : 'asc'); else { setSortKey(col.k as keyof AMCRecord); setSortDir('asc'); } }}
-                          style={{ background: 'none', border: 'none', color: 'inherit', cursor: 'pointer', fontSize: 'inherit', fontWeight: 'inherit', letterSpacing: 'inherit', textTransform: 'inherit', display: 'flex', alignItems: 'center', gap: 4 }}
+                          style={{ background: 'none', border: 'none', color: 'inherit', cursor: 'pointer', fontSize: 'inherit', fontWeight: 'inherit', letterSpacing: 'inherit', textTransform: 'inherit', display: 'flex', alignItems: 'center', gap: 4, margin: (col as any).center ? '0 auto' : undefined }}
                         >
                           {col.l}
                           {sortKey === col.k && <span>{sortDir === 'asc' ? '↑' : '↓'}</span>}
@@ -1333,7 +1333,7 @@ export default function AMC() {
                           {days !== null && days <= 30 && days >= 0 && <div style={{ fontSize: 10, color: '#F59E0B', fontWeight: 600 }}>{days}d left</div>}
                           {days !== null && days < 0 && <div style={{ fontSize: 10, color: '#EF4444', fontWeight: 600 }}>{Math.abs(days)}d overdue</div>}
                         </td>
-                        <td style={{ ...S.td, textAlign: 'right' as const }}>{fmtCurrency(a.totalContractValue)}</td>
+                        <td style={{ ...S.td, textAlign: 'center' as const }}>{fmtCurrency(a.totalContractValue)}</td>
                         <td style={S.td}><StatusBadge status={a.status} /></td>
                         <td style={S.td}><CriticalityBadge criticality={a.criticality} /></td>
                         {isAdmin && (
