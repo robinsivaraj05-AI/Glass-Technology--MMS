@@ -39,6 +39,7 @@ import PurchasePO from './pages/PurchasePO';
 import PurchaseFollowup from './pages/PurchaseFollowup';
 import PurchaseCosting from './pages/PurchaseCosting';
 import FinanceEIPurReport from './pages/FinanceEIPurReport';
+import AMC from './pages/AMC';
 
 export default function App() {
   return (
@@ -67,6 +68,8 @@ export default function App() {
             <Route path="/assets" element={<AssetManagement />} />
             <Route path="/machines" element={<MachineMaster />} />
             <Route path="/calibration" element={<Calibration />} />
+            {/* AMC */}
+            <Route path="/amc" element={<AMC />} />
             {/* Spare Parts */}
             <Route path="/spare-parts" element={<SpareParts />} />
             {/* Energy */}

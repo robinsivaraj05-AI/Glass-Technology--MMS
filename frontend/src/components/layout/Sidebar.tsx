@@ -31,9 +31,10 @@ const navItems: NavItem[] = [
   {
     label: 'Assets',       icon: <HardDrive size={16} />,
     children: [
-      { label: 'Asset Management', path: '/assets',   icon: <Database size={14} /> },
-      { label: 'Master Data',      path: '/machines',  icon: <Cpu size={14} /> },
-      { label: 'Calibration',      path: '/calibration',icon: <FlaskConical size={14} /> },
+      { label: 'Asset Management', path: '/assets',      icon: <Database size={14} /> },
+      { label: 'Master Data',      path: '/machines',     icon: <Cpu size={14} /> },
+      { label: 'Calibration',      path: '/calibration',  icon: <FlaskConical size={14} /> },
+      { label: 'AMC Management',   path: '/amc',          icon: <FileText size={14} /> },
     ],
   },
   {
