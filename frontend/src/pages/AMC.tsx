@@ -647,20 +647,28 @@ export default function AMC() {
           const existing = amcList.find(a => a.equipmentCode && a.equipmentCode === rec.equipmentCode);
           if (existing?._id) {
             const r = await fetch(`${API}/${existing._id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...rec, _id: existing._id }) });
-            if (r.ok) success++; else failed++;
+            if (r.ok) {
+              const saved: AMCRecord = await r.json();
+              await regenerateSchedules(saved);
+              success++;
+            } else { failed++; }
           } else {
             failed++; // no match by Equipment Code — skip, do not create
           }
           continue;
         }
         const r = await fetch(API, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(rec) });
-        if (r.ok) success++; else failed++;
+        if (r.ok) {
+          const saved: AMCRecord = await r.json();
+          await regenerateSchedules(saved);
+          success++;
+        } else { failed++; }
       } catch { failed++; }
     }
     setUploading(false);
     setShowUploadModal(false);
     setUploadRows([]);
-    toast.success(`${success} record(s) ${uploadMode === 'update' ? 'updated' : 'added'}${failed > 0 ? ` · ${failed} skipped (no match)` : ''}`);
+    toast.success(`${success} record(s) ${uploadMode === 'update' ? 'updated' : 'added'} with schedules${failed > 0 ? ` · ${failed} skipped` : ''}`);
     fetchAmc();
   };
 
@@ -790,6 +798,20 @@ export default function AMC() {
     });
   };
 
+  // ── Regenerate schedules for an AMC (clears pending, keeps Completed) ────────
+  const regenerateSchedules = async (amc: AMCRecord) => {
+    if (!amc._id || !amc.startDate || !amc.endDate) return 0;
+    await fetch(`${API}/schedules/by-amc/${amc._id}`, { method: 'DELETE' });
+    const scheds = generateSchedules(amc);
+    if (scheds.length === 0) return 0;
+    await fetch(`${API}/schedules`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(scheds),
+    });
+    return scheds.length;
+  };
+
   // ── Save AMC ───────────────────────────────────────────────────────────────
 
   const saveAmc = async () => {
@@ -812,18 +834,9 @@ export default function AMC() {
       toast.success(editRecord ? 'AMC updated' : 'AMC created');
       setShowModal(false);
 
-      if (!editRecord) {
-        // Auto-generate schedules
-        const scheds = generateSchedules(saved);
-        if (scheds.length > 0) {
-          await fetch(`${API}/schedules`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(scheds),
-          });
-          toast.success(`${scheds.length} schedule(s) auto-generated`);
-        }
-      }
+      const count = await regenerateSchedules(saved);
+      if (count > 0) toast.success(`${count} schedule(s) ${editRecord ? 'regenerated' : 'auto-generated'}`);
+
       fetchAmc();
     } catch (e: unknown) {
       toast.error(e instanceof Error ? e.message : 'Save failed');

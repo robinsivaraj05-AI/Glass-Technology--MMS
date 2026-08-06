@@ -59,6 +59,16 @@ router.put('/schedules/:id', async (req, res) => {
   }
 });
 
+router.delete('/schedules/by-amc/:amcId', async (req, res) => {
+  try {
+    // Only delete pending schedules — keep Completed records intact
+    await AMCSchedule.deleteMany({ amcId: req.params.amcId, status: { $ne: 'Completed' } });
+    res.json({ message: 'Pending schedules cleared' });
+  } catch (err) {
+    res.status(500).json({ message: 'Server error', error: err });
+  }
+});
+
 router.delete('/schedules/:id', async (req, res) => {
   try {
     await AMCSchedule.findByIdAndDelete(req.params.id);
