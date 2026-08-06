@@ -192,7 +192,7 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
               <NavLink
                 key={item.path}
                 to={item.path}
-                className={({ isActive }) => `sidebar-link ${isActive ? 'active' : ''}`}
+                className={({ isActive }) => `sidebar-link sidebar-parent-btn ${isActive ? 'active' : ''}`}
                 title={collapsed ? item.label : undefined}
                 style={{ justifyContent: collapsed ? 'center' : undefined }}
               >

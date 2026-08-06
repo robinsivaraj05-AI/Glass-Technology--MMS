@@ -255,13 +255,14 @@ select option:checked {
   color: #60a5fa;
   border-left: 3px solid #3b82f6;
 }
-/* Parent group header — bright, bold; clearly a category, not a link */
+/* Parent / top-level nav items — bright, bold; clearly a category header */
 .sidebar-link.sidebar-parent-btn {
   color: #e2e8f0;
   font-weight: 700;
   font-size: 13px;
 }
 .sidebar-link.sidebar-parent-btn:hover { color: #93c5fd; }
+.sidebar-link.sidebar-parent-btn.active { color: #60a5fa; }
 
 /* KPI card accent lines */
 .kpi-card { position: relative; overflow: hidden; }
