@@ -425,7 +425,7 @@ export default function AMC() {
   const [fCriticality, setFCriticality] = useState('All');
   const [fFrequency, setFFrequency] = useState('All');
   const [fDepartment, setFDepartment] = useState('All');
-  const [sortKey, setSortKey] = useState<keyof AMCRecord>('amcNumber');
+  const [sortKey, setSortKey] = useState<keyof AMCRecord>('equipmentCode');
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
   const [page, setPage] = useState(1);
   const PAGE_SIZE = 10;
@@ -671,7 +671,7 @@ export default function AMC() {
   const filteredAmc = useMemo(() => {
     let list = amcList.filter(a => {
       const q = search.toLowerCase();
-      if (q && !a.amcNumber.toLowerCase().includes(q) && !a.equipmentName.toLowerCase().includes(q) && !a.contractorCompany.toLowerCase().includes(q) && !a.department.toLowerCase().includes(q)) return false;
+      if (q && !a.equipmentCode.toLowerCase().includes(q) && !a.equipmentName.toLowerCase().includes(q) && !a.contractorCompany.toLowerCase().includes(q) && !a.department.toLowerCase().includes(q)) return false;
       if (fStatus !== 'All' && a.status !== fStatus) return false;
       if (fCriticality !== 'All' && a.criticality !== fCriticality) return false;
       if (fFrequency !== 'All' && a.frequency !== fFrequency) return false;
@@ -931,7 +931,7 @@ export default function AMC() {
   // ── Payment CRUD ───────────────────────────────────────────────────────────
 
   const savePayment = async () => {
-    if (!paymentForm.amcNumber.trim()) { toast.error('AMC Number is required'); return; }
+    if (!paymentForm.amcId.trim()) { toast.error('Please select an equipment'); return; }
     try {
       const method = editPayment ? 'PUT' : 'POST';
       const url = editPayment ? `${API}/payments/${editPayment._id}` : `${API}/payments`;
@@ -999,9 +999,9 @@ export default function AMC() {
       autoTable(doc, {
         startY: 20,
         margin: { left: ML, right: MR },
-        head: [['AMC No', 'Equipment', 'Department', 'Contractor', 'Frequency', 'Start', 'End', 'Value (AED)', 'Status', 'Criticality']],
+        head: [['Equip. ID', 'Equipment', 'Department', 'Contractor', 'Frequency', 'Start', 'End', 'Value (AED)', 'Status', 'Criticality']],
         body: amcList.map(a => [
-          a.amcNumber, a.equipmentName, a.department, a.contractorCompany,
+          a.equipmentCode, a.equipmentName, a.department, a.contractorCompany,
           a.frequency, fmtDate(a.startDate), fmtDate(a.endDate),
           fmtCurrency(a.totalContractValue), a.status, a.criticality,
         ]),
@@ -1018,9 +1018,9 @@ export default function AMC() {
       autoTable(doc, {
         startY: 20,
         margin: { left: ML, right: MR },
-        head: [['AMC No', 'Equipment', 'Contractor', 'End Date', 'Days Left', 'Status']],
+        head: [['Equip. ID', 'Equipment', 'Contractor', 'End Date', 'Days Left', 'Status']],
         body: expiring.map(a => [
-          a.amcNumber, a.equipmentName, a.contractorCompany,
+          a.equipmentCode, a.equipmentName, a.contractorCompany,
           fmtDate(a.endDate), String(daysUntil(a.endDate) ?? '—'), a.status,
         ]),
         styles: { fontSize: 8, cellPadding: 2 },
@@ -1031,9 +1031,9 @@ export default function AMC() {
       autoTable(doc, {
         startY: 20,
         margin: { left: ML, right: MR },
-        head: [['AMC No', 'Equipment', 'Dept', 'Contractor', 'Visit#', 'Scheduled Date', 'Status', 'Engineer']],
+        head: [['Equip. ID', 'Equipment', 'Dept', 'Contractor', 'Visit#', 'Scheduled Date', 'Status', 'Engineer']],
         body: schedules.map(s => [
-          s.amcNumber, s.equipmentName, s.department, s.contractorCompany,
+          amcList.find(a => a._id === s.amcId)?.equipmentCode || s.equipmentName, s.equipmentName, s.department, s.contractorCompany,
           s.visitNumber, fmtDate(s.scheduledDate), s.status, s.engineerName || '—',
         ]),
         styles: { fontSize: 7, cellPadding: 2 },
@@ -1044,9 +1044,9 @@ export default function AMC() {
       autoTable(doc, {
         startY: 20,
         margin: { left: ML, right: MR },
-        head: [['AMC No', 'Equipment', 'Contractor', 'Invoice No', 'Invoice Date', 'Invoice Amt', 'Paid', 'Balance', 'Status']],
+        head: [['Equip. ID', 'Equipment', 'Contractor', 'Invoice No', 'Invoice Date', 'Invoice Amt', 'Paid', 'Balance', 'Status']],
         body: payments.map(p => [
-          p.amcNumber, p.equipmentName, p.contractorCompany,
+          amcList.find(a => a._id === p.amcId)?.equipmentCode || p.equipmentName, p.equipmentName, p.contractorCompany,
           p.invoiceNumber, fmtDate(p.invoiceDate),
           fmtCurrency(p.invoiceAmount), fmtCurrency(p.paidAmount),
           fmtCurrency(p.balance), p.paymentStatus,
@@ -1088,7 +1088,7 @@ export default function AMC() {
 
   const exportExcel = () => {
     const ws = XLSX.utils.json_to_sheet(amcList.map(a => ({
-      'AMC Number': a.amcNumber,
+      'Equipment Code': a.equipmentCode,
       'Equipment': a.equipmentName,
       'Department': a.department,
       'Category': a.equipmentCategory,
@@ -1257,7 +1257,7 @@ export default function AMC() {
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 14, alignItems: 'center' }}>
             <div style={{ position: 'relative', flex: '1 1 220px' }}>
               <Search size={13} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: '#64748b' }} />
-              <input placeholder="Search AMC No, Equipment, Contractor…" value={search} onChange={e => { setSearch(e.target.value); setPage(1); }} style={{ ...S.input, paddingLeft: 32 }} />
+              <input placeholder="Search Equip. ID, Equipment, Contractor…" value={search} onChange={e => { setSearch(e.target.value); setPage(1); }} style={{ ...S.input, paddingLeft: 32 }} />
             </div>
             <select value={fDepartment} onChange={e => { setFDepartment(e.target.value); setPage(1); }} style={{ ...S.select, flex: '0 0 140px' }}>
               {departments.map(d => <option key={d} value={d}>{d}</option>)}
@@ -1292,7 +1292,7 @@ export default function AMC() {
                 <thead style={{ background: 'rgba(255,255,255,0.03)', position: 'sticky', top: 0 }}>
                   <tr>
                     {[
-                      { k: 'amcNumber', l: 'AMC No' }, { k: 'equipmentName', l: 'Equipment' },
+                      { k: 'equipmentCode', l: 'Equip. ID' }, { k: 'equipmentName', l: 'Equipment' },
                       { k: 'department', l: 'Dept' }, { k: 'contractorCompany', l: 'Contractor' },
                       { k: 'frequency', l: 'Freq' }, { k: 'endDate', l: 'End Date' },
                       { k: 'totalContractValue', l: 'Value (AED)' }, { k: 'status', l: 'Status' },
@@ -1323,8 +1323,8 @@ export default function AMC() {
                         onMouseEnter={e => (e.currentTarget.style.background = 'rgba(37,99,235,0.07)')}
                         onMouseLeave={e => (e.currentTarget.style.background = i % 2 === 0 ? 'transparent' : 'rgba(255,255,255,0.015)')}
                       >
-                        <td style={S.td}><span style={{ color: '#60a5fa', fontWeight: 600, fontSize: 11 }}>{a.amcNumber}</span></td>
-                        <td style={S.td}><div style={{ fontWeight: 500 }}>{a.equipmentName}</div><div style={{ fontSize: 10, color: '#64748b' }}>{a.equipmentCode}</div></td>
+                        <td style={S.td}><span style={{ color: '#60a5fa', fontWeight: 600, fontSize: 11 }}>{a.equipmentCode || '—'}</span></td>
+                        <td style={S.td}><div style={{ fontWeight: 500 }}>{a.equipmentName}</div></td>
                         <td style={S.td}>{a.department || '—'}</td>
                         <td style={S.td}>{a.contractorCompany || '—'}</td>
                         <td style={S.td}>{a.frequency}</td>
@@ -1382,7 +1382,7 @@ export default function AMC() {
               <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                 <thead style={{ background: 'rgba(255,255,255,0.03)' }}>
                   <tr>
-                    {['AMC No', 'Equipment', 'Dept', 'Contractor', 'Visit#', 'Scheduled Date', 'Days', 'Status', 'Engineer', 'Actions'].map(h => (
+                    {['Equip. ID', 'Equipment', 'Dept', 'Contractor', 'Visit#', 'Scheduled Date', 'Days', 'Status', 'Engineer', 'Actions'].map(h => (
                       <th key={h} style={S.th}>{h}</th>
                     ))}
                   </tr>
@@ -1402,7 +1402,7 @@ export default function AMC() {
                     }
                     return (
                       <tr key={s._id} style={{ background: i % 2 === 0 ? 'transparent' : 'rgba(255,255,255,0.015)' }}>
-                        <td style={S.td}><span style={{ color: '#60a5fa', fontSize: 11, fontWeight: 600 }}>{s.amcNumber}</span></td>
+                        <td style={S.td}><span style={{ color: '#60a5fa', fontSize: 11, fontWeight: 600 }}>{amcList.find(a => a._id === s.amcId)?.equipmentCode || '—'}</span></td>
                         <td style={S.td}>{s.equipmentName}</td>
                         <td style={S.td}>{s.department || '—'}</td>
                         <td style={S.td}>{s.contractorCompany || '—'}</td>
@@ -1523,7 +1523,7 @@ export default function AMC() {
                 <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                   <thead style={{ background: 'rgba(255,255,255,0.03)' }}>
                     <tr>
-                      {['AMC No', 'Equipment', 'Contractor', 'Invoice No', 'Invoice Date', 'Invoice Amt', 'Paid', 'Balance', 'Payment Date', 'Status', ...(isAdmin ? ['Actions'] : [])].map(h => <th key={h} style={S.th}>{h}</th>)}
+                      {['Equip. ID', 'Equipment', 'Contractor', 'Invoice No', 'Invoice Date', 'Invoice Amt', 'Paid', 'Balance', 'Payment Date', 'Status', ...(isAdmin ? ['Actions'] : [])].map(h => <th key={h} style={S.th}>{h}</th>)}
                     </tr>
                   </thead>
                   <tbody>
@@ -1531,7 +1531,7 @@ export default function AMC() {
                       <tr><td colSpan={11} style={{ ...S.td, textAlign: 'center', padding: 30, color: '#475569' }}>No payment records</td></tr>
                     ) : payments.map((p, i) => (
                       <tr key={p._id} style={{ background: i % 2 === 0 ? 'transparent' : 'rgba(255,255,255,0.015)' }}>
-                        <td style={S.td}><span style={{ color: '#60a5fa', fontSize: 11, fontWeight: 600 }}>{p.amcNumber}</span></td>
+                        <td style={S.td}><span style={{ color: '#60a5fa', fontSize: 11, fontWeight: 600 }}>{amcList.find(a => a._id === p.amcId)?.equipmentCode || '—'}</span></td>
                         <td style={S.td}>{p.equipmentName}</td>
                         <td style={S.td}>{p.contractorCompany}</td>
                         <td style={S.td}>{p.invoiceNumber}</td>
@@ -1603,14 +1603,14 @@ export default function AMC() {
               {/* Section 1: Equipment Information */}
               <SectionHeader title="1. Equipment Information" color="#2563EB" />
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 12, marginBottom: 20 }}>
-                <Field label="AMC Number *">
-                  <input value={form.amcNumber} onChange={e => handleFormChange('amcNumber', e.target.value)} style={S.input} placeholder="Auto-generated" />
+                <Field label="Equipment ID *">
+                  <input value={form.equipmentCode} onChange={e => handleFormChange('equipmentCode', e.target.value)} style={S.input} placeholder="e.g. EQ-001" />
                 </Field>
                 <Field label="Equipment Name *">
                   <input value={form.equipmentName} onChange={e => handleFormChange('equipmentName', e.target.value)} style={S.input} placeholder="e.g. HVAC Unit" />
                 </Field>
-                <Field label="Equipment Code">
-                  <input value={form.equipmentCode} onChange={e => handleFormChange('equipmentCode', e.target.value)} style={S.input} placeholder="e.g. EQ-001" />
+                <Field label="Asset ID">
+                  <input value={form.assetId} onChange={e => handleFormChange('assetId', e.target.value)} style={S.input} placeholder="e.g. AST-001" />
                 </Field>
                 <Field label="Equipment Category">
                   <input value={form.equipmentCategory} onChange={e => handleFormChange('equipmentCategory', e.target.value)} style={S.input} placeholder="e.g. HVAC" />
@@ -1823,7 +1823,7 @@ export default function AMC() {
             <div style={{ color: '#EF4444', marginBottom: 12 }}><Trash2 size={32} /></div>
             <div style={{ fontSize: 16, fontWeight: 700, color: '#f1f5f9', marginBottom: 8 }}>Delete AMC Record?</div>
             <div style={{ fontSize: 13, color: '#64748b', marginBottom: 20 }}>
-              This will permanently delete <strong style={{ color: '#e2e8f0' }}>{deleteTarget.amcNumber} — {deleteTarget.equipmentName}</strong> along with all associated schedules and payments.
+              This will permanently delete <strong style={{ color: '#e2e8f0' }}>{deleteTarget.equipmentCode || deleteTarget.equipmentName} — {deleteTarget.equipmentName}</strong> along with all associated schedules and payments.
             </div>
             <div style={{ display: 'flex', gap: 10, justifyContent: 'center' }}>
               <button onClick={() => setDeleteTarget(null)} style={{ ...S.btn, ...S.btnGhost, padding: '8px 24px' }}>Cancel</button>
@@ -1843,7 +1843,7 @@ export default function AMC() {
             </div>
             <div style={{ padding: '18px 22px', display: 'flex', flexDirection: 'column', gap: 12 }}>
               <div style={{ background: 'rgba(37,99,235,0.1)', borderRadius: 8, padding: '10px 14px', fontSize: 12, color: '#94a3b8' }}>
-                <strong style={{ color: '#60a5fa' }}>{completingSchedule.amcNumber}</strong> — {completingSchedule.equipmentName} — Visit #{completingSchedule.visitNumber} — Scheduled: {fmtDate(completingSchedule.scheduledDate)}
+                <strong style={{ color: '#60a5fa' }}>{amcList.find(a => a._id === completingSchedule.amcId)?.equipmentCode || completingSchedule.equipmentName}</strong> — {completingSchedule.equipmentName} — Visit #{completingSchedule.visitNumber} — Scheduled: {fmtDate(completingSchedule.scheduledDate)}
               </div>
               <Field label="Engineer Name">
                 <input value={completeForm.engineerName} onChange={e => setCompleteForm(p => ({ ...p, engineerName: e.target.value }))} style={S.input} />
@@ -1902,7 +1902,7 @@ export default function AMC() {
               <table style={{ width: '100%', borderCollapse: 'collapse', marginTop: 12, fontSize: 11 }}>
                 <thead style={{ position: 'sticky', top: 0, background: '#0d1526' }}>
                   <tr>
-                    {['#','AMC No','Equipment','Dept','Contractor','Frequency','Start','End','Value (AED)','Criticality','Status'].map(h =>
+                    {['#','Equip. ID','Equipment','Dept','Contractor','Frequency','Start','End','Value (AED)','Criticality','Status'].map(h =>
                       <th key={h} style={{ ...S.th, background: 'rgba(30,58,138,0.4)', padding: '8px 10px' }}>{h}</th>)}
                   </tr>
                 </thead>
@@ -1910,7 +1910,7 @@ export default function AMC() {
                   {uploadRows.map((r, i) => (
                     <tr key={i} style={{ background: i % 2 === 0 ? 'transparent' : 'rgba(255,255,255,0.02)' }}>
                       <td style={{ ...S.td, color: '#475569', fontSize: 10 }}>{i + 1}</td>
-                      <td style={{ ...S.td, color: '#60a5fa', fontWeight: 600 }}>{r.amcNumber}</td>
+                      <td style={{ ...S.td, color: '#60a5fa', fontWeight: 600 }}>{r.equipmentCode || '—'}</td>
                       <td style={S.td}>{r.equipmentName || <span style={{ color: '#EF4444' }}>⚠ Missing</span>}</td>
                       <td style={S.td}>{r.department || '—'}</td>
                       <td style={S.td}>{r.contractorCompany || '—'}</td>
@@ -1979,13 +1979,13 @@ export default function AMC() {
               <button onClick={() => setShowPaymentModal(false)} style={{ background: 'none', border: 'none', color: '#64748b', cursor: 'pointer' }}><X size={16} /></button>
             </div>
             <div style={{ padding: '18px 22px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-              <Field label="AMC Number *">
-                <select value={paymentForm.amcNumber} onChange={e => {
-                  const amc = amcList.find(a => a.amcNumber === e.target.value);
-                  setPaymentForm(p => ({ ...p, amcNumber: e.target.value, amcId: amc?._id || '', equipmentName: amc?.equipmentName || '', contractorCompany: amc?.contractorCompany || '' }));
+              <Field label="Equipment *">
+                <select value={paymentForm.amcId} onChange={e => {
+                  const amc = amcList.find(a => a._id === e.target.value);
+                  setPaymentForm(p => ({ ...p, amcId: e.target.value, amcNumber: amc?.amcNumber || '', equipmentName: amc?.equipmentName || '', contractorCompany: amc?.contractorCompany || '' }));
                 }} style={S.select}>
-                  <option value="">Select AMC</option>
-                  {amcList.map(a => <option key={a._id} value={a.amcNumber}>{a.amcNumber} — {a.equipmentName}</option>)}
+                  <option value="">Select Equipment</option>
+                  {amcList.map(a => <option key={a._id} value={a._id}>{a.equipmentCode ? `${a.equipmentCode} — ` : ''}{a.equipmentName}</option>)}
                 </select>
               </Field>
               <Field label="Invoice Number">
