@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect, useRef } from 'react';
+import { useAuth } from '../context/AuthContext';
 import {
   Plus, Pencil, Trash2, Search, Download, FileSpreadsheet,
   X, CheckCircle, AlertTriangle, Clock, DollarSign, FileText,
@@ -389,6 +390,17 @@ export default function AMC() {
   const [paymentStatusFilter, setPaymentStatusFilter] = useState('All');
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const uploadRef    = useRef<HTMLInputElement>(null);
+
+  // ── Auth / role gate ───────────────────────────────────────────────────────
+  const { user } = useAuth();
+  const isAdmin = user?.role === 'manager';
+
+  // ── Excel bulk-upload state ────────────────────────────────────────────────
+  const [showUploadModal, setShowUploadModal] = useState(false);
+  const [uploadRows,      setUploadRows]      = useState<AMCRecord[]>([]);
+  const [uploadMode,      setUploadMode]      = useState<'new' | 'update'>('new');
+  const [uploading,       setUploading]       = useState(false);
 
   // ── Fetch functions ────────────────────────────────────────────────────────
 
@@ -444,6 +456,126 @@ export default function AMC() {
   useEffect(() => { fetchAmc(); }, []);
   useEffect(() => { if (tab === 'schedules') fetchSchedules(); }, [tab]);
   useEffect(() => { if (tab === 'finance') { fetchBudgets(); fetchPayments(); } }, [tab, budgetYear, paymentStatusFilter]);
+
+  // ── Excel template download ───────────────────────────────────────────────
+  const downloadTemplate = () => {
+    const headers = [
+      'Department','Area','Equipment Category','Equipment Name','Equipment Code',
+      'Manufacturer','Model Number','Serial Number','Asset ID','AMC Type',
+      'Frequency','Custom Interval Days','Start Date (YYYY-MM-DD)','End Date (YYYY-MM-DD)',
+      'Auto Renewal (Yes/No)','Grace Period Days','Criticality','Status',
+      'Contractor Company','Contact Person','Mobile','Email','Address',
+      'Trade License','TRN Number','Contract Number','PO Number',
+      'Agreement Number','Invoice Number','Currency','Contract Value',
+      'VAT Percent','Payment Terms','Remarks',
+    ];
+    const sample = [
+      'E&I','Production','HVAC','Air Handling Unit 01','EQ-001',
+      'Carrier','AHU-2000','SN12345','AST-001','Service Contract',
+      'Quarterly','','2025-01-01','2025-12-31',
+      'Yes','30','High','Active',
+      'ABC Maintenance LLC','John Smith','+971501234567','john@abc.com','Dubai, UAE',
+      'TL-12345','TRN-123456','CON-001','PO-001',
+      'AGR-001','INV-001','AED','5000','5','Quarterly','Sample AMC record',
+    ];
+    const ws = XLSX.utils.aoa_to_sheet([headers, sample]);
+    ws['!cols'] = headers.map(() => ({ wch: 22 }));
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'AMC_Template');
+    XLSX.writeFile(wb, 'AMC_Master_Template.xlsx');
+  };
+
+  // ── Parse uploaded Excel file ─────────────────────────────────────────────
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      try {
+        const wb = XLSX.read(ev.target?.result, { type: 'binary' });
+        const ws = wb.Sheets[wb.SheetNames[0]];
+        const rows = XLSX.utils.sheet_to_json<Record<string, string>>(ws);
+        const year = new Date().getFullYear();
+        const parsed: AMCRecord[] = rows.map((r, idx) => {
+          const cv  = parseFloat(r['Contract Value'] || '0') || 0;
+          const vat = parseFloat(r['VAT Percent'] || '5') || 5;
+          return {
+            ...BLANK,
+            amcNumber:          r['AMC Number'] || `AMC-${year}-${String(amcList.length + idx + 1).padStart(3,'0')}`,
+            department:         r['Department'] || '',
+            area:               r['Area'] || '',
+            equipmentCategory:  r['Equipment Category'] || '',
+            equipmentName:      r['Equipment Name'] || '',
+            equipmentCode:      r['Equipment Code'] || '',
+            manufacturer:       r['Manufacturer'] || '',
+            modelNumber:        r['Model Number'] || '',
+            serialNumber:       r['Serial Number'] || '',
+            assetId:            r['Asset ID'] || '',
+            amcType:            r['AMC Type'] || 'Service Contract',
+            frequency:          r['Frequency'] || 'Yearly',
+            customIntervalDays: parseInt(r['Custom Interval Days'] || '0') || 0,
+            visitsPerYear:      getVisitsPerYear(r['Frequency'] || 'Yearly', parseInt(r['Custom Interval Days'] || '0') || 0),
+            startDate:          r['Start Date (YYYY-MM-DD)'] || '',
+            endDate:            r['End Date (YYYY-MM-DD)'] || '',
+            autoRenewal:        (r['Auto Renewal (Yes/No)'] || '').toLowerCase() === 'yes',
+            gracePeriodDays:    parseInt(r['Grace Period Days'] || '30') || 30,
+            criticality:        r['Criticality'] || 'Medium',
+            status:             r['Status'] || 'Active',
+            contractorCompany:  r['Contractor Company'] || '',
+            contactPerson:      r['Contact Person'] || '',
+            mobile:             r['Mobile'] || '',
+            email:              r['Email'] || '',
+            address:            r['Address'] || '',
+            tradeLicense:       r['Trade License'] || '',
+            trnNumber:          r['TRN Number'] || '',
+            contractNumber:     r['Contract Number'] || '',
+            poNumber:           r['PO Number'] || '',
+            agreementNumber:    r['Agreement Number'] || '',
+            invoiceNumber:      r['Invoice Number'] || '',
+            currency:           r['Currency'] || 'AED',
+            contractValue:      cv,
+            vatPercent:         vat,
+            vatAmount:          Math.round(cv * vat / 100 * 100) / 100,
+            totalContractValue: Math.round(cv * (1 + vat / 100) * 100) / 100,
+            paymentTerms:       r['Payment Terms'] || 'Yearly',
+            remarks:            r['Remarks'] || '',
+          };
+        });
+        if (parsed.length === 0) { toast.error('No data rows found in the file'); return; }
+        setUploadRows(parsed);
+        setUploadMode('new');
+        setShowUploadModal(true);
+      } catch {
+        toast.error('Failed to parse file. Please use the downloaded template.');
+      }
+    };
+    reader.readAsBinaryString(file);
+    e.target.value = '';
+  };
+
+  // ── Process bulk upload ───────────────────────────────────────────────────
+  const processUpload = async () => {
+    setUploading(true);
+    let success = 0, failed = 0;
+    for (const rec of uploadRows) {
+      try {
+        if (uploadMode === 'update') {
+          const existing = amcList.find(a => a.amcNumber === rec.amcNumber);
+          if (existing?._id) {
+            const r = await fetch(`${API}/${existing._id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(rec) });
+            if (r.ok) { success++; continue; }
+          }
+        }
+        const r = await fetch(API, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(rec) });
+        if (r.ok) success++; else failed++;
+      } catch { failed++; }
+    }
+    setUploading(false);
+    setShowUploadModal(false);
+    setUploadRows([]);
+    toast.success(`${success} record(s) saved${failed > 0 ? `, ${failed} failed` : ''}`);
+    fetchAmc();
+  };
 
   // ── AMC Master filtered/sorted ─────────────────────────────────────────────
 
@@ -1052,7 +1184,18 @@ export default function AMC() {
             <select value={fFrequency} onChange={e => { setFFrequency(e.target.value); setPage(1); }} style={{ ...S.select, flex: '0 0 130px' }}>
               {['All', ...FREQ_OPTIONS].map(f => <option key={f} value={f}>{f}</option>)}
             </select>
-            <button style={{ ...S.btn, ...S.btnPrimary, marginLeft: 'auto' }} onClick={openAdd}><Plus size={14} />Add AMC</button>
+            {isAdmin && (
+              <div style={{ display: 'flex', gap: 8, marginLeft: 'auto' }}>
+                <button style={{ ...S.btn, ...S.btnGhost }} onClick={downloadTemplate} title="Download Excel template">
+                  <Download size={14} />Template
+                </button>
+                <button style={{ ...S.btn, ...S.btnGhost }} onClick={() => uploadRef.current?.click()} title="Upload filled Excel">
+                  <FileSpreadsheet size={14} />Upload
+                </button>
+                <input ref={uploadRef} type="file" accept=".xlsx,.xls,.csv" style={{ display: 'none' }} onChange={handleFileUpload} />
+                <button style={{ ...S.btn, ...S.btnPrimary }} onClick={openAdd}><Plus size={14} />Add AMC</button>
+              </div>
+            )}
           </div>
 
           {/* Table */}
@@ -1078,7 +1221,7 @@ export default function AMC() {
                         </button>
                       </th>
                     ))}
-                    <th style={S.th}>Actions</th>
+                    {isAdmin && <th style={S.th}>Actions</th>}
                   </tr>
                 </thead>
                 <tbody>
@@ -1106,12 +1249,14 @@ export default function AMC() {
                         <td style={{ ...S.td, textAlign: 'right' as const }}>{fmtCurrency(a.totalContractValue)}</td>
                         <td style={S.td}><StatusBadge status={a.status} /></td>
                         <td style={S.td}><CriticalityBadge criticality={a.criticality} /></td>
-                        <td style={S.td}>
-                          <div style={{ display: 'flex', gap: 6 }}>
-                            <button onClick={() => openEdit(a)} style={{ background: 'rgba(37,99,235,0.15)', border: 'none', borderRadius: 5, padding: '5px 8px', color: '#60a5fa', cursor: 'pointer' }} title="Edit"><Pencil size={13} /></button>
-                            <button onClick={() => setDeleteTarget(a)} style={{ background: 'rgba(239,68,68,0.1)', border: 'none', borderRadius: 5, padding: '5px 8px', color: '#EF4444', cursor: 'pointer' }} title="Delete"><Trash2 size={13} /></button>
-                          </div>
-                        </td>
+                        {isAdmin && (
+                          <td style={S.td}>
+                            <div style={{ display: 'flex', gap: 6 }}>
+                              <button onClick={() => openEdit(a)} style={{ background: 'rgba(37,99,235,0.15)', border: 'none', borderRadius: 5, padding: '5px 8px', color: '#60a5fa', cursor: 'pointer' }} title="Edit"><Pencil size={13} /></button>
+                              <button onClick={() => setDeleteTarget(a)} style={{ background: 'rgba(239,68,68,0.1)', border: 'none', borderRadius: 5, padding: '5px 8px', color: '#EF4444', cursor: 'pointer' }} title="Delete"><Trash2 size={13} /></button>
+                            </div>
+                          </td>
+                        )}
                       </tr>
                     );
                   })}
@@ -1218,7 +1363,7 @@ export default function AMC() {
                 <select value={budgetYear} onChange={e => setBudgetYear(e.target.value)} style={{ ...S.select, width: 100 }}>
                   {[2023, 2024, 2025, 2026, 2027].map(y => <option key={y} value={y}>{y}</option>)}
                 </select>
-                <button style={{ ...S.btn, ...S.btnPrimary, marginLeft: 'auto' }} onClick={() => { setEditBudget(null); setBudgetForm({ ...BLANK_BUDGET, budgetYear: Number(budgetYear) }); setShowBudgetModal(true); }}><Plus size={14} />Add Budget</button>
+                {isAdmin && <button style={{ ...S.btn, ...S.btnPrimary, marginLeft: 'auto' }} onClick={() => { setEditBudget(null); setBudgetForm({ ...BLANK_BUDGET, budgetYear: Number(budgetYear) }); setShowBudgetModal(true); }}><Plus size={14} />Add Budget</button>}
               </div>
 
               {/* Budget bar chart */}
@@ -1243,7 +1388,7 @@ export default function AMC() {
                 <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                   <thead style={{ background: 'rgba(255,255,255,0.03)' }}>
                     <tr>
-                      {['Year', 'Department', 'Category', 'Allocated (AED)', 'Actual Spent (AED)', 'Variance', 'Actions'].map(h => <th key={h} style={S.th}>{h}</th>)}
+                      {['Year', 'Department', 'Category', 'Allocated (AED)', 'Actual Spent (AED)', 'Variance', ...(isAdmin ? ['Actions'] : [])].map(h => <th key={h} style={S.th}>{h}</th>)}
                     </tr>
                   </thead>
                   <tbody>
@@ -1259,12 +1404,14 @@ export default function AMC() {
                           <td style={{ ...S.td, textAlign: 'right' as const }}>{fmtCurrency(b.allocatedBudget)}</td>
                           <td style={{ ...S.td, textAlign: 'right' as const }}>{fmtCurrency(b.actualSpent)}</td>
                           <td style={{ ...S.td, textAlign: 'right' as const, color: variance >= 0 ? '#10B981' : '#EF4444', fontWeight: 600 }}>{variance >= 0 ? '+' : ''}{fmtCurrency(variance)}</td>
-                          <td style={S.td}>
-                            <div style={{ display: 'flex', gap: 6 }}>
-                              <button onClick={() => { setEditBudget(b); setBudgetForm({ budgetYear: b.budgetYear, department: b.department, category: b.category, allocatedBudget: b.allocatedBudget, actualSpent: b.actualSpent }); setShowBudgetModal(true); }} style={{ background: 'rgba(37,99,235,0.15)', border: 'none', borderRadius: 5, padding: '5px 8px', color: '#60a5fa', cursor: 'pointer' }}><Pencil size={12} /></button>
-                              <button onClick={() => b._id && deleteBudget(b._id)} style={{ background: 'rgba(239,68,68,0.1)', border: 'none', borderRadius: 5, padding: '5px 8px', color: '#EF4444', cursor: 'pointer' }}><Trash2 size={12} /></button>
-                            </div>
-                          </td>
+                          {isAdmin && (
+                            <td style={S.td}>
+                              <div style={{ display: 'flex', gap: 6 }}>
+                                <button onClick={() => { setEditBudget(b); setBudgetForm({ budgetYear: b.budgetYear, department: b.department, category: b.category, allocatedBudget: b.allocatedBudget, actualSpent: b.actualSpent }); setShowBudgetModal(true); }} style={{ background: 'rgba(37,99,235,0.15)', border: 'none', borderRadius: 5, padding: '5px 8px', color: '#60a5fa', cursor: 'pointer' }}><Pencil size={12} /></button>
+                                <button onClick={() => b._id && deleteBudget(b._id)} style={{ background: 'rgba(239,68,68,0.1)', border: 'none', borderRadius: 5, padding: '5px 8px', color: '#EF4444', cursor: 'pointer' }}><Trash2 size={12} /></button>
+                              </div>
+                            </td>
+                          )}
                         </tr>
                       );
                     })}
@@ -1282,14 +1429,14 @@ export default function AMC() {
                 <select value={paymentStatusFilter} onChange={e => setPaymentStatusFilter(e.target.value)} style={{ ...S.select, width: 150 }}>
                   {['All', ...PAYMENT_STATUS_OPTIONS].map(s => <option key={s} value={s}>{s}</option>)}
                 </select>
-                <button style={{ ...S.btn, ...S.btnPrimary, marginLeft: 'auto' }} onClick={() => { setEditPayment(null); setPaymentForm({ ...BLANK_PAYMENT }); setShowPaymentModal(true); }}><Plus size={14} />Add Payment</button>
+                {isAdmin && <button style={{ ...S.btn, ...S.btnPrimary, marginLeft: 'auto' }} onClick={() => { setEditPayment(null); setPaymentForm({ ...BLANK_PAYMENT }); setShowPaymentModal(true); }}><Plus size={14} />Add Payment</button>}
               </div>
 
               <div style={{ ...S.card, padding: 0, overflow: 'hidden' }}>
                 <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                   <thead style={{ background: 'rgba(255,255,255,0.03)' }}>
                     <tr>
-                      {['AMC No', 'Equipment', 'Contractor', 'Invoice No', 'Invoice Date', 'Invoice Amt', 'Paid', 'Balance', 'Payment Date', 'Status', 'Actions'].map(h => <th key={h} style={S.th}>{h}</th>)}
+                      {['AMC No', 'Equipment', 'Contractor', 'Invoice No', 'Invoice Date', 'Invoice Amt', 'Paid', 'Balance', 'Payment Date', 'Status', ...(isAdmin ? ['Actions'] : [])].map(h => <th key={h} style={S.th}>{h}</th>)}
                     </tr>
                   </thead>
                   <tbody>
@@ -1307,12 +1454,14 @@ export default function AMC() {
                         <td style={{ ...S.td, textAlign: 'right' as const, color: p.balance > 0 ? '#EF4444' : '#10B981', fontWeight: 600 }}>{fmtCurrency(p.balance)}</td>
                         <td style={S.td}>{fmtDate(p.paymentDate)}</td>
                         <td style={S.td}><PaymentStatusBadge status={p.paymentStatus} /></td>
-                        <td style={S.td}>
-                          <div style={{ display: 'flex', gap: 6 }}>
-                            <button onClick={() => { setEditPayment(p); setPaymentForm({ amcId: p.amcId, amcNumber: p.amcNumber, equipmentName: p.equipmentName, contractorCompany: p.contractorCompany, invoiceNumber: p.invoiceNumber, invoiceDate: p.invoiceDate ? p.invoiceDate.split('T')[0] : '', invoiceAmount: p.invoiceAmount, paidAmount: p.paidAmount, balance: p.balance, paymentDate: p.paymentDate ? p.paymentDate.split('T')[0] : '', paymentStatus: p.paymentStatus, remarks: p.remarks }); setShowPaymentModal(true); }} style={{ background: 'rgba(37,99,235,0.15)', border: 'none', borderRadius: 5, padding: '5px 8px', color: '#60a5fa', cursor: 'pointer' }}><Pencil size={12} /></button>
-                            <button onClick={() => p._id && deletePayment(p._id)} style={{ background: 'rgba(239,68,68,0.1)', border: 'none', borderRadius: 5, padding: '5px 8px', color: '#EF4444', cursor: 'pointer' }}><Trash2 size={12} /></button>
-                          </div>
-                        </td>
+                        {isAdmin && (
+                          <td style={S.td}>
+                            <div style={{ display: 'flex', gap: 6 }}>
+                              <button onClick={() => { setEditPayment(p); setPaymentForm({ amcId: p.amcId, amcNumber: p.amcNumber, equipmentName: p.equipmentName, contractorCompany: p.contractorCompany, invoiceNumber: p.invoiceNumber, invoiceDate: p.invoiceDate ? p.invoiceDate.split('T')[0] : '', invoiceAmount: p.invoiceAmount, paidAmount: p.paidAmount, balance: p.balance, paymentDate: p.paymentDate ? p.paymentDate.split('T')[0] : '', paymentStatus: p.paymentStatus, remarks: p.remarks }); setShowPaymentModal(true); }} style={{ background: 'rgba(37,99,235,0.15)', border: 'none', borderRadius: 5, padding: '5px 8px', color: '#60a5fa', cursor: 'pointer' }}><Pencil size={12} /></button>
+                              <button onClick={() => p._id && deletePayment(p._id)} style={{ background: 'rgba(239,68,68,0.1)', border: 'none', borderRadius: 5, padding: '5px 8px', color: '#EF4444', cursor: 'pointer' }}><Trash2 size={12} /></button>
+                            </div>
+                          </td>
+                        )}
                       </tr>
                     ))}
                   </tbody>
@@ -1598,6 +1747,74 @@ export default function AMC() {
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, padding: '14px 22px', borderTop: '1px solid rgba(255,255,255,0.08)' }}>
               <button onClick={() => setShowCompleteModal(false)} style={{ ...S.btn, ...S.btnGhost }}>Cancel</button>
               <button onClick={saveComplete} style={{ ...S.btn, background: 'rgba(16,185,129,0.2)', color: '#10B981', border: '1px solid rgba(16,185,129,0.3)' }}><CheckCircle size={14} />Mark Completed</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── UPLOAD PREVIEW MODAL ── */}
+      {showUploadModal && uploadRows.length > 0 && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.82)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
+          <div style={{ background: '#0d1526', border: '1px solid rgba(37,99,235,0.35)', borderRadius: 12, width: '100%', maxWidth: 900, maxHeight: '85vh', display: 'flex', flexDirection: 'column' }}>
+            {/* Header */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 22px', borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
+              <div>
+                <div style={{ fontSize: 15, fontWeight: 700, color: '#f1f5f9' }}>Upload Preview — {uploadRows.length} record(s)</div>
+                <div style={{ fontSize: 12, color: '#64748b', marginTop: 2 }}>Review the parsed data before saving to the database.</div>
+              </div>
+              <button onClick={() => { setShowUploadModal(false); setUploadRows([]); }} style={{ background: 'none', border: 'none', color: '#64748b', cursor: 'pointer' }}><X size={16} /></button>
+            </div>
+
+            {/* Mode selector */}
+            <div style={{ padding: '12px 22px', borderBottom: '1px solid rgba(255,255,255,0.06)', display: 'flex', gap: 24, alignItems: 'center' }}>
+              <span style={{ fontSize: 12, color: '#94a3b8', fontWeight: 600 }}>Upload Mode:</span>
+              {(['new','update'] as const).map(m => (
+                <label key={m} style={{ display: 'flex', alignItems: 'center', gap: 7, cursor: 'pointer', fontSize: 13, color: uploadMode === m ? '#60a5fa' : '#94a3b8', fontWeight: uploadMode === m ? 600 : 400 }}>
+                  <input type="radio" name="uploadMode" value={m} checked={uploadMode === m} onChange={() => setUploadMode(m)}
+                    style={{ accentColor: '#2563EB' }} />
+                  {m === 'new' ? '➕ Add as New Records' : '✏️ Update Existing (match by AMC Number)'}
+                </label>
+              ))}
+              {uploadMode === 'update' && (
+                <span style={{ fontSize: 11, color: '#F59E0B', marginLeft: 4 }}>If AMC number is not found it will be created as new.</span>
+              )}
+            </div>
+
+            {/* Preview table */}
+            <div style={{ overflowY: 'auto', flex: 1, padding: '0 22px 8px' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', marginTop: 12, fontSize: 11 }}>
+                <thead style={{ position: 'sticky', top: 0, background: '#0d1526' }}>
+                  <tr>
+                    {['#','AMC No','Equipment','Dept','Contractor','Frequency','Start','End','Value (AED)','Criticality','Status'].map(h =>
+                      <th key={h} style={{ ...S.th, background: 'rgba(30,58,138,0.4)', padding: '8px 10px' }}>{h}</th>)}
+                  </tr>
+                </thead>
+                <tbody>
+                  {uploadRows.map((r, i) => (
+                    <tr key={i} style={{ background: i % 2 === 0 ? 'transparent' : 'rgba(255,255,255,0.02)' }}>
+                      <td style={{ ...S.td, color: '#475569', fontSize: 10 }}>{i + 1}</td>
+                      <td style={{ ...S.td, color: '#60a5fa', fontWeight: 600 }}>{r.amcNumber}</td>
+                      <td style={S.td}>{r.equipmentName || <span style={{ color: '#EF4444' }}>⚠ Missing</span>}</td>
+                      <td style={S.td}>{r.department || '—'}</td>
+                      <td style={S.td}>{r.contractorCompany || '—'}</td>
+                      <td style={S.td}>{r.frequency}</td>
+                      <td style={S.td}>{r.startDate || '—'}</td>
+                      <td style={S.td}>{r.endDate || '—'}</td>
+                      <td style={{ ...S.td, textAlign: 'right' as const }}>{fmtCurrency(r.totalContractValue)}</td>
+                      <td style={S.td}><CriticalityBadge criticality={r.criticality} /></td>
+                      <td style={S.td}><StatusBadge status={r.status} /></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Footer */}
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, padding: '14px 22px', borderTop: '1px solid rgba(255,255,255,0.08)' }}>
+              <button onClick={() => { setShowUploadModal(false); setUploadRows([]); }} style={{ ...S.btn, ...S.btnGhost }}>Cancel</button>
+              <button onClick={processUpload} disabled={uploading} style={{ ...S.btn, ...S.btnPrimary, opacity: uploading ? 0.7 : 1 }}>
+                <FileSpreadsheet size={14} />{uploading ? 'Saving…' : `Save ${uploadRows.length} Record(s)`}
+              </button>
             </div>
           </div>
         </div>
