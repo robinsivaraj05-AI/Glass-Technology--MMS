@@ -139,7 +139,7 @@ function downloadXLS(records: FollowupRecord[]) {
   sectionOrder.forEach(sKey => {
     const recs = sectionMap[sKey] || [];
     if (sKey !== '__main__') {
-      rows += `<tr><td colspan="9" style="background:#C00000;color:#fff;font-weight:bold;font-size:11pt;text-align:center;padding:7px;border:1px solid #bbb;font-family:Arial;">${sKey}</td></tr>`;
+      rows += `<tr><td colspan="11" style="background:#C00000;color:#fff;font-weight:bold;font-size:11pt;text-align:center;padding:7px;border:1px solid #bbb;font-family:Arial;">${sKey}</td></tr>`;
     }
     recs.forEach((r, i) => {
       const days = r.requestDate ? daysSince(r.requestDate) : '';
@@ -158,6 +158,8 @@ function downloadXLS(records: FollowupRecord[]) {
         ${td(r.prNumber)}
         ${td(r.reqDate ? fmtMonYear(r.reqDate) : '', '', '#000000', false, 'center')}
         ${td(r.budget ? String(r.budget) : '', '', '#000000', false, 'center')}
+        ${td(r.leadTime, '', '#000000', false, 'center')}
+        ${td(r.workingTime, '', '#000000', false, 'center')}
       </tr>`;
     });
   });
@@ -165,11 +167,11 @@ function downloadXLS(records: FollowupRecord[]) {
   const html = `<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel">
 <head><meta charset="utf-8"/></head><body><table>
 <tr>
-  <td colspan="6" style="background:#B8D4E8;font-weight:bold;font-size:14pt;text-align:center;padding:9px;border:1px solid #bbb;font-family:Arial;">PR Pending Status - E &amp; I</td>
-  <td colspan="3" style="background:#C6EFCE;font-weight:bold;font-size:11pt;text-align:center;padding:9px;border:1px solid #bbb;font-family:Arial;">${today}</td>
+  <td colspan="7" style="background:#B8D4E8;font-weight:bold;font-size:14pt;text-align:center;padding:9px;border:1px solid #bbb;font-family:Arial;">PR Pending Status - E &amp; I</td>
+  <td colspan="4" style="background:#C6EFCE;font-weight:bold;font-size:11pt;text-align:center;padding:9px;border:1px solid #bbb;font-family:Arial;">${today}</td>
 </tr>
 <tr style="background:#FFFF00;">
-  ${['Sl. No.','Item Description','Request date','Days','Required Timeline','Current Status','PR Number','Req. date','Budget'].map((h,i)=>`<td style="padding:5px 7px;border:1px solid #bbb;font-weight:bold;font-family:Arial;font-size:10pt;${i===3?'text-align:center;':''}">${h}</td>`).join('')}
+  ${['Sl. No.','Item Description','Request date','Days','Required Timeline','Current Status','PR Number','Req. date','Budget','Lead time','Working time'].map((h,i)=>`<td style="padding:5px 7px;border:1px solid #bbb;font-weight:bold;font-family:Arial;font-size:10pt;${[3,9,10].includes(i)?'text-align:center;':''}">${h}</td>`).join('')}
 </tr>
 ${rows}
 </table></body></html>`;
