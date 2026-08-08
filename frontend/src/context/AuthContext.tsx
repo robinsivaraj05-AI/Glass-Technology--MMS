@@ -44,7 +44,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (raw) {
           const prev = JSON.parse(raw) as User;
           if (prev.id === cred.empId) {
-            savedProfile = { phone: prev.phone, shift: prev.shift, dateOfJoining: prev.dateOfJoining, employeeId: prev.employeeId };
+            savedProfile = { name: prev.name, phone: prev.phone, shift: prev.shift, dateOfJoining: prev.dateOfJoining, employeeId: prev.employeeId };
           }
         }
       } catch {}
@@ -52,7 +52,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         ...mockUser,
         ...savedProfile,
         id: cred.empId,
-        name: cred.name,
+        name: savedProfile.name || cred.name,
         email: cred.email,
         role: cred.role,
         employeeId: savedProfile.employeeId ?? cred.empId,

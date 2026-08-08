@@ -140,13 +140,24 @@ export default function Settings() {
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
               <div>
                 <label style={{ fontSize: 12, color: '#94a3b8', display: 'block', marginBottom: 5 }}>Full Name</label>
+                <input
+                  type="text"
+                  value={form.name}
+                  onChange={e => setForm(p => ({ ...p, name: e.target.value }))}
+                  className="input-dark"
+                  placeholder="Your full name"
+                  style={{ width: '100%' }}
+                />
+              </div>
+              <div>
+                <label style={{ fontSize: 12, color: '#94a3b8', display: 'block', marginBottom: 5 }}>Link Employee Profile</label>
                 <select
                   className="input-dark"
                   value={linkedEmpId}
                   onChange={e => handleEmployeeSelect(e.target.value)}
                   style={{ width: '100%' }}
                 >
-                  <option value="">— Select your employee profile —</option>
+                  <option value="">— Select to auto-fill —</option>
                   {employees
                     .filter(e => e.status !== 'resigned' && e.status !== 'not_joined')
                     .sort((a, b) => a.name.localeCompare(b.name))
