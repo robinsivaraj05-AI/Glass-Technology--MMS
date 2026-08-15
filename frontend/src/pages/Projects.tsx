@@ -9,6 +9,7 @@ const EMPTY_FORM = {
   name: '', type: 'electrical', priority: 'high', projectManager: '',
   budget: '', startDate: '', endDate: '', status: 'planning', description: '',
   teamMembers: [] as string[],
+  progress: '',
 };
 
 const STATUS_CLASS: Record<string, string> = { planning: 'badge-blue', 'in-progress': 'badge-warning', 'on-hold': 'badge-gray', completed: 'badge-success' };
@@ -109,38 +110,100 @@ export default function Projects() {
   const [showCreate, setShowCreate]     = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<Project | null>(null);
   const [form, setForm]                 = useState({ ...EMPTY_FORM });
+  const [editingProject, setEditingProject] = useState<Project | null>(null);
+  const [showGantt, setShowGantt]       = useState(false);
 
   const setField = (key: string, val: string) => setForm(p => ({ ...p, [key]: val }));
+
+  const openEdit = () => {
+    if (!selected) return;
+    setEditingProject(selected);
+    setForm({
+      name: selected.name,
+      type: selected.type,
+      priority: selected.priority,
+      projectManager: selected.projectManager,
+      budget: String(selected.budget),
+      startDate: selected.startDate,
+      endDate: selected.endDate,
+      status: selected.status,
+      description: selected.description,
+      teamMembers: [...(selected.teamMembers || [])],
+      progress: String(selected.progress),
+    });
+    setShowCreate(true);
+  };
+
+  const downloadReport = () => {
+    if (!selected) return;
+    const p = selected;
+    const budgetPct = p.budget > 0 ? Math.round((p.spent / p.budget) * 100) : 0;
+    const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>${p.name} — Project Report</title>
+<style>body{font-family:Arial,sans-serif;padding:32px;color:#111;max-width:800px;margin:0 auto}
+h1{font-size:22px;margin:0 0 4px}h2{font-size:14px;color:#555;margin:0 0 20px;font-weight:normal}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:18px}
+.field{border:1px solid #e2e8f0;border-radius:6px;padding:10px 14px}
+.label{font-size:10px;text-transform:uppercase;letter-spacing:.6px;color:#94a3b8;margin-bottom:3px}
+.value{font-size:13px;font-weight:600;color:#111}
+.desc{border:1px solid #e2e8f0;border-radius:6px;padding:14px;margin-bottom:18px;font-size:13px;color:#333;line-height:1.6}
+.team{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
+.tag{background:#eff6ff;border:1px solid #bfdbfe;border-radius:20px;padding:3px 10px;font-size:11px;color:#1d4ed8}
+.bar-bg{background:#e2e8f0;border-radius:4px;height:10px;margin-top:6px}
+.bar-fill{background:#3b82f6;border-radius:4px;height:10px}
+.footer{margin-top:24px;font-size:11px;color:#94a3b8;border-top:1px solid #e2e8f0;padding-top:12px}
+@media print{body{padding:20px}}</style></head><body>
+<h1>${p.name}</h1>
+<h2>${p.projectNo} &nbsp;·&nbsp; Manager: ${p.projectManager} &nbsp;·&nbsp; Generated: ${new Date().toLocaleDateString('en-IN')}</h2>
+<div class="desc">${p.description || '—'}</div>
+<div class="grid">
+<div class="field"><div class="label">Type</div><div class="value">${p.type}</div></div>
+<div class="field"><div class="label">Status</div><div class="value">${p.status}</div></div>
+<div class="field"><div class="label">Start Date</div><div class="value">${new Date(p.startDate).toLocaleDateString('en-IN')}</div></div>
+<div class="field"><div class="label">End Date</div><div class="value">${new Date(p.endDate).toLocaleDateString('en-IN')}</div></div>
+<div class="field"><div class="label">Budget</div><div class="value">₹${(p.budget / 100000).toFixed(2)}L</div></div>
+<div class="field"><div class="label">Spent</div><div class="value">₹${(p.spent / 100000).toFixed(2)}L (${budgetPct}%)</div></div>
+<div class="field"><div class="label">Progress</div><div class="value">${p.progress}%<div class="bar-bg"><div class="bar-fill" style="width:${p.progress}%;background:${p.progress===100?'#22c55e':'#3b82f6'}"></div></div></div></div>
+<div class="field"><div class="label">Priority</div><div class="value">${p.priority}</div></div>
+</div>
+${p.teamMembers?.length ? `<div class="field"><div class="label">Team Members</div><div class="team">${p.teamMembers.map(m => `<span class="tag">${m}</span>`).join('')}</div></div>` : ''}
+<div class="footer">MMS — Maintenance Management System &nbsp;·&nbsp; ${new Date().toLocaleString('en-IN')}</div>
+<script>window.print();<\/script></body></html>`;
+    const w = window.open('', '_blank');
+    if (w) { w.document.write(html); w.document.close(); }
+  };
 
   const handleCreate = async () => {
     if (!form.name.trim()) return;
     setSaving(true);
     try {
-      const year = new Date().getFullYear();
-      const projectNo = `PRJ-${year}-${String(projects.length + 1).padStart(3, '0')}`;
-      const payload = {
-        projectNo,
+      const basePayload = {
         name: form.name.trim(),
         type: form.type,
         status: form.status,
         priority: form.priority,
         budget: Number(form.budget) || 0,
-        spent: 0,
-        progress: 0,
         startDate: form.startDate || new Date().toISOString().split('T')[0],
         endDate: form.endDate || new Date(Date.now() + 90 * 86400000).toISOString().split('T')[0],
         projectManager: form.projectManager,
         teamMembers: form.teamMembers,
         description: form.description.trim(),
       };
-      const r = await fetch(API, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+      const payload = editingProject
+        ? { ...basePayload, projectNo: editingProject.projectNo, spent: editingProject.spent, progress: Number(form.progress) || 0 }
+        : { ...basePayload, projectNo: `PRJ-${new Date().getFullYear()}-${String(projects.length + 1).padStart(3, '0')}`, spent: 0, progress: 0 };
+      const r = await fetch(
+        editingProject ? `${API}/${editingProject.id}` : API,
+        { method: editingProject ? 'PUT' : 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) },
+      );
       if (r.ok) {
         await fetchProjects();
         setShowCreate(false);
         setForm({ ...EMPTY_FORM });
+        setEditingProject(null);
+        setSelected(null);
       }
     } catch (e) {
-      console.error('Failed to create project', e);
+      console.error('Failed to save project', e);
     } finally {
       setSaving(false);
     }
@@ -293,9 +356,9 @@ export default function Projects() {
                 </div>
               )}
               <div style={{ display: 'flex', gap: 10 }}>
-                <button className="btn-primary" style={{ fontSize: 12 }}><Edit size={12} /> Edit Project</button>
-                <button className="btn-secondary" style={{ fontSize: 12 }}><TrendingUp size={12} /> Gantt Chart</button>
-                <button className="btn-secondary" style={{ fontSize: 12 }}><Download size={12} /> Report</button>
+                <button onClick={openEdit} className="btn-primary" style={{ fontSize: 12 }}><Edit size={12} /> Edit Project</button>
+                <button onClick={() => setShowGantt(true)} className="btn-secondary" style={{ fontSize: 12 }}><TrendingUp size={12} /> Gantt Chart</button>
+                <button onClick={downloadReport} className="btn-secondary" style={{ fontSize: 12 }}><Download size={12} /> Report</button>
               </div>
             </div>
           </div>
@@ -343,13 +406,85 @@ export default function Projects() {
         </div>
       )}
 
+      {/* Gantt Chart Modal */}
+      {showGantt && selected && (() => {
+        const start = new Date(selected.startDate).getTime();
+        const end   = new Date(selected.endDate).getTime();
+        const today = Date.now();
+        const total = end - start || 1;
+        const todayPct   = Math.max(0, Math.min(100, ((today - start) / total) * 100));
+        const totalDays  = Math.ceil(total / 86400000);
+        const elapsed    = Math.max(0, Math.min(totalDays, Math.ceil((today - start) / 86400000)));
+        const remaining  = Math.ceil((end - today) / 86400000);
+        return (
+          <div className="modal-overlay" onClick={() => setShowGantt(false)}>
+            <div className="modal-content" style={{ maxWidth: 600 }} onClick={e => e.stopPropagation()}>
+              <div style={{ padding: '16px 22px', borderBottom: '1px solid rgba(255,255,255,0.06)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div style={{ fontSize: 15, fontWeight: 700, color: '#f1f5f9' }}>Timeline — {selected.name}</div>
+                <button onClick={() => setShowGantt(false)} style={{ background: 'none', border: 'none', color: '#64748b', cursor: 'pointer', fontSize: 20 }}>×</button>
+              </div>
+              <div style={{ padding: 24, display: 'flex', flexDirection: 'column', gap: 18 }}>
+                {/* Timeline bar */}
+                <div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: '#64748b', marginBottom: 10 }}>
+                    <span>Start: <strong style={{ color: '#94a3b8' }}>{new Date(selected.startDate).toLocaleDateString('en-IN')}</strong></span>
+                    <span style={{ color: '#f1f5f9', fontWeight: 600 }}>{totalDays} days total</span>
+                    <span>End: <strong style={{ color: '#94a3b8' }}>{new Date(selected.endDate).toLocaleDateString('en-IN')}</strong></span>
+                  </div>
+                  <div style={{ position: 'relative', height: 36, background: 'rgba(255,255,255,0.05)', borderRadius: 8, overflow: 'visible', marginTop: 20 }}>
+                    {/* Progress fill */}
+                    <div style={{ position: 'absolute', left: 0, top: 0, height: '100%', width: `${selected.progress}%`, background: selected.progress === 100 ? 'linear-gradient(90deg,#22c55e,#16a34a)' : 'linear-gradient(90deg,#3b82f6,#6366f1)', borderRadius: selected.progress === 100 ? 8 : '8px 0 0 8px', opacity: 0.85 }} />
+                    {/* Today marker */}
+                    {today >= start && today <= end && (
+                      <div style={{ position: 'absolute', left: `${todayPct}%`, top: -22, bottom: -6, width: 2, background: '#ef4444' }}>
+                        <div style={{ position: 'absolute', top: 0, left: '50%', transform: 'translateX(-50%)', fontSize: 10, color: '#ef4444', whiteSpace: 'nowrap', fontWeight: 700 }}>Today</div>
+                      </div>
+                    )}
+                    <div style={{ position: 'absolute', left: '50%', top: '50%', transform: 'translate(-50%,-50%)', fontSize: 13, fontWeight: 700, color: '#fff', zIndex: 1 }}>{selected.progress}% Complete</div>
+                  </div>
+                </div>
+                {/* Key stats */}
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10 }}>
+                  {[
+                    { label: 'Status', value: selected.status, color: selected.status === 'completed' ? '#22c55e' : selected.status === 'in-progress' ? '#3b82f6' : '#f59e0b' },
+                    { label: 'Days Elapsed', value: `${elapsed} / ${totalDays}`, color: '#94a3b8' },
+                    { label: remaining >= 0 ? 'Days Remaining' : 'Days Overdue', value: `${Math.abs(remaining)}`, color: remaining >= 0 ? '#22c55e' : '#ef4444' },
+                  ].map(f => (
+                    <div key={f.label} style={{ padding: '12px 14px', background: 'rgba(255,255,255,0.03)', borderRadius: 8, textAlign: 'center' }}>
+                      <div style={{ fontSize: 10, color: '#475569', textTransform: 'uppercase', letterSpacing: 0.6, marginBottom: 4 }}>{f.label}</div>
+                      <div style={{ fontSize: 16, color: f.color, fontWeight: 700 }}>{f.value}</div>
+                    </div>
+                  ))}
+                </div>
+                {/* Budget bar */}
+                {selected.budget > 0 && (
+                  <div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: '#64748b', marginBottom: 6 }}>
+                      <span>Budget Utilization</span>
+                      <span>₹{(selected.spent / 100000).toFixed(1)}L spent of ₹{(selected.budget / 100000).toFixed(1)}L</span>
+                    </div>
+                    <div className="progress-bar" style={{ height: 10 }}>
+                      <div className="progress-fill" style={{ width: `${Math.min(100, Math.round((selected.spent / selected.budget) * 100))}%`, background: selected.spent > selected.budget ? '#ef4444' : '#22c55e' }} />
+                    </div>
+                  </div>
+                )}
+                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
+                  <button onClick={() => { setShowGantt(false); openEdit(); }} className="btn-primary" style={{ fontSize: 12 }}><Edit size={12} /> Edit Project</button>
+                  <button onClick={() => setShowGantt(false)} className="btn-secondary" style={{ fontSize: 12 }}>Close</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+
       {/* Create Modal */}
       {showCreate && (
-        <div className="modal-overlay" onClick={() => { setShowCreate(false); setForm({ ...EMPTY_FORM }); }}>
+        <div className="modal-overlay" onClick={() => { setShowCreate(false); setForm({ ...EMPTY_FORM }); setEditingProject(null); }}>
           <div className="modal-content" style={{ maxWidth: 700 }} onClick={e => e.stopPropagation()}>
             <div style={{ padding: '18px 24px', borderBottom: '1px solid rgba(255,255,255,0.06)', display: 'flex', justifyContent: 'space-between' }}>
-              <div style={{ fontSize: 16, fontWeight: 600, color: '#f1f5f9' }}>Create New Project</div>
-              <button onClick={() => { setShowCreate(false); setForm({ ...EMPTY_FORM }); }} style={{ background: 'none', border: 'none', color: '#64748b', cursor: 'pointer', fontSize: 20 }}>×</button>
+              <div style={{ fontSize: 16, fontWeight: 600, color: '#f1f5f9' }}>{editingProject ? 'Edit Project' : 'Create New Project'}</div>
+              <button onClick={() => { setShowCreate(false); setForm({ ...EMPTY_FORM }); setEditingProject(null); }} style={{ background: 'none', border: 'none', color: '#64748b', cursor: 'pointer', fontSize: 20 }}>×</button>
             </div>
             <div style={{ padding: 24, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
 
@@ -429,8 +564,20 @@ export default function Projects() {
                   <option value="planning">Planning</option>
                   <option value="in-progress">In Progress</option>
                   <option value="on-hold">On Hold</option>
+                  <option value="completed">Completed</option>
                 </select>
               </div>
+
+              {/* Progress — edit mode only */}
+              {editingProject && (
+                <div>
+                  <label style={{ fontSize: 12, color: '#94a3b8', display: 'block', marginBottom: 5 }}>Progress (%)</label>
+                  <input
+                    type="number" min="0" max="100" placeholder="0" className="input-dark"
+                    value={form.progress} onChange={e => setField('progress', e.target.value)}
+                  />
+                </div>
+              )}
 
               {/* Team Members — full width */}
               <div style={{ gridColumn: '1/-1' }}>
@@ -483,9 +630,9 @@ export default function Projects() {
                   disabled={saving || !form.name.trim()}
                   style={{ flex: 1, justifyContent: 'center', opacity: (saving || !form.name.trim()) ? 0.6 : 1 }}
                 >
-                  <Plus size={13} /> {saving ? 'Saving…' : 'Save Project'}
+                  <Plus size={13} /> {saving ? 'Saving…' : editingProject ? 'Save Changes' : 'Save Project'}
                 </button>
-                <button onClick={() => { setShowCreate(false); setForm({ ...EMPTY_FORM }); }} className="btn-secondary">Cancel</button>
+                <button onClick={() => { setShowCreate(false); setForm({ ...EMPTY_FORM }); setEditingProject(null); }} className="btn-secondary">Cancel</button>
               </div>
 
             </div>
