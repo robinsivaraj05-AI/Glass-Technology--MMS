@@ -43,6 +43,7 @@ export default function PurchaseCosting() {
   const [loading, setLoading]     = useState(true);
   const [selMonth, setSelMonth]   = useState(now.getMonth() + 1);
   const [selYear, setSelYear]     = useState(now.getFullYear());
+  const [viewMode, setViewMode]   = useState<'monthly' | 'yearly'>('monthly');
   const [exporting, setExporting] = useState(false);
 
   const fetchRecords = async () => {
@@ -90,6 +91,26 @@ export default function PurchaseCosting() {
   const costPO        = poThisMonth.reduce((s, r) => s + (r.budget || 0), 0);
   const costInTransit = inTransit.reduce((s, r) => s + (r.budget || 0), 0);
   const costYTD       = receivedYTD.reduce((s, r) => s + (r.budget || 0), 0);
+
+  // Yearly breakdown — one row per month
+  const yearlyRows = useMemo(() =>
+    MONTHS.map((name, i) => {
+      const m = i + 1;
+      const recv = records.filter(r => r.currentStatus === 'Material Received' && inMonth(r.requestDate, selYear, m));
+      const po   = records.filter(r => PO_DONE_STATUSES.has(r.currentStatus) && inMonth(r.requestDate, selYear, m));
+      const tran = records.filter(r => (r.currentStatus === 'PO done' || r.currentStatus === 'Material Not Delivered') && inMonth(r.requestDate, selYear, m));
+      return {
+        month: name,
+        recvCount: recv.length,
+        recvCost:  recv.reduce((s, r) => s + (r.budget || 0), 0),
+        poCount:   po.length,
+        poCost:    po.reduce((s, r) => s + (r.budget || 0), 0),
+        tranCount: tran.length,
+        tranCost:  tran.reduce((s, r) => s + (r.budget || 0), 0),
+      };
+    }),
+    [records, selYear]
+  );
 
   const monthLabel = `${MONTHS[selMonth - 1]} ${selYear}`;
   const years = Array.from({ length: 5 }, (_, i) => now.getFullYear() - 2 + i);
@@ -266,10 +287,25 @@ export default function PurchaseCosting() {
           <div style={{ fontSize: 12, color: '#64748b', marginTop: 3 }}>Cost of materials received &amp; POs raised — {monthLabel}</div>
         </div>
         <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
-          <select value={selMonth} onChange={e => setSelMonth(Number(e.target.value))}
-            className="input-dark" style={{ width: 130, fontSize: 13 }}>
-            {MONTHS.map((m, i) => <option key={i} value={i + 1}>{m}</option>)}
-          </select>
+          {/* Monthly / Yearly toggle */}
+          <div style={{ display: 'flex', background: 'rgba(255,255,255,0.06)', borderRadius: 10, padding: 3, gap: 2 }}>
+            {(['monthly', 'yearly'] as const).map(v => (
+              <button key={v} onClick={() => setViewMode(v)} style={{
+                padding: '6px 16px', borderRadius: 8, border: 'none', cursor: 'pointer', fontSize: 12, fontWeight: 700,
+                background: viewMode === v ? '#3b82f6' : 'transparent',
+                color: viewMode === v ? '#fff' : '#64748b',
+                transition: 'all 0.15s',
+              }}>
+                {v === 'monthly' ? 'Monthly' : 'Yearly'}
+              </button>
+            ))}
+          </div>
+          {viewMode === 'monthly' && (
+            <select value={selMonth} onChange={e => setSelMonth(Number(e.target.value))}
+              className="input-dark" style={{ width: 130, fontSize: 13 }}>
+              {MONTHS.map((m, i) => <option key={i} value={i + 1}>{m}</option>)}
+            </select>
+          )}
           <select value={selYear} onChange={e => setSelYear(Number(e.target.value))}
             className="input-dark" style={{ width: 90, fontSize: 13 }}>
             {years.map(y => <option key={y} value={y}>{y}</option>)}
@@ -313,6 +349,97 @@ export default function PurchaseCosting() {
         />
       </div>
 
+      {/* ── YEARLY VIEW ── */}
+      {viewMode === 'yearly' && (
+        <div className="glass-card" style={{ padding: 0, overflow: 'hidden' }}>
+          <div style={{ padding: '14px 20px', borderBottom: '1px solid rgba(255,255,255,0.06)', display: 'flex', alignItems: 'center', gap: 10 }}>
+            <TrendingUp size={17} color="#a78bfa" />
+            <span style={{ fontWeight: 700, color: '#a78bfa', fontSize: 14 }}>Year Overview — {selYear}</span>
+            <span style={{ fontSize: 11, color: '#64748b', marginLeft: 6 }}>Monthly cost breakdown for all 12 months</span>
+            <span style={{ marginLeft: 'auto', fontWeight: 800, color: '#22c55e', fontSize: 15 }}>
+              YTD Received: AED {fmtAED(costYTD)}
+            </span>
+          </div>
+          <div style={{ overflowX: 'auto' }}>
+            <table className="data-table" style={{ fontSize: 12 }}>
+              <thead>
+                <tr>
+                  <th style={{ width: 36, textAlign: 'center' }}>Sl.</th>
+                  <th style={{ width: 130 }}>Month</th>
+                  <th style={{ textAlign: 'center', width: 80 }}>Recv. Items</th>
+                  <th style={{ textAlign: 'right', width: 160 }}>Cost Used (AED)</th>
+                  <th style={{ textAlign: 'center', width: 80 }}>PO Items</th>
+                  <th style={{ textAlign: 'right', width: 160 }}>PO Value (AED)</th>
+                  <th style={{ textAlign: 'center', width: 80 }}>In Transit</th>
+                  <th style={{ textAlign: 'right', width: 160 }}>Transit Value (AED)</th>
+                </tr>
+              </thead>
+              <tbody>
+                {yearlyRows.map((row, i) => {
+                  const isCurrentMonth = i + 1 === now.getMonth() + 1 && selYear === now.getFullYear();
+                  const hasData = row.recvCount > 0 || row.poCount > 0;
+                  return (
+                    <tr key={row.month} style={{ background: isCurrentMonth ? 'rgba(59,130,246,0.08)' : undefined }}>
+                      <td style={{ textAlign: 'center', color: '#64748b' }}>{i + 1}</td>
+                      <td style={{ fontWeight: 700, color: isCurrentMonth ? '#60a5fa' : '#e2e8f0' }}>
+                        {row.month}
+                        {isCurrentMonth && <span style={{ fontSize: 9, color: '#60a5fa', marginLeft: 6, background: 'rgba(59,130,246,0.2)', borderRadius: 4, padding: '1px 5px' }}>Current</span>}
+                      </td>
+                      <td style={{ textAlign: 'center', color: row.recvCount > 0 ? '#22c55e' : '#475569', fontWeight: row.recvCount > 0 ? 700 : 400 }}>
+                        {row.recvCount > 0 ? row.recvCount : '—'}
+                      </td>
+                      <td style={{ textAlign: 'right', fontWeight: row.recvCost > 0 ? 800 : 400, fontSize: row.recvCost > 0 ? 13 : 12, color: row.recvCost > 0 ? '#22c55e' : '#475569' }}>
+                        {row.recvCost > 0 ? `AED ${fmtAED(row.recvCost)}` : '—'}
+                      </td>
+                      <td style={{ textAlign: 'center', color: row.poCount > 0 ? '#3b82f6' : '#475569', fontWeight: row.poCount > 0 ? 700 : 400 }}>
+                        {row.poCount > 0 ? row.poCount : '—'}
+                      </td>
+                      <td style={{ textAlign: 'right', fontWeight: row.poCost > 0 ? 800 : 400, fontSize: row.poCost > 0 ? 13 : 12, color: row.poCost > 0 ? '#3b82f6' : '#475569' }}>
+                        {row.poCost > 0 ? `AED ${fmtAED(row.poCost)}` : '—'}
+                      </td>
+                      <td style={{ textAlign: 'center', color: row.tranCount > 0 ? '#f59e0b' : '#475569', fontWeight: row.tranCount > 0 ? 700 : 400 }}>
+                        {row.tranCount > 0 ? row.tranCount : '—'}
+                      </td>
+                      <td style={{ textAlign: 'right', fontWeight: row.tranCost > 0 ? 800 : 400, fontSize: row.tranCost > 0 ? 13 : 12, color: row.tranCost > 0 ? '#f59e0b' : '#475569' }}>
+                        {row.tranCost > 0 ? `AED ${fmtAED(row.tranCost)}` : '—'}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+              <tfoot>
+                <tr style={{ background: 'rgba(255,255,255,0.04)' }}>
+                  <td colSpan={2} style={{ textAlign: 'right', fontWeight: 700, color: '#e2e8f0', fontSize: 12, padding: '10px 14px' }}>
+                    Year Total {selYear}:
+                  </td>
+                  <td style={{ textAlign: 'center', fontWeight: 800, color: '#22c55e' }}>
+                    {yearlyRows.reduce((s, r) => s + r.recvCount, 0)}
+                  </td>
+                  <td style={{ textAlign: 'right', fontWeight: 900, fontSize: 14, color: '#22c55e', padding: '10px 14px' }}>
+                    AED {fmtAED(yearlyRows.reduce((s, r) => s + r.recvCost, 0))}
+                  </td>
+                  <td style={{ textAlign: 'center', fontWeight: 800, color: '#3b82f6' }}>
+                    {yearlyRows.reduce((s, r) => s + r.poCount, 0)}
+                  </td>
+                  <td style={{ textAlign: 'right', fontWeight: 900, fontSize: 14, color: '#3b82f6', padding: '10px 14px' }}>
+                    AED {fmtAED(yearlyRows.reduce((s, r) => s + r.poCost, 0))}
+                  </td>
+                  <td style={{ textAlign: 'center', fontWeight: 800, color: '#f59e0b' }}>
+                    {yearlyRows.reduce((s, r) => s + r.tranCount, 0)}
+                  </td>
+                  <td style={{ textAlign: 'right', fontWeight: 900, fontSize: 14, color: '#f59e0b', padding: '10px 14px' }}>
+                    AED {fmtAED(yearlyRows.reduce((s, r) => s + r.tranCost, 0))}
+                  </td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {/* ── MONTHLY VIEW ── */}
+      {viewMode === 'monthly' && <>
+
       {/* Section 1 — Materials Received */}
       <div className="glass-card" style={{ padding: 0, overflow: 'hidden' }}>
         <div style={{ padding: '14px 20px', borderBottom: '1px solid rgba(255,255,255,0.06)', display: 'flex', alignItems: 'center', gap: 10 }}>
@@ -344,6 +471,9 @@ export default function PurchaseCosting() {
         </div>
         <ItemTable items={poThisMonth} emptyMsg={`No POs raised in ${monthLabel}.`} received={false} />
       </div>
+
+      {/* end monthly */}
+      </>}
 
       {/* Cost Summary Banner */}
       <div style={{
