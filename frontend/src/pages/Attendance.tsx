@@ -710,20 +710,42 @@ interface SummaryTabProps {
   workingDays: (empId: string) => number;
 }
 
-function SummaryTab({ year, month, team, totalDays, summaryMode, setSummaryMode, loadingYearly, countCode, workingDays }: SummaryTabProps) {
+function SummaryTab({ year, month, team, totalDays, summaryMode, setSummaryMode, loadingYearly, countCode, workingDays, entries }: SummaryTabProps) {
+  const [yearView, setYearView] = useState<'totals' | 'monthly'>('totals');
+  const [breakCode, setBreakCode] = useState('WORK');
+
+  // decode yearly key (month*100 + day) → month number
+  const entryMonth = (k: number | string) => Math.floor(Number(k) / 100);
+  const monthCount = (empId: string, m: number) =>
+    Object.entries(entries[empId] ?? {}).filter(([k, c]) =>
+      entryMonth(k) === m && (breakCode === 'WORK' ? WORK_CODES.has(c) : c === breakCode)
+    ).length;
+  const yearTotal = (empId: string) =>
+    Array.from({ length: 12 }, (_, i) => monthCount(empId, i + 1)).reduce((a, b) => a + b, 0);
+
+  const showBreakdown = summaryMode === 'yearly' && yearView === 'monthly';
+  const breakDef = breakCode !== 'WORK' ? CODE_MAP[breakCode] : null;
+  const accentBg   = breakDef?.bg   || '#f0fdf4';
+  const accentText = breakDef?.text || '#15803d';
+
   return (
     <div style={{ background:'#fff', borderRadius:12, border:'1px solid #e2e8f0', overflow:'hidden', flex:1, display:'flex', flexDirection:'column', minHeight:0 }}>
       {/* Section header */}
-      <div style={{ background:'#1e3a8a', padding:'10px 20px', display:'flex', alignItems:'center', gap:12 }}>
+      <div style={{ background:'#1e3a8a', padding:'10px 20px', display:'flex', alignItems:'center', gap:12, flexWrap:'wrap' }}>
         <BarChart2 size={16} color="#93c5fd"/>
-        <div style={{ flex:1 }}>
+        <div style={{ flex:1, minWidth:180 }}>
           <div style={{ color:'#fff', fontWeight:700, fontSize:14 }}>
-            Work Summary — {summaryMode === 'yearly' ? `Full Year ${year}` : `${MONTHS[month-1]} ${year}`}
+            Work Summary — {summaryMode === 'yearly'
+              ? (yearView === 'monthly' ? `Monthly Breakdown ${year}` : `Full Year ${year}`)
+              : `${MONTHS[month-1]} ${year}`}
           </div>
           <div style={{ color:'#93c5fd', fontSize:11, marginTop:1 }}>
-            Auto-computed · {team.length} employees · {totalDays} days{summaryMode === 'yearly' ? ' (all 12 months)' : ''}
+            {summaryMode === 'yearly' && yearView === 'monthly'
+              ? `Showing: ${breakCode === 'WORK' ? 'Working Days' : (CODE_MAP[breakCode]?.label || breakCode)} · ${team.length} employees`
+              : `Auto-computed · ${team.length} employees · ${totalDays} days${summaryMode === 'yearly' ? ' (all 12 months)' : ''}`}
           </div>
         </div>
+
         {/* Monthly / Yearly toggle */}
         <div style={{ display:'flex', background:'rgba(255,255,255,0.1)', borderRadius:8, padding:3, gap:2 }}>
           {(['monthly','yearly'] as const).map(m => (
@@ -738,8 +760,96 @@ function SummaryTab({ year, month, team, totalDays, summaryMode, setSummaryMode,
             </button>
           ))}
         </div>
+
+        {/* Yearly sub-view toggle */}
+        {summaryMode === 'yearly' && (
+          <>
+            <div style={{ width:1, background:'rgba(255,255,255,0.2)', alignSelf:'stretch' }}/>
+            <div style={{ display:'flex', background:'rgba(255,255,255,0.1)', borderRadius:8, padding:3, gap:2 }}>
+              {(['totals','monthly'] as const).map(v => (
+                <button key={v} onClick={() => setYearView(v)} style={{
+                  padding:'5px 10px', borderRadius:6, border:'none', cursor:'pointer',
+                  background: yearView === v ? '#fff' : 'transparent',
+                  color: yearView === v ? '#1e3a8a' : '#93c5fd',
+                  fontWeight:600, fontSize:11,
+                }}>
+                  {v === 'totals' ? 'Code Totals' : 'Monthly Breakdown'}
+                </button>
+              ))}
+            </div>
+            {yearView === 'monthly' && (
+              <select value={breakCode} onChange={e => setBreakCode(e.target.value)}
+                style={{ fontSize:11, padding:'5px 8px', borderRadius:6, border:'1px solid rgba(255,255,255,0.3)', background:'rgba(0,0,0,0.35)', color:'#fff', cursor:'pointer', outline:'none' }}>
+                <option value="WORK">Working Days</option>
+                {SUMMARY_COLS.map(c => <option key={c} value={c}>{c} — {CODE_MAP[c]?.label || c}</option>)}
+              </select>
+            )}
+          </>
+        )}
       </div>
 
+      {/* ── Monthly Breakdown table (yearly + breakdown mode) ── */}
+      {showBreakdown ? (
+        <div style={{ overflowX:'auto', overflowY:'auto', flex:1 }}>
+          <table style={{ borderCollapse:'collapse', tableLayout:'fixed', width:'100%' }}>
+            <colgroup>
+              <col style={{ width:36 }}/>
+              <col style={{ width:170 }}/>
+              <col style={{ width:64 }}/>
+              {MONTHS.map((_, i) => <col key={i} style={{ width:62 }}/>)}
+              <col style={{ width:72 }}/>
+            </colgroup>
+            <thead>
+              <tr>
+                <th style={sumTh('#1e3a8a','#93c5fd')}>SL</th>
+                <th style={{ ...sumTh('#1e3a8a','#fff'), textAlign:'left', paddingLeft:12 }}>Employee Name</th>
+                <th style={sumTh('#1e3a8a','#93c5fd')}>Emp ID</th>
+                {MONTHS.map(mn => <th key={mn} style={sumTh('#1e3a8a','#dbeafe')}>{mn.slice(0,3)}</th>)}
+                <th style={sumTh('#065f46','#6ee7b7')}>Year Total</th>
+              </tr>
+            </thead>
+            <tbody>
+              {team.map((m, idx) => {
+                const rowBg = idx % 2 === 0 ? '#f8fafc' : '#fff';
+                const total = yearTotal(m.empId);
+                return (
+                  <tr key={m.empId}>
+                    <td style={sumTd(rowBg,'#94a3b8')}>{idx+1}</td>
+                    <td style={{ ...sumTd(rowBg,'#1e293b'), textAlign:'left', paddingLeft:12, fontWeight:600 }}>
+                      {m.empName}
+                      <div style={{ fontSize:10, color:'#94a3b8', fontWeight:400 }}>{m.role}</div>
+                    </td>
+                    <td style={{ ...sumTd(rowBg,'#2563eb'), fontWeight:700 }}>{m.empId}</td>
+                    {Array.from({ length:12 }, (_, i) => {
+                      const cnt = monthCount(m.empId, i + 1);
+                      return (
+                        <td key={i} style={{ ...sumTd(cnt > 0 ? accentBg : rowBg, cnt > 0 ? accentText : '#d1d5db'), fontWeight: cnt > 0 ? 800 : 400, fontSize: cnt > 0 ? 14 : 12 }}>
+                          {cnt > 0 ? cnt : <span style={{ fontSize:10 }}>—</span>}
+                        </td>
+                      );
+                    })}
+                    <td style={{ ...sumTd(total > 0 ? '#f0fdf4' : rowBg, total > 0 ? '#15803d' : '#d1d5db'), fontWeight:800, fontSize:15 }}>
+                      {total > 0 ? total : <span style={{ fontSize:10 }}>—</span>}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+            <tfoot>
+              <tr>
+                <td colSpan={3} style={{ background:'#0f172a', color:'#94a3b8', fontWeight:600, textAlign:'center', padding:'3px 4px', fontSize:9 }}>TOTAL</td>
+                {Array.from({ length:12 }, (_, i) => {
+                  const t = team.reduce((s, m) => s + monthCount(m.empId, i + 1), 0);
+                  return <td key={i} style={sumFoot(accentText, accentBg)}>{t > 0 ? t : <span style={{ fontSize:8, color:'#d1d5db' }}>—</span>}</td>;
+                })}
+                <td style={sumFoot('#065f46','#6ee7b7')}>{team.reduce((s, m) => s + yearTotal(m.empId), 0)}</td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+      ) : (
+
+      /* ── Code Totals table (default) ── */
       <div style={{ overflowX:'auto', overflowY:'auto', flex:1 }}>
         <table style={{ borderCollapse:'collapse', tableLayout:'fixed', width:'100%' }}>
           <colgroup>
@@ -839,6 +949,7 @@ function SummaryTab({ year, month, team, totalDays, summaryMode, setSummaryMode,
           </tfoot>
         </table>
       </div>
+      )}
     </div>
   );
 }
