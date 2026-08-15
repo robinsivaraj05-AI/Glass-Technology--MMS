@@ -21,8 +21,10 @@ interface FollowupRecord {
 const MONTHS = ['January','February','March','April','May','June',
                 'July','August','September','October','November','December'];
 
-// statuses that mean a PO has been raised
-const PO_DONE_STATUSES = new Set(['PO done', 'Material Not Delivered', 'Material Received']);
+// statuses that mean a PO has been raised (includes Payment Done — fully completed items)
+const PO_DONE_STATUSES = new Set(['PO done', 'Material Not Delivered', 'Material Received', 'Payment Done']);
+// statuses that mean material has actually been received (cost used)
+const RECEIVED_STATUSES = new Set(['Material Received', 'Payment Done']);
 
 function fmtAED(n: number) {
   return (n || 0).toLocaleString('en-AE', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
@@ -57,9 +59,9 @@ export default function PurchaseCosting() {
 
   useEffect(() => { fetchRecords(); }, []);
 
-  // Materials RECEIVED in selected month
+  // Materials RECEIVED in selected month (Material Received OR Payment Done — both mean material arrived)
   const receivedThisMonth = useMemo(() =>
-    records.filter(r => r.currentStatus === 'Material Received' && inMonth(r.requestDate, selYear, selMonth)),
+    records.filter(r => RECEIVED_STATUSES.has(r.currentStatus) && inMonth(r.requestDate, selYear, selMonth)),
     [records, selYear, selMonth]
   );
 
@@ -78,10 +80,10 @@ export default function PurchaseCosting() {
     [records, selYear, selMonth]
   );
 
-  // All received this year — YTD
+  // All received this year — YTD (Material Received OR Payment Done)
   const receivedYTD = useMemo(() =>
     records.filter(r =>
-      r.currentStatus === 'Material Received' &&
+      RECEIVED_STATUSES.has(r.currentStatus) &&
       new Date(r.requestDate).getFullYear() === selYear
     ),
     [records, selYear]
@@ -92,13 +94,20 @@ export default function PurchaseCosting() {
   const costInTransit = inTransit.reduce((s, r) => s + (r.budget || 0), 0);
   const costYTD       = receivedYTD.reduce((s, r) => s + (r.budget || 0), 0);
 
+  // Total budget across ALL records (any status, any date) — matches Purchase Followup total
+  const totalBudgetAll = useMemo(() =>
+    records.reduce((s, r) => s + (r.budget || 0), 0),
+    [records]
+  );
+
   // Yearly breakdown — one row per month
   const yearlyRows = useMemo(() =>
     MONTHS.map((name, i) => {
       const m = i + 1;
-      const recv = records.filter(r => r.currentStatus === 'Material Received' && inMonth(r.requestDate, selYear, m));
+      const recv = records.filter(r => RECEIVED_STATUSES.has(r.currentStatus) && inMonth(r.requestDate, selYear, m));
       const po   = records.filter(r => PO_DONE_STATUSES.has(r.currentStatus) && inMonth(r.requestDate, selYear, m));
       const tran = records.filter(r => (r.currentStatus === 'PO done' || r.currentStatus === 'Material Not Delivered') && inMonth(r.requestDate, selYear, m));
+      const budg = records.filter(r => inMonth(r.requestDate, selYear, m) && (r.budget || 0) > 0);
       return {
         month: name,
         recvCount: recv.length,
@@ -107,6 +116,8 @@ export default function PurchaseCosting() {
         poCost:    po.reduce((s, r) => s + (r.budget || 0), 0),
         tranCount: tran.length,
         tranCost:  tran.reduce((s, r) => s + (r.budget || 0), 0),
+        budgCount: budg.length,
+        budgCost:  budg.reduce((s, r) => s + (r.budget || 0), 0),
       };
     }),
     [records, selYear]
@@ -352,13 +363,21 @@ export default function PurchaseCosting() {
       {/* ── YEARLY VIEW ── */}
       {viewMode === 'yearly' && (
         <div className="glass-card" style={{ padding: 0, overflow: 'hidden' }}>
-          <div style={{ padding: '14px 20px', borderBottom: '1px solid rgba(255,255,255,0.06)', display: 'flex', alignItems: 'center', gap: 10 }}>
+          <div style={{ padding: '14px 20px', borderBottom: '1px solid rgba(255,255,255,0.06)', display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
             <TrendingUp size={17} color="#a78bfa" />
             <span style={{ fontWeight: 700, color: '#a78bfa', fontSize: 14 }}>Year Overview — {selYear}</span>
             <span style={{ fontSize: 11, color: '#64748b', marginLeft: 6 }}>Monthly cost breakdown for all 12 months</span>
-            <span style={{ marginLeft: 'auto', fontWeight: 800, color: '#22c55e', fontSize: 15 }}>
-              YTD Received: AED {fmtAED(costYTD)}
-            </span>
+            <div style={{ marginLeft: 'auto', display: 'flex', gap: 28, alignItems: 'center' }}>
+              <div style={{ textAlign: 'right' }}>
+                <div style={{ fontSize: 10, color: '#64748b', marginBottom: 1 }}>Total Budget (All Items)</div>
+                <div style={{ fontWeight: 800, color: '#f59e0b', fontSize: 15 }}>AED {fmtAED(totalBudgetAll)}</div>
+              </div>
+              <div style={{ width: 1, height: 32, background: 'rgba(255,255,255,0.08)' }} />
+              <div style={{ textAlign: 'right' }}>
+                <div style={{ fontSize: 10, color: '#64748b', marginBottom: 1 }}>YTD Received</div>
+                <div style={{ fontWeight: 800, color: '#22c55e', fontSize: 15 }}>AED {fmtAED(costYTD)}</div>
+              </div>
+            </div>
           </div>
           <div style={{ overflowX: 'auto' }}>
             <table className="data-table" style={{ fontSize: 12 }}>
@@ -366,12 +385,14 @@ export default function PurchaseCosting() {
                 <tr>
                   <th style={{ width: 36, textAlign: 'center' }}>Sl.</th>
                   <th style={{ width: 130 }}>Month</th>
-                  <th style={{ textAlign: 'center', width: 80 }}>Recv. Items</th>
-                  <th style={{ textAlign: 'right', width: 160 }}>Cost Used (AED)</th>
-                  <th style={{ textAlign: 'center', width: 80 }}>PO Items</th>
-                  <th style={{ textAlign: 'right', width: 160 }}>PO Value (AED)</th>
-                  <th style={{ textAlign: 'center', width: 80 }}>In Transit</th>
-                  <th style={{ textAlign: 'right', width: 160 }}>Transit Value (AED)</th>
+                  <th style={{ textAlign: 'center', width: 70 }}>Items</th>
+                  <th style={{ textAlign: 'right', width: 150, color: '#fbbf24' }}>Budget (AED)</th>
+                  <th style={{ textAlign: 'center', width: 70 }}>Recv.</th>
+                  <th style={{ textAlign: 'right', width: 150 }}>Cost Used (AED)</th>
+                  <th style={{ textAlign: 'center', width: 70 }}>PO Items</th>
+                  <th style={{ textAlign: 'right', width: 150 }}>PO Value (AED)</th>
+                  <th style={{ textAlign: 'center', width: 70 }}>Transit</th>
+                  <th style={{ textAlign: 'right', width: 150 }}>Transit Value (AED)</th>
                 </tr>
               </thead>
               <tbody>
@@ -384,6 +405,12 @@ export default function PurchaseCosting() {
                       <td style={{ fontWeight: 700, color: isCurrentMonth ? '#60a5fa' : '#e2e8f0' }}>
                         {row.month}
                         {isCurrentMonth && <span style={{ fontSize: 9, color: '#60a5fa', marginLeft: 6, background: 'rgba(59,130,246,0.2)', borderRadius: 4, padding: '1px 5px' }}>Current</span>}
+                      </td>
+                      <td style={{ textAlign: 'center', color: row.budgCount > 0 ? '#fbbf24' : '#475569', fontWeight: row.budgCount > 0 ? 700 : 400 }}>
+                        {row.budgCount > 0 ? row.budgCount : '—'}
+                      </td>
+                      <td style={{ textAlign: 'right', fontWeight: row.budgCost > 0 ? 800 : 400, fontSize: row.budgCost > 0 ? 13 : 12, color: row.budgCost > 0 ? '#fbbf24' : '#475569' }}>
+                        {row.budgCost > 0 ? `AED ${fmtAED(row.budgCost)}` : '—'}
                       </td>
                       <td style={{ textAlign: 'center', color: row.recvCount > 0 ? '#22c55e' : '#475569', fontWeight: row.recvCount > 0 ? 700 : 400 }}>
                         {row.recvCount > 0 ? row.recvCount : '—'}
@@ -411,6 +438,12 @@ export default function PurchaseCosting() {
                 <tr style={{ background: 'rgba(255,255,255,0.04)' }}>
                   <td colSpan={2} style={{ textAlign: 'right', fontWeight: 700, color: '#e2e8f0', fontSize: 12, padding: '10px 14px' }}>
                     Year Total {selYear}:
+                  </td>
+                  <td style={{ textAlign: 'center', fontWeight: 800, color: '#fbbf24' }}>
+                    {yearlyRows.reduce((s, r) => s + r.budgCount, 0)}
+                  </td>
+                  <td style={{ textAlign: 'right', fontWeight: 900, fontSize: 14, color: '#fbbf24', padding: '10px 14px' }}>
+                    AED {fmtAED(yearlyRows.reduce((s, r) => s + r.budgCost, 0))}
                   </td>
                   <td style={{ textAlign: 'center', fontWeight: 800, color: '#22c55e' }}>
                     {yearlyRows.reduce((s, r) => s + r.recvCount, 0)}
