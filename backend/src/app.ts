@@ -18,6 +18,7 @@ import purchasePORoutes from './routes/purchasePO';
 import machineRoutes from './routes/machines';
 import calibrationRoutes from './routes/calibration';
 import amcRoutes from './routes/amc';
+import projectRoutes from './routes/projects';
 
 const app = express();
 
@@ -50,6 +51,7 @@ app.use('/api/purchase-po', purchasePORoutes);
 app.use('/api/machines', machineRoutes);
 app.use('/api/calibration', calibrationRoutes);
 app.use('/api/amc', amcRoutes);
+app.use('/api/projects', projectRoutes);
 
 // 404 handler
 app.use((req, res) => res.status(404).json({ message: `Route ${req.originalUrl} not found` }));

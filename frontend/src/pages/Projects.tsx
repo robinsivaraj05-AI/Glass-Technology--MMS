@@ -74,21 +74,34 @@ function ProjectCard({ p, onView, onDelete }: { p: Project; onView: (p: Project)
   );
 }
 
+const API = '/api/projects';
+
 export default function Projects() {
   const { employees } = useEmployees();
   const activeEmployees = employees.filter(e => e.status !== 'resigned');
-  const [projects, setProjects] = useState<Project[]>(() => {
-    try {
-      const stored = localStorage.getItem('mms_projects');
-      return stored ? JSON.parse(stored) : mockProjects;
-    } catch {
-      return mockProjects;
-    }
-  });
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [loading, setLoading]   = useState(true);
+  const [saving, setSaving]     = useState(false);
 
-  useEffect(() => {
-    localStorage.setItem('mms_projects', JSON.stringify(projects));
-  }, [projects]);
+  const fetchProjects = async () => {
+    try {
+      const r = await fetch(API);
+      if (r.ok) {
+        const data = await r.json();
+        // map _id → id for frontend compatibility
+        setProjects(data.map((p: any) => ({ ...p, id: p._id || p.id })));
+      } else {
+        setProjects(mockProjects);
+      }
+    } catch {
+      setProjects(mockProjects);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => { fetchProjects(); }, []);
+
   const [search, setSearch]             = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
   const [filterType, setFilterType]     = useState('all');
@@ -99,29 +112,38 @@ export default function Projects() {
 
   const setField = (key: string, val: string) => setForm(p => ({ ...p, [key]: val }));
 
-  const handleCreate = () => {
+  const handleCreate = async () => {
     if (!form.name.trim()) return;
-    const year = new Date().getFullYear();
-    const projectNo = `PRJ-${year}-${String(projects.length + 1).padStart(3, '0')}`;
-    const newProject: Project = {
-      id: Date.now().toString(),
-      projectNo,
-      name: form.name.trim(),
-      type: form.type as Project['type'],
-      status: form.status as Project['status'],
-      priority: form.priority as Project['priority'],
-      budget: Number(form.budget) || 0,
-      spent: 0,
-      progress: 0,
-      startDate: form.startDate || new Date().toISOString().split('T')[0],
-      endDate: form.endDate || new Date(Date.now() + 90 * 86400000).toISOString().split('T')[0],
-      projectManager: form.projectManager,
-      teamMembers: form.teamMembers,
-      description: form.description.trim(),
-    };
-    setProjects(prev => [...prev, newProject]);
-    setShowCreate(false);
-    setForm({ ...EMPTY_FORM });
+    setSaving(true);
+    try {
+      const year = new Date().getFullYear();
+      const projectNo = `PRJ-${year}-${String(projects.length + 1).padStart(3, '0')}`;
+      const payload = {
+        projectNo,
+        name: form.name.trim(),
+        type: form.type,
+        status: form.status,
+        priority: form.priority,
+        budget: Number(form.budget) || 0,
+        spent: 0,
+        progress: 0,
+        startDate: form.startDate || new Date().toISOString().split('T')[0],
+        endDate: form.endDate || new Date(Date.now() + 90 * 86400000).toISOString().split('T')[0],
+        projectManager: form.projectManager,
+        teamMembers: form.teamMembers,
+        description: form.description.trim(),
+      };
+      const r = await fetch(API, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+      if (r.ok) {
+        await fetchProjects();
+        setShowCreate(false);
+        setForm({ ...EMPTY_FORM });
+      }
+    } catch (e) {
+      console.error('Failed to create project', e);
+    } finally {
+      setSaving(false);
+    }
   };
 
   const filtered = projects.filter(p => {
@@ -133,11 +155,16 @@ export default function Projects() {
   });
 
   const handleDelete = (p: Project) => setDeleteTarget(p);
-  const confirmDelete = () => {
+  const confirmDelete = async () => {
     if (!deleteTarget) return;
-    setProjects(prev => prev.filter(p => p.id !== deleteTarget.id));
-    if (selected?.id === deleteTarget.id) setSelected(null);
-    setDeleteTarget(null);
+    try {
+      await fetch(`${API}/${deleteTarget.id}`, { method: 'DELETE' });
+      if (selected?.id === deleteTarget.id) setSelected(null);
+      setDeleteTarget(null);
+      await fetchProjects();
+    } catch (e) {
+      console.error('Failed to delete project', e);
+    }
   };
 
   const totalBudget = projects.reduce((a, p) => a + p.budget, 0);
@@ -453,9 +480,10 @@ export default function Projects() {
                 <button
                   onClick={handleCreate}
                   className="btn-primary"
-                  style={{ flex: 1, justifyContent: 'center', opacity: form.name.trim() ? 1 : 0.5 }}
+                  disabled={saving || !form.name.trim()}
+                  style={{ flex: 1, justifyContent: 'center', opacity: (saving || !form.name.trim()) ? 0.6 : 1 }}
                 >
-                  <Plus size={13} /> Create Project
+                  <Plus size={13} /> {saving ? 'Saving…' : 'Save Project'}
                 </button>
                 <button onClick={() => { setShowCreate(false); setForm({ ...EMPTY_FORM }); }} className="btn-secondary">Cancel</button>
               </div>
