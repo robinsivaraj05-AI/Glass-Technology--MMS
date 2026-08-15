@@ -65,8 +65,8 @@ function ProjectCard({ p, onView, onDelete }: { p: Project; onView: (p: Project)
         </div>
       </div>
       <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: '#475569' }}>
-        <span>Budget: <span style={{ color: '#f1f5f9' }}>₹{(p.budget / 100000).toFixed(1)}L</span></span>
-        <span>Spent: <span style={{ color: '#f59e0b' }}>₹{(p.spent / 100000).toFixed(1)}L</span></span>
+        <span>Budget: <span style={{ color: '#f1f5f9' }}>AED {p.budget.toLocaleString()}</span></span>
+        <span>Spent: <span style={{ color: '#f59e0b' }}>AED {p.spent.toLocaleString()}</span></span>
         <span style={{ color: daysLeft < 0 ? '#ef4444' : daysLeft <= 30 ? '#f59e0b' : '#22c55e' }}>
           {daysLeft < 0 ? `${Math.abs(daysLeft)}d over` : `${daysLeft}d left`}
         </span>
@@ -160,8 +160,8 @@ h1{font-size:22px;margin:0 0 4px}h2{font-size:14px;color:#555;margin:0 0 20px;fo
 <div class="field"><div class="label">Status</div><div class="value">${p.status}</div></div>
 <div class="field"><div class="label">Start Date</div><div class="value">${new Date(p.startDate).toLocaleDateString('en-IN')}</div></div>
 <div class="field"><div class="label">End Date</div><div class="value">${new Date(p.endDate).toLocaleDateString('en-IN')}</div></div>
-<div class="field"><div class="label">Budget</div><div class="value">₹${(p.budget / 100000).toFixed(2)}L</div></div>
-<div class="field"><div class="label">Spent</div><div class="value">₹${(p.spent / 100000).toFixed(2)}L (${budgetPct}%)</div></div>
+<div class="field"><div class="label">Budget</div><div class="value">AED ${p.budget.toLocaleString()}</div></div>
+<div class="field"><div class="label">Spent</div><div class="value">AED ${p.spent.toLocaleString()} (${budgetPct}%)</div></div>
 <div class="field"><div class="label">Progress</div><div class="value">${p.progress}%<div class="bar-bg"><div class="bar-fill" style="width:${p.progress}%;background:${p.progress===100?'#22c55e':'#3b82f6'}"></div></div></div></div>
 <div class="field"><div class="label">Priority</div><div class="value">${p.priority}</div></div>
 </div>
@@ -233,7 +233,7 @@ ${p.teamMembers?.length ? `<div class="field"><div class="label">Team Members</d
   const totalBudget = projects.reduce((a, p) => a + p.budget, 0);
   const totalSpent  = projects.reduce((a, p) => a + p.spent, 0);
 
-  const budgetData = projects.map(p => ({ name: p.name.slice(0, 20) + '...', budget: p.budget / 100000, spent: p.spent / 100000 }));
+  const budgetData = projects.map(p => ({ name: p.name.slice(0, 20) + '...', budget: p.budget / 1000, spent: p.spent / 1000 }));
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
@@ -243,7 +243,7 @@ ${p.teamMembers?.length ? `<div class="field"><div class="label">Team Members</d
           { label: 'Total Projects', value: projects.length, color: '#3b82f6' },
           { label: 'In Progress', value: projects.filter(p => p.status === 'in-progress').length, color: '#f59e0b' },
           { label: 'Completed', value: projects.filter(p => p.status === 'completed').length, color: '#22c55e' },
-          { label: 'Total Budget', value: `₹${(totalBudget / 100000).toFixed(0)}L`, color: '#8b5cf6' },
+          { label: 'Total Budget', value: `AED ${totalBudget.toLocaleString()}`, color: '#8b5cf6' },
         ].map(s => (
           <div key={s.label} className="glass-card" style={{ padding: '14px 18px' }}>
             <div style={{ fontSize: 24, fontWeight: 700, color: s.color }}>{s.value}</div>
@@ -261,9 +261,9 @@ ${p.teamMembers?.length ? `<div class="field"><div class="label">Team Members</d
           </div>
         </div>
         <div style={{ display: 'flex', gap: 20, fontSize: 13 }}>
-          <span>Total: <strong style={{ color: '#f1f5f9' }}>₹{(totalBudget / 100000).toFixed(1)}L</strong></span>
-          <span>Spent: <strong style={{ color: '#f59e0b' }}>₹{(totalSpent / 100000).toFixed(1)}L</strong></span>
-          <span>Remaining: <strong style={{ color: '#22c55e' }}>₹{((totalBudget - totalSpent) / 100000).toFixed(1)}L</strong></span>
+          <span>Total: <strong style={{ color: '#f1f5f9' }}>AED {totalBudget.toLocaleString()}</strong></span>
+          <span>Spent: <strong style={{ color: '#f59e0b' }}>AED {totalSpent.toLocaleString()}</strong></span>
+          <span>Remaining: <strong style={{ color: '#22c55e' }}>AED {(totalBudget - totalSpent).toLocaleString()}</strong></span>
           <strong style={{ color: '#3b82f6' }}>{Math.round((totalSpent / totalBudget) * 100)}% used</strong>
         </div>
       </div>
@@ -302,13 +302,13 @@ ${p.teamMembers?.length ? `<div class="field"><div class="label">Team Members</d
 
       {/* Budget Chart */}
       <div className="glass-card" style={{ padding: 20 }}>
-        <div style={{ fontSize: 14, fontWeight: 600, color: '#f1f5f9', marginBottom: 16 }}>Project Budget vs Spent (₹ Lakhs)</div>
+        <div style={{ fontSize: 14, fontWeight: 600, color: '#f1f5f9', marginBottom: 16 }}>Project Budget vs Spent (AED)</div>
         <ResponsiveContainer width="100%" height={200}>
           <BarChart data={budgetData} margin={{ left: 0 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" />
             <XAxis dataKey="name" tick={{ fontSize: 10, fill: '#64748b' }} axisLine={false} tickLine={false} />
-            <YAxis tick={{ fontSize: 11, fill: '#64748b' }} axisLine={false} tickLine={false} tickFormatter={v => `₹${v}L`} />
-            <Tooltip formatter={(v: any) => [`₹${Number(v).toFixed(1)}L`]} contentStyle={{ background: '#0d0d1a', border: '1px solid rgba(59,130,246,0.3)', borderRadius: 8, fontSize: 12 }} />
+            <YAxis tick={{ fontSize: 11, fill: '#64748b' }} axisLine={false} tickLine={false} tickFormatter={v => `AED ${v}K`} />
+            <Tooltip formatter={(v: any) => [`AED ${(Number(v) * 1000).toLocaleString()}`]} contentStyle={{ background: '#0d0d1a', border: '1px solid rgba(59,130,246,0.3)', borderRadius: 8, fontSize: 12 }} />
             <Bar dataKey="budget" name="Budget" fill="rgba(99,102,241,0.5)" radius={[4,4,0,0]} />
             <Bar dataKey="spent" name="Spent" fill="#3b82f6" radius={[4,4,0,0]} />
           </BarChart>
@@ -334,8 +334,8 @@ ${p.teamMembers?.length ? `<div class="field"><div class="label">Team Members</d
                   { label: 'Status', value: selected.status },
                   { label: 'Start Date', value: new Date(selected.startDate).toLocaleDateString('en-IN') },
                   { label: 'End Date', value: new Date(selected.endDate).toLocaleDateString('en-IN') },
-                  { label: 'Budget', value: `₹${(selected.budget / 100000).toFixed(1)}L` },
-                  { label: 'Spent', value: `₹${(selected.spent / 100000).toFixed(1)}L` },
+                  { label: 'Budget', value: `AED ${selected.budget.toLocaleString()}` },
+                  { label: 'Spent', value: `AED ${selected.spent.toLocaleString()}` },
                   { label: 'Progress', value: `${selected.progress}%` },
                   { label: 'Project Manager', value: selected.projectManager },
                 ].map(f => (
@@ -461,7 +461,7 @@ ${p.teamMembers?.length ? `<div class="field"><div class="label">Team Members</d
                   <div>
                     <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: '#64748b', marginBottom: 6 }}>
                       <span>Budget Utilization</span>
-                      <span>₹{(selected.spent / 100000).toFixed(1)}L spent of ₹{(selected.budget / 100000).toFixed(1)}L</span>
+                      <span>AED {selected.spent.toLocaleString()} spent of AED {selected.budget.toLocaleString()}</span>
                     </div>
                     <div className="progress-bar" style={{ height: 10 }}>
                       <div className="progress-fill" style={{ width: `${Math.min(100, Math.round((selected.spent / selected.budget) * 100))}%`, background: selected.spent > selected.budget ? '#ef4444' : '#22c55e' }} />
@@ -532,7 +532,7 @@ ${p.teamMembers?.length ? `<div class="field"><div class="label">Team Members</d
 
               {/* Budget */}
               <div>
-                <label style={{ fontSize: 12, color: '#94a3b8', display: 'block', marginBottom: 5 }}>Budget (₹)</label>
+                <label style={{ fontSize: 12, color: '#94a3b8', display: 'block', marginBottom: 5 }}>Budget (AED)</label>
                 <input
                   type="number" placeholder="0" className="input-dark"
                   value={form.budget} onChange={e => setField('budget', e.target.value)}
