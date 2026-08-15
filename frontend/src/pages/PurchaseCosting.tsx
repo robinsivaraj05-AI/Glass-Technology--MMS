@@ -1,51 +1,31 @@
 // @ts-nocheck
 import { useState, useEffect, useMemo } from 'react';
-import { RefreshCw, Package, TrendingUp, CheckCircle2, Truck, FileDown, BoxIcon } from 'lucide-react';
+import { RefreshCw, CheckCircle2, Truck, TrendingUp, Package, FileDown } from 'lucide-react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
-interface POItem {
-  slNo: number;
-  description: string;
-  qty: number;
-  unit: string;
-  unitPrice: number;
-  totalPrice: number;
-}
-
-interface PO {
+interface FollowupRecord {
   id: string;
   _id: string;
-  poNo: string;
-  poDate: string;
-  vendor: string;
-  department: string;
-  requestedBy: string;
-  estimatedDelivery: string;
-  actualDelivery: string;
-  items: POItem[];
-  totalValue: number;
-  currency: string;
-  status: string;
-  remarks: string;
+  section: string;
+  itemDescription: string;
+  requestDate: string;
+  currentStatus: string;
+  paymentStatus: string;
+  budget: number;
+  prNumber: string;
+  leadTime: string;
+  requiredTimeline: string;
 }
 
 const MONTHS = ['January','February','March','April','May','June',
                 'July','August','September','October','November','December'];
 
-const STATUS_LABEL: Record<string, string> = {
-  ordered: 'Ordered', acknowledged: 'Acknowledged', 'in-transit': 'In Transit',
-  'partially-received': 'Partially Received', received: 'Received',
-  delayed: 'Delayed', cancelled: 'Cancelled',
-};
-const STATUS_COLOR: Record<string, string> = {
-  ordered: '#3b82f6', acknowledged: '#8b5cf6', 'in-transit': '#f59e0b',
-  'partially-received': '#f97316', received: '#22c55e',
-  delayed: '#ef4444', cancelled: '#94a3b8',
-};
+// statuses that mean a PO has been raised
+const PO_DONE_STATUSES = new Set(['PO done', 'Material Not Delivered', 'Material Received']);
 
 function fmtAED(n: number) {
-  return n.toLocaleString('en-AE', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+  return (n || 0).toLocaleString('en-AE', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
 }
 function fmtDate(iso: string) {
   if (!iso) return '—';
@@ -56,62 +36,63 @@ function inMonth(dateStr: string, year: number, month: number) {
   const d = new Date(dateStr);
   return d.getFullYear() === year && d.getMonth() + 1 === month;
 }
-function itemSummary(items: POItem[]) {
-  if (!items?.length) return '—';
-  const desc = items[0]?.description || '';
-  return items.length === 1 ? desc : `${desc} + ${items.length - 1} more`;
-}
 
 export default function PurchaseCosting() {
   const now = new Date();
-  const [pos, setPos]             = useState<PO[]>([]);
+  const [records, setRecords]     = useState<FollowupRecord[]>([]);
   const [loading, setLoading]     = useState(true);
   const [selMonth, setSelMonth]   = useState(now.getMonth() + 1);
   const [selYear, setSelYear]     = useState(now.getFullYear());
   const [exporting, setExporting] = useState(false);
 
-  const fetchPOs = async () => {
+  const fetchRecords = async () => {
     setLoading(true);
     try {
-      const data = await fetch('/api/purchase-po').then(r => r.json());
-      setPos(Array.isArray(data) ? data : []);
-    } catch (e) { console.error('Failed to load POs', e); setPos([]); }
+      const data = await fetch('/api/purchase-followup').then(r => r.json());
+      setRecords(Array.isArray(data) ? data : []);
+    } catch (e) { console.error('Failed to load data', e); setRecords([]); }
     finally { setLoading(false); }
   };
 
-  useEffect(() => { fetchPOs(); }, []);
+  useEffect(() => { fetchRecords(); }, []);
 
-  // Materials RECEIVED in selected month (by actualDelivery date)
+  // Materials RECEIVED in selected month
   const receivedThisMonth = useMemo(() =>
-    pos.filter(p => p.status === 'received' && inMonth(p.actualDelivery || p.poDate, selYear, selMonth)),
-    [pos, selYear, selMonth]
+    records.filter(r => r.currentStatus === 'Material Received' && inMonth(r.requestDate, selYear, selMonth)),
+    [records, selYear, selMonth]
   );
 
-  // All POs RAISED in selected month (by poDate)
-  const raisedThisMonth = useMemo(() =>
-    pos.filter(p => inMonth(p.poDate, selYear, selMonth)),
-    [pos, selYear, selMonth]
+  // PO raised in selected month (PO done + in-transit + received)
+  const poThisMonth = useMemo(() =>
+    records.filter(r => PO_DONE_STATUSES.has(r.currentStatus) && inMonth(r.requestDate, selYear, selMonth)),
+    [records, selYear, selMonth]
   );
 
-  // In transit = raised this month but not yet received
+  // Still in transit (PO done but material not received yet)
   const inTransit = useMemo(() =>
-    raisedThisMonth.filter(p => p.status !== 'received' && p.status !== 'cancelled'),
-    [raisedThisMonth]
+    records.filter(r =>
+      (r.currentStatus === 'PO done' || r.currentStatus === 'Material Not Delivered') &&
+      inMonth(r.requestDate, selYear, selMonth)
+    ),
+    [records, selYear, selMonth]
   );
 
-  // All received across all time for YTD context
+  // All received this year — YTD
   const receivedYTD = useMemo(() =>
-    pos.filter(p => p.status === 'received' && new Date(p.actualDelivery || p.poDate).getFullYear() === selYear),
-    [pos, selYear]
+    records.filter(r =>
+      r.currentStatus === 'Material Received' &&
+      new Date(r.requestDate).getFullYear() === selYear
+    ),
+    [records, selYear]
   );
 
-  const costReceived  = receivedThisMonth.reduce((s, p) => s + (p.totalValue || 0), 0);
-  const costRaised    = raisedThisMonth.reduce((s, p) => s + (p.totalValue || 0), 0);
-  const costInTransit = inTransit.reduce((s, p) => s + (p.totalValue || 0), 0);
-  const costYTD       = receivedYTD.reduce((s, p) => s + (p.totalValue || 0), 0);
+  const costReceived  = receivedThisMonth.reduce((s, r) => s + (r.budget || 0), 0);
+  const costPO        = poThisMonth.reduce((s, r) => s + (r.budget || 0), 0);
+  const costInTransit = inTransit.reduce((s, r) => s + (r.budget || 0), 0);
+  const costYTD       = receivedYTD.reduce((s, r) => s + (r.budget || 0), 0);
 
   const monthLabel = `${MONTHS[selMonth - 1]} ${selYear}`;
-  const years = Array.from({ length: 4 }, (_, i) => now.getFullYear() - 1 + i);
+  const years = Array.from({ length: 5 }, (_, i) => now.getFullYear() - 2 + i);
 
   // ── PDF ───────────────────────────────────────────────────────────────────────
   const generatePDF = async () => {
@@ -120,89 +101,77 @@ export default function PurchaseCosting() {
       const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
       const pw = doc.internal.pageSize.getWidth();
 
-      // Header
+      // Header band
       doc.setFillColor(15, 23, 42);
-      doc.rect(0, 0, pw, 28, 'F');
+      doc.rect(0, 0, pw, 30, 'F');
       doc.setFontSize(16); doc.setFont('helvetica', 'bold'); doc.setTextColor(241, 245, 249);
-      doc.text('E & I Material Cost Report', pw / 2, 11, { align: 'center' });
+      doc.text('E & I Material Cost Report', pw / 2, 12, { align: 'center' });
       doc.setFontSize(9); doc.setFont('helvetica', 'normal'); doc.setTextColor(148, 163, 184);
-      doc.text(`${monthLabel}   ·   E & I Maintenance Department   ·   Generated: ${fmtDate(new Date().toISOString())}`, pw / 2, 18, { align: 'center' });
+      doc.text(`${monthLabel}   ·   E & I Maintenance Department   ·   Generated: ${fmtDate(new Date().toISOString())}`, pw / 2, 20, { align: 'center' });
 
       // Summary strip
       autoTable(doc, {
-        startY: 32,
+        startY: 34,
         margin: { left: 10, right: 10 },
-        head: [['Materials Received (Cost Used)', 'POs Raised This Month', 'In Transit', 'Received YTD']],
+        head: [['Materials Received (Cost Used)', 'POs Raised This Month', 'In Transit / Pending', 'Total Received YTD']],
         body: [[
-          `AED ${fmtAED(costReceived)} (${receivedThisMonth.length} PO${receivedThisMonth.length !== 1 ? 's' : ''})`,
-          `AED ${fmtAED(costRaised)} (${raisedThisMonth.length} PO${raisedThisMonth.length !== 1 ? 's' : ''})`,
-          `AED ${fmtAED(costInTransit)} (${inTransit.length} PO${inTransit.length !== 1 ? 's' : ''})`,
-          `AED ${fmtAED(costYTD)}`,
+          `AED ${fmtAED(costReceived)}\n${receivedThisMonth.length} item${receivedThisMonth.length !== 1 ? 's' : ''}`,
+          `AED ${fmtAED(costPO)}\n${poThisMonth.length} item${poThisMonth.length !== 1 ? 's' : ''}`,
+          `AED ${fmtAED(costInTransit)}\n${inTransit.length} item${inTransit.length !== 1 ? 's' : ''}`,
+          `AED ${fmtAED(costYTD)}\n${receivedYTD.length} items`,
         ]],
-        headStyles: { fillColor: [30, 64, 175], textColor: 255, fontStyle: 'bold', fontSize: 8, halign: 'center' },
+        headStyles: { fillColor: [30, 64, 175], textColor: 255, fontStyle: 'bold', fontSize: 8.5, halign: 'center' },
         bodyStyles: { fontSize: 10, fontStyle: 'bold', halign: 'center' },
         columnStyles: {
-          0: { textColor: [34, 197, 94] },
-          1: { textColor: [59, 130, 246] },
-          2: { textColor: [245, 158, 11] },
-          3: { textColor: [139, 92, 246] },
+          0: { textColor: [34, 197, 94] }, 1: { textColor: [59, 130, 246] },
+          2: { textColor: [245, 158, 11] }, 3: { textColor: [139, 92, 246] },
         },
       });
 
-      // Section 1 — Received
-      const y1 = (doc as any).lastAutoTable.finalY + 6;
-      doc.setFontSize(10); doc.setFont('helvetica', 'bold'); doc.setTextColor(34, 197, 94);
-      doc.text(`1. Materials Received — ${monthLabel}  (Cost Used)`, 10, y1 + 5);
+      const cols = ['Sl', 'Item Description', 'PR / PO Number', 'Request Date', 'Status', 'Budget (AED)'];
+      const colStyles = {
+        0: { cellWidth: 8, halign: 'center' as const },
+        1: { cellWidth: 'auto' as const },
+        2: { cellWidth: 36 },
+        3: { cellWidth: 26, halign: 'center' as const },
+        4: { cellWidth: 36 },
+        5: { cellWidth: 32, halign: 'right' as const, fontStyle: 'bold' as const },
+      };
 
-      autoTable(doc, {
-        startY: y1 + 8,
-        margin: { left: 10, right: 10 },
-        head: [['Sl', 'PO Number', 'Vendor', 'Items', 'PO Date', 'Received On', 'Total Value (AED)']],
-        body: receivedThisMonth.length ? receivedThisMonth.map((p, i) => [
-          i + 1, p.poNo || '—', p.vendor || '—', itemSummary(p.items),
-          fmtDate(p.poDate), fmtDate(p.actualDelivery),
-          `AED ${fmtAED(p.totalValue || 0)}`,
-        ]) : [['', 'No materials received this month', '', '', '', '', '']],
-        foot: receivedThisMonth.length ? [['', '', '', '', '', 'Total Cost Used:', `AED ${fmtAED(costReceived)}`]] : undefined,
-        headStyles: { fillColor: [20, 83, 45], textColor: 255, fontStyle: 'bold', fontSize: 8 },
-        bodyStyles: { fontSize: 8.5 },
-        footStyles: { fillColor: [240, 253, 244], textColor: [20, 83, 45], fontStyle: 'bold', fontSize: 9 },
-        columnStyles: {
-          0: { cellWidth: 8, halign: 'center' }, 1: { cellWidth: 30 },
-          2: { cellWidth: 40 }, 3: { cellWidth: 'auto' },
-          4: { cellWidth: 24, halign: 'center' }, 5: { cellWidth: 24, halign: 'center' },
-          6: { cellWidth: 36, halign: 'right', fontStyle: 'bold' },
-        },
-      });
+      const addSection = (title: string, items: FollowupRecord[], rgb: [number,number,number]) => {
+        const y = (doc as any).lastAutoTable.finalY + 6;
+        doc.setFontSize(10); doc.setFont('helvetica', 'bold');
+        doc.setTextColor(...rgb);
+        doc.text(title, 10, y + 6);
+        if (!items.length) {
+          doc.setFontSize(8.5); doc.setFont('helvetica', 'italic'); doc.setTextColor(148, 163, 184);
+          doc.text('No items for this period.', 10, y + 13);
+          return;
+        }
+        autoTable(doc, {
+          startY: y + 9,
+          margin: { left: 10, right: 10 },
+          head: [cols],
+          body: items.map((r, i) => [
+            i + 1,
+            r.itemDescription || '—',
+            r.prNumber || '—',
+            fmtDate(r.requestDate),
+            r.currentStatus || '—',
+            r.budget ? `AED ${fmtAED(r.budget)}` : '—',
+          ]),
+          foot: [['', 'Total', '', '', '', `AED ${fmtAED(items.reduce((s, r) => s + (r.budget || 0), 0))}`]],
+          headStyles: { fillColor: rgb, textColor: 255, fontStyle: 'bold', fontSize: 8.5 },
+          bodyStyles: { fontSize: 8.5 },
+          footStyles: { fillColor: [241, 245, 249], textColor: [15, 23, 42], fontStyle: 'bold', fontSize: 9 },
+          columnStyles: colStyles,
+        });
+      };
 
-      // Section 2 — POs raised
-      const y2 = (doc as any).lastAutoTable.finalY + 6;
-      doc.setFontSize(10); doc.setFont('helvetica', 'bold'); doc.setTextColor(59, 130, 246);
-      doc.text(`2. POs Raised — ${monthLabel}`, 10, y2 + 5);
+      addSection(`1.  Materials Received — ${monthLabel}  (Cost Used)`, receivedThisMonth, [20, 120, 60]);
+      addSection(`2.  POs Raised — ${monthLabel}  (All PO issued this month)`,  poThisMonth,        [30, 64,  175]);
 
-      autoTable(doc, {
-        startY: y2 + 8,
-        margin: { left: 10, right: 10 },
-        head: [['Sl', 'PO Number', 'Vendor', 'Items', 'PO Date', 'Est. Delivery', 'Status', 'Value (AED)']],
-        body: raisedThisMonth.length ? raisedThisMonth.map((p, i) => [
-          i + 1, p.poNo || '—', p.vendor || '—', itemSummary(p.items),
-          fmtDate(p.poDate), fmtDate(p.estimatedDelivery),
-          STATUS_LABEL[p.status] || p.status || '—',
-          `AED ${fmtAED(p.totalValue || 0)}`,
-        ]) : [['', 'No POs raised this month', '', '', '', '', '', '']],
-        foot: raisedThisMonth.length ? [['', '', '', '', '', '', 'Total Raised:', `AED ${fmtAED(costRaised)}`]] : undefined,
-        headStyles: { fillColor: [30, 64, 175], textColor: 255, fontStyle: 'bold', fontSize: 8 },
-        bodyStyles: { fontSize: 8.5 },
-        footStyles: { fillColor: [239, 246, 255], textColor: [30, 64, 175], fontStyle: 'bold', fontSize: 9 },
-        columnStyles: {
-          0: { cellWidth: 8, halign: 'center' }, 1: { cellWidth: 28 },
-          2: { cellWidth: 36 }, 3: { cellWidth: 'auto' },
-          4: { cellWidth: 22, halign: 'center' }, 5: { cellWidth: 22, halign: 'center' },
-          6: { cellWidth: 28 }, 7: { cellWidth: 32, halign: 'right', fontStyle: 'bold' },
-        },
-      });
-
-      // Page footer
+      // Page numbers
       const pages = (doc as any).internal.getNumberOfPages();
       for (let i = 1; i <= pages; i++) {
         doc.setPage(i);
@@ -210,82 +179,68 @@ export default function PurchaseCosting() {
         doc.text(`Page ${i} of ${pages}   ·   E & I Material Cost Report — ${monthLabel}`, pw / 2, doc.internal.pageSize.getHeight() - 5, { align: 'center' });
       }
 
-      doc.save(`EI-Material-Cost-${selYear}-${String(selMonth).padStart(2,'0')}.pdf`);
+      doc.save(`EI-Material-Cost-${selYear}-${String(selMonth).padStart(2, '0')}.pdf`);
     } finally { setExporting(false); }
   };
 
-  // ── UI helpers ────────────────────────────────────────────────────────────────
+  // ── Sub-components ────────────────────────────────────────────────────────────
   const SummaryCard = ({ label, sub, value, count, color, bg, border, icon }: any) => (
     <div style={{ padding: '16px 20px', borderRadius: 14, background: bg, border: `1.5px solid ${border}` }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 10 }}>
         <div>
-          <div style={{ fontSize: 11, color, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5 }}>{label}</div>
+          <div style={{ fontSize: 11, color, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.4 }}>{label}</div>
           <div style={{ fontSize: 10, color, opacity: 0.6, marginTop: 2 }}>{sub}</div>
         </div>
         <div style={{ color, opacity: 0.7 }}>{icon}</div>
       </div>
-      <div style={{ fontSize: 24, fontWeight: 900, color, letterSpacing: -0.5 }}>
-        AED {fmtAED(value)}
-      </div>
-      <div style={{ fontSize: 11, color, opacity: 0.6, marginTop: 4 }}>
-        {count} PO{count !== 1 ? 's' : ''}
-      </div>
+      <div style={{ fontSize: 26, fontWeight: 900, color, letterSpacing: -0.5 }}>AED {fmtAED(value)}</div>
+      <div style={{ fontSize: 11, color, opacity: 0.6, marginTop: 4 }}>{count} item{count !== 1 ? 's' : ''}</div>
     </div>
   );
 
-  const POTable = ({ items, emptyMsg, showDelivery }: { items: PO[]; emptyMsg: string; showDelivery: boolean }) => (
+  const ItemTable = ({ items, emptyMsg, received }: { items: FollowupRecord[]; emptyMsg: string; received: boolean }) => (
     <div style={{ overflowX: 'auto' }}>
       <table className="data-table" style={{ fontSize: 12 }}>
         <thead>
           <tr>
             <th style={{ width: 36, textAlign: 'center' }}>Sl.</th>
-            <th style={{ width: 110 }}>PO Number</th>
-            <th>Vendor</th>
-            <th>Items</th>
-            <th style={{ width: 95 }}>PO Date</th>
-            <th style={{ width: 110 }}>{showDelivery ? 'Received On' : 'Est. Delivery'}</th>
-            {!showDelivery && <th style={{ width: 130 }}>Status</th>}
-            <th style={{ width: 130, textAlign: 'right' }}>Value (AED)</th>
+            <th>Item Description</th>
+            <th style={{ width: 130 }}>PR / PO Number</th>
+            <th style={{ width: 110 }}>Request Date</th>
+            <th style={{ width: 150 }}>Status</th>
+            <th style={{ width: 140, textAlign: 'right' }}>Budget (AED)</th>
           </tr>
         </thead>
         <tbody>
           {items.length === 0 && (
-            <tr><td colSpan={showDelivery ? 7 : 8} style={{ textAlign: 'center', padding: 28, color: '#475569', fontStyle: 'italic' }}>{emptyMsg}</td></tr>
+            <tr><td colSpan={6} style={{ textAlign: 'center', padding: 28, color: '#475569', fontStyle: 'italic' }}>{emptyMsg}</td></tr>
           )}
-          {items.map((p, i) => (
-            <tr key={p.id || p._id}>
+          {items.map((r, i) => (
+            <tr key={r.id || r._id}>
               <td style={{ textAlign: 'center', color: '#64748b' }}>{i + 1}</td>
-              <td style={{ fontFamily: 'monospace', fontSize: 11, color: '#60a5fa', fontWeight: 700 }}>{p.poNo || '—'}</td>
-              <td style={{ fontWeight: 500, color: '#e2e8f0' }}>{p.vendor || '—'}</td>
-              <td style={{ color: '#94a3b8', fontSize: 11 }}>{itemSummary(p.items)}</td>
-              <td style={{ color: '#94a3b8', whiteSpace: 'nowrap' }}>{fmtDate(p.poDate)}</td>
-              <td style={{ color: showDelivery ? '#22c55e' : '#f59e0b', whiteSpace: 'nowrap', fontWeight: 600 }}>
-                {showDelivery ? fmtDate(p.actualDelivery) : fmtDate(p.estimatedDelivery)}
+              <td style={{ fontWeight: 500, color: '#e2e8f0' }}>{r.itemDescription || '—'}</td>
+              <td style={{ fontFamily: 'monospace', fontSize: 11, color: '#60a5fa', fontWeight: 700 }}>{r.prNumber || '—'}</td>
+              <td style={{ color: '#94a3b8', whiteSpace: 'nowrap' }}>{fmtDate(r.requestDate)}</td>
+              <td>
+                <span style={{
+                  padding: '3px 10px', borderRadius: 20, fontSize: 10, fontWeight: 700,
+                  background: received ? 'rgba(34,197,94,0.15)' : 'rgba(245,158,11,0.15)',
+                  color: received ? '#22c55e' : '#f59e0b',
+                  border: `1px solid ${received ? 'rgba(34,197,94,0.4)' : 'rgba(245,158,11,0.4)'}`,
+                }}>
+                  {r.currentStatus || '—'}
+                </span>
               </td>
-              {!showDelivery && (
-                <td>
-                  <span style={{
-                    padding: '3px 10px', borderRadius: 20, fontSize: 10, fontWeight: 700,
-                    background: `${STATUS_COLOR[p.status] || '#64748b'}22`,
-                    color: STATUS_COLOR[p.status] || '#64748b',
-                    border: `1px solid ${STATUS_COLOR[p.status] || '#64748b'}44`,
-                  }}>
-                    {STATUS_LABEL[p.status] || p.status || '—'}
-                  </span>
-                </td>
-              )}
-              <td style={{ textAlign: 'right', fontWeight: 800, color: '#22c55e', fontSize: 13 }}>
-                {p.totalValue ? `AED ${fmtAED(p.totalValue)}` : '—'}
+              <td style={{ textAlign: 'right', fontWeight: 800, fontSize: 13, color: received ? '#22c55e' : '#f1f5f9' }}>
+                {r.budget ? `AED ${fmtAED(r.budget)}` : '—'}
               </td>
             </tr>
           ))}
           {items.length > 0 && (
             <tr style={{ background: 'rgba(255,255,255,0.04)' }}>
-              <td colSpan={showDelivery ? 6 : 7} style={{ textAlign: 'right', fontWeight: 700, color: '#e2e8f0', fontSize: 12 }}>
-                Sub-total:
-              </td>
-              <td style={{ textAlign: 'right', fontWeight: 900, fontSize: 14, color: '#22c55e' }}>
-                AED {fmtAED(items.reduce((s, p) => s + (p.totalValue || 0), 0))}
+              <td colSpan={5} style={{ textAlign: 'right', fontWeight: 700, color: '#e2e8f0', fontSize: 12 }}>Sub-total:</td>
+              <td style={{ textAlign: 'right', fontWeight: 900, fontSize: 14, color: received ? '#22c55e' : '#3b82f6' }}>
+                AED {fmtAED(items.reduce((s, r) => s + (r.budget || 0), 0))}
               </td>
             </tr>
           )}
@@ -297,44 +252,40 @@ export default function PurchaseCosting() {
   if (loading) return (
     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: 300, flexDirection: 'column', gap: 16 }}>
       <div style={{ width: 40, height: 40, border: '3px solid rgba(59,130,246,0.3)', borderTopColor: '#3b82f6', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
-      <div style={{ color: '#64748b', fontSize: 14 }}>Loading purchase data…</div>
+      <div style={{ color: '#64748b', fontSize: 14 }}>Loading cost data…</div>
     </div>
   );
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
 
-      {/* ── Header ── */}
+      {/* Header */}
       <div className="glass-card" style={{ padding: '16px 22px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
         <div>
           <div style={{ fontSize: 18, fontWeight: 700, color: '#f1f5f9' }}>E &amp; I Material Cost Report</div>
-          <div style={{ fontSize: 12, color: '#64748b', marginTop: 3 }}>
-            Cost of materials received &amp; POs raised — {monthLabel}
-          </div>
+          <div style={{ fontSize: 12, color: '#64748b', marginTop: 3 }}>Cost of materials received &amp; POs raised — {monthLabel}</div>
         </div>
         <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
-          {/* Month selector */}
           <select value={selMonth} onChange={e => setSelMonth(Number(e.target.value))}
             className="input-dark" style={{ width: 130, fontSize: 13 }}>
             {MONTHS.map((m, i) => <option key={i} value={i + 1}>{m}</option>)}
           </select>
-          {/* Year selector */}
           <select value={selYear} onChange={e => setSelYear(Number(e.target.value))}
             className="input-dark" style={{ width: 90, fontSize: 13 }}>
             {years.map(y => <option key={y} value={y}>{y}</option>)}
           </select>
-          <button onClick={fetchPOs} disabled={loading}
-            className="btn-secondary" style={{ fontSize: 12, display: 'flex', alignItems: 'center', gap: 5 }}>
+          <button onClick={fetchRecords} disabled={loading} className="btn-secondary"
+            style={{ fontSize: 12, display: 'flex', alignItems: 'center', gap: 5 }}>
             <RefreshCw size={13} style={{ animation: loading ? 'spin 1s linear infinite' : undefined }} /> Refresh
           </button>
-          <button onClick={generatePDF} disabled={exporting}
-            className="btn-primary" style={{ fontSize: 12, display: 'flex', alignItems: 'center', gap: 6 }}>
+          <button onClick={generatePDF} disabled={exporting} className="btn-primary"
+            style={{ fontSize: 12, display: 'flex', alignItems: 'center', gap: 6 }}>
             <FileDown size={13} /> {exporting ? 'Generating…' : 'Download PDF'}
           </button>
         </div>
       </div>
 
-      {/* ── Summary Cards ── */}
+      {/* Summary Cards */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 14 }}>
         <SummaryCard
           label="Materials Received" sub={`Cost used — ${monthLabel}`}
@@ -344,12 +295,12 @@ export default function PurchaseCosting() {
         />
         <SummaryCard
           label="POs Raised This Month" sub="Total value ordered"
-          value={costRaised} count={raisedThisMonth.length}
+          value={costPO} count={poThisMonth.length}
           color="#3b82f6" bg="rgba(59,130,246,0.08)" border="rgba(59,130,246,0.3)"
           icon={<Package size={20} />}
         />
         <SummaryCard
-          label="In Transit / Pending" sub="POs not yet received"
+          label="In Transit / Pending" sub="PO done, not yet received"
           value={costInTransit} count={inTransit.length}
           color="#f59e0b" bg="rgba(245,158,11,0.08)" border="rgba(245,158,11,0.3)"
           icon={<Truck size={20} />}
@@ -362,49 +313,39 @@ export default function PurchaseCosting() {
         />
       </div>
 
-      {/* ── Section 1: Materials Received ── */}
+      {/* Section 1 — Materials Received */}
       <div className="glass-card" style={{ padding: 0, overflow: 'hidden' }}>
-        <div style={{ padding: '14px 20px', borderBottom: '1px solid rgba(255,255,255,0.06)',
-          display: 'flex', alignItems: 'center', gap: 10 }}>
+        <div style={{ padding: '14px 20px', borderBottom: '1px solid rgba(255,255,255,0.06)', display: 'flex', alignItems: 'center', gap: 10 }}>
           <CheckCircle2 size={17} color="#22c55e" />
           <div>
-            <span style={{ fontWeight: 700, color: '#22c55e', fontSize: 14 }}>
-              Materials Received — {monthLabel}
-            </span>
-            <span style={{ fontSize: 11, color: '#64748b', marginLeft: 8 }}>
-              Cost actually used this month
-            </span>
+            <span style={{ fontWeight: 700, color: '#22c55e', fontSize: 14 }}>Materials Received — {monthLabel}</span>
+            <span style={{ fontSize: 11, color: '#64748b', marginLeft: 8 }}>Cost actually used this month</span>
           </div>
-          <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 12 }}>
-            <span style={{ fontSize: 11, color: '#64748b' }}>{receivedThisMonth.length} PO{receivedThisMonth.length !== 1 ? 's' : ''}</span>
-            <span style={{ fontWeight: 800, color: '#22c55e', fontSize: 15 }}>AED {fmtAED(costReceived)}</span>
+          <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 14 }}>
+            <span style={{ fontSize: 11, color: '#64748b' }}>{receivedThisMonth.length} item{receivedThisMonth.length !== 1 ? 's' : ''}</span>
+            <span style={{ fontWeight: 800, color: '#22c55e', fontSize: 16 }}>AED {fmtAED(costReceived)}</span>
           </div>
         </div>
-        <POTable items={receivedThisMonth} emptyMsg={`No materials received in ${monthLabel}.`} showDelivery={true} />
+        <ItemTable items={receivedThisMonth} emptyMsg={`No materials received in ${monthLabel}.`} received={true} />
       </div>
 
-      {/* ── Section 2: POs Raised ── */}
+      {/* Section 2 — POs Raised */}
       <div className="glass-card" style={{ padding: 0, overflow: 'hidden' }}>
-        <div style={{ padding: '14px 20px', borderBottom: '1px solid rgba(255,255,255,0.06)',
-          display: 'flex', alignItems: 'center', gap: 10 }}>
+        <div style={{ padding: '14px 20px', borderBottom: '1px solid rgba(255,255,255,0.06)', display: 'flex', alignItems: 'center', gap: 10 }}>
           <Package size={17} color="#3b82f6" />
           <div>
-            <span style={{ fontWeight: 700, color: '#3b82f6', fontSize: 14 }}>
-              POs Raised — {monthLabel}
-            </span>
-            <span style={{ fontSize: 11, color: '#64748b', marginLeft: 8 }}>
-              All purchase orders issued this month
-            </span>
+            <span style={{ fontWeight: 700, color: '#3b82f6', fontSize: 14 }}>POs Raised — {monthLabel}</span>
+            <span style={{ fontSize: 11, color: '#64748b', marginLeft: 8 }}>All purchase orders issued this month</span>
           </div>
-          <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 12 }}>
-            <span style={{ fontSize: 11, color: '#64748b' }}>{raisedThisMonth.length} PO{raisedThisMonth.length !== 1 ? 's' : ''}</span>
-            <span style={{ fontWeight: 800, color: '#3b82f6', fontSize: 15 }}>AED {fmtAED(costRaised)}</span>
+          <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 14 }}>
+            <span style={{ fontSize: 11, color: '#64748b' }}>{poThisMonth.length} item{poThisMonth.length !== 1 ? 's' : ''}</span>
+            <span style={{ fontWeight: 800, color: '#3b82f6', fontSize: 16 }}>AED {fmtAED(costPO)}</span>
           </div>
         </div>
-        <POTable items={raisedThisMonth} emptyMsg={`No POs raised in ${monthLabel}.`} showDelivery={false} />
+        <ItemTable items={poThisMonth} emptyMsg={`No POs raised in ${monthLabel}.`} received={false} />
       </div>
 
-      {/* ── Monthly Cost Summary Banner ── */}
+      {/* Cost Summary Banner */}
       <div style={{
         padding: '20px 28px', borderRadius: 14,
         background: 'linear-gradient(135deg, rgba(34,197,94,0.10), rgba(59,130,246,0.06))',
@@ -412,28 +353,23 @@ export default function PurchaseCosting() {
         display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 14,
       }}>
         <div>
-          <div style={{ fontWeight: 700, color: '#22c55e', fontSize: 15 }}>
-            Total Cost Used — {monthLabel}
-          </div>
-          <div style={{ fontSize: 11, color: '#64748b', marginTop: 3 }}>
-            Materials received and accepted this month
-          </div>
+          <div style={{ fontWeight: 700, color: '#22c55e', fontSize: 15 }}>Total Cost Used — {monthLabel}</div>
+          <div style={{ fontSize: 11, color: '#64748b', marginTop: 3 }}>Materials received and accepted this month</div>
         </div>
         <div style={{ display: 'flex', gap: 40, alignItems: 'center' }}>
-          <div style={{ textAlign: 'center' }}>
-            <div style={{ fontSize: 11, color: '#64748b', marginBottom: 2 }}>Received</div>
-            <div style={{ fontSize: 22, fontWeight: 900, color: '#22c55e' }}>AED {fmtAED(costReceived)}</div>
-          </div>
-          <div style={{ width: 1, background: 'rgba(255,255,255,0.1)', alignSelf: 'stretch' }} />
-          <div style={{ textAlign: 'center' }}>
-            <div style={{ fontSize: 11, color: '#64748b', marginBottom: 2 }}>In Transit</div>
-            <div style={{ fontSize: 22, fontWeight: 900, color: '#f59e0b' }}>AED {fmtAED(costInTransit)}</div>
-          </div>
-          <div style={{ width: 1, background: 'rgba(255,255,255,0.1)', alignSelf: 'stretch' }} />
-          <div style={{ textAlign: 'center' }}>
-            <div style={{ fontSize: 11, color: '#64748b', marginBottom: 2 }}>YTD {selYear}</div>
-            <div style={{ fontSize: 22, fontWeight: 900, color: '#a78bfa' }}>AED {fmtAED(costYTD)}</div>
-          </div>
+          {[
+            { label: 'Received', value: costReceived, color: '#22c55e' },
+            { label: 'In Transit', value: costInTransit, color: '#f59e0b' },
+            { label: `YTD ${selYear}`, value: costYTD, color: '#a78bfa' },
+          ].map((item, i, arr) => (
+            <div key={item.label} style={{ display: 'flex', alignItems: 'center', gap: 40 }}>
+              <div style={{ textAlign: 'center' }}>
+                <div style={{ fontSize: 11, color: '#64748b', marginBottom: 3 }}>{item.label}</div>
+                <div style={{ fontSize: 22, fontWeight: 900, color: item.color }}>AED {fmtAED(item.value)}</div>
+              </div>
+              {i < arr.length - 1 && <div style={{ width: 1, height: 40, background: 'rgba(255,255,255,0.1)' }} />}
+            </div>
+          ))}
         </div>
       </div>
 
