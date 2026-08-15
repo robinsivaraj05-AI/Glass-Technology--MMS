@@ -100,6 +100,19 @@ export default function PurchaseCosting() {
     [records]
   );
 
+  // Carry-over: items from BEFORE selYear that are still not received
+  const carryOver = useMemo(() =>
+    records.filter(r => {
+      if (!r.requestDate) return false;
+      return new Date(r.requestDate).getFullYear() < selYear && !RECEIVED_STATUSES.has(r.currentStatus);
+    }),
+    [records, selYear]
+  );
+  const carryOverBudg  = carryOver.reduce((s, r) => s + (r.budget || 0), 0);
+  const carryOverPO    = carryOver.filter(r => PO_DONE_STATUSES.has(r.currentStatus));
+  const carryOverTran  = carryOver.filter(r => r.currentStatus === 'PO done' || r.currentStatus === 'Material Not Delivered');
+  const prevYear       = selYear - 1;
+
   // Yearly breakdown — one row per month
   const yearlyRows = useMemo(() =>
     MONTHS.map((name, i) => {
@@ -396,6 +409,36 @@ export default function PurchaseCosting() {
                 </tr>
               </thead>
               <tbody>
+                {/* Carry-over row — pending POs from previous year(s) */}
+                {carryOver.length > 0 && (
+                  <tr style={{ background: 'rgba(251,191,36,0.07)', borderBottom: '2px solid rgba(251,191,36,0.25)' }}>
+                    <td style={{ textAlign: 'center', color: '#fbbf24', fontWeight: 800 }}>↩</td>
+                    <td style={{ fontWeight: 800, color: '#fbbf24', fontSize: 12 }}>
+                      Carry Over
+                      <span style={{ fontSize: 9, marginLeft: 6, background: 'rgba(251,191,36,0.2)', color: '#fbbf24', borderRadius: 4, padding: '1px 6px' }}>
+                        Pending from ≤{prevYear}
+                      </span>
+                    </td>
+                    <td style={{ textAlign: 'center', fontWeight: 800, color: '#fbbf24' }}>{carryOver.length}</td>
+                    <td style={{ textAlign: 'right', fontWeight: 900, fontSize: 13, color: '#fbbf24' }}>
+                      AED {fmtAED(carryOverBudg)}
+                    </td>
+                    <td style={{ textAlign: 'center', color: '#475569' }}>—</td>
+                    <td style={{ textAlign: 'right', color: '#475569' }}>—</td>
+                    <td style={{ textAlign: 'center', fontWeight: 700, color: carryOverPO.length > 0 ? '#3b82f6' : '#475569' }}>
+                      {carryOverPO.length > 0 ? carryOverPO.length : '—'}
+                    </td>
+                    <td style={{ textAlign: 'right', fontWeight: 800, fontSize: 13, color: carryOverPO.length > 0 ? '#3b82f6' : '#475569' }}>
+                      {carryOverPO.length > 0 ? `AED ${fmtAED(carryOverPO.reduce((s, r) => s + (r.budget || 0), 0))}` : '—'}
+                    </td>
+                    <td style={{ textAlign: 'center', fontWeight: 700, color: carryOverTran.length > 0 ? '#f59e0b' : '#475569' }}>
+                      {carryOverTran.length > 0 ? carryOverTran.length : '—'}
+                    </td>
+                    <td style={{ textAlign: 'right', fontWeight: 800, fontSize: 13, color: carryOverTran.length > 0 ? '#f59e0b' : '#475569' }}>
+                      {carryOverTran.length > 0 ? `AED ${fmtAED(carryOverTran.reduce((s, r) => s + (r.budget || 0), 0))}` : '—'}
+                    </td>
+                  </tr>
+                )}
                 {yearlyRows.map((row, i) => {
                   const isCurrentMonth = i + 1 === now.getMonth() + 1 && selYear === now.getFullYear();
                   const hasData = row.recvCount > 0 || row.poCount > 0;
