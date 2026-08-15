@@ -483,10 +483,10 @@ export default function PurchaseCosting() {
                     Year Total {selYear}:
                   </td>
                   <td style={{ textAlign: 'center', fontWeight: 800, color: '#fbbf24' }}>
-                    {yearlyRows.reduce((s, r) => s + r.budgCount, 0)}
+                    {yearlyRows.reduce((s, r) => s + r.budgCount, 0) + carryOver.length}
                   </td>
                   <td style={{ textAlign: 'right', fontWeight: 900, fontSize: 14, color: '#fbbf24', padding: '10px 14px' }}>
-                    AED {fmtAED(yearlyRows.reduce((s, r) => s + r.budgCost, 0))}
+                    AED {fmtAED(yearlyRows.reduce((s, r) => s + r.budgCost, 0) + carryOverBudg)}
                   </td>
                   <td style={{ textAlign: 'center', fontWeight: 800, color: '#22c55e' }}>
                     {yearlyRows.reduce((s, r) => s + r.recvCount, 0)}
@@ -495,16 +495,16 @@ export default function PurchaseCosting() {
                     AED {fmtAED(yearlyRows.reduce((s, r) => s + r.recvCost, 0))}
                   </td>
                   <td style={{ textAlign: 'center', fontWeight: 800, color: '#3b82f6' }}>
-                    {yearlyRows.reduce((s, r) => s + r.poCount, 0)}
+                    {yearlyRows.reduce((s, r) => s + r.poCount, 0) + carryOverPO.length}
                   </td>
                   <td style={{ textAlign: 'right', fontWeight: 900, fontSize: 14, color: '#3b82f6', padding: '10px 14px' }}>
-                    AED {fmtAED(yearlyRows.reduce((s, r) => s + r.poCost, 0))}
+                    AED {fmtAED(yearlyRows.reduce((s, r) => s + r.poCost, 0) + carryOverPO.reduce((s, r) => s + (r.budget || 0), 0))}
                   </td>
                   <td style={{ textAlign: 'center', fontWeight: 800, color: '#f59e0b' }}>
-                    {yearlyRows.reduce((s, r) => s + r.tranCount, 0)}
+                    {yearlyRows.reduce((s, r) => s + r.tranCount, 0) + carryOverTran.length}
                   </td>
                   <td style={{ textAlign: 'right', fontWeight: 900, fontSize: 14, color: '#f59e0b', padding: '10px 14px' }}>
-                    AED {fmtAED(yearlyRows.reduce((s, r) => s + r.tranCost, 0))}
+                    AED {fmtAED(yearlyRows.reduce((s, r) => s + r.tranCost, 0) + carryOverTran.reduce((s, r) => s + (r.budget || 0), 0))}
                   </td>
                 </tr>
               </tfoot>
