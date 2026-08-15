@@ -7,7 +7,7 @@ import { useEmployees } from '../context/EmployeeContext';
 
 const EMPTY_FORM = {
   name: '', type: 'electrical', priority: 'high', projectManager: '',
-  budget: '', startDate: '', endDate: '', status: 'planning', description: '',
+  budget: '', spent: '', startDate: '', endDate: '', status: 'planning', description: '',
   teamMembers: [] as string[],
   progress: '',
 };
@@ -124,6 +124,7 @@ export default function Projects() {
       priority: selected.priority,
       projectManager: selected.projectManager,
       budget: String(selected.budget),
+      spent: String(selected.spent),
       startDate: selected.startDate,
       endDate: selected.endDate,
       status: selected.status,
@@ -189,7 +190,7 @@ ${p.teamMembers?.length ? `<div class="field"><div class="label">Team Members</d
         description: form.description.trim(),
       };
       const payload = editingProject
-        ? { ...basePayload, projectNo: editingProject.projectNo, spent: editingProject.spent, progress: Number(form.progress) || 0 }
+        ? { ...basePayload, projectNo: editingProject.projectNo, spent: Number(form.spent) || 0, progress: Number(form.progress) || 0 }
         : { ...basePayload, projectNo: `PRJ-${new Date().getFullYear()}-${String(projects.length + 1).padStart(3, '0')}`, spent: 0, progress: 0 };
       const r = await fetch(
         editingProject ? `${API}/${editingProject.id}` : API,
@@ -538,6 +539,17 @@ ${p.teamMembers?.length ? `<div class="field"><div class="label">Team Members</d
                   value={form.budget} onChange={e => setField('budget', e.target.value)}
                 />
               </div>
+
+              {/* Spent — edit mode only */}
+              {editingProject && (
+                <div>
+                  <label style={{ fontSize: 12, color: '#94a3b8', display: 'block', marginBottom: 5 }}>Spent (AED)</label>
+                  <input
+                    type="number" min="0" placeholder="0" className="input-dark"
+                    value={form.spent} onChange={e => setField('spent', e.target.value)}
+                  />
+                </div>
+              )}
 
               {/* Start Date */}
               <div>
