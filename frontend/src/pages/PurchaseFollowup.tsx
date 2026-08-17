@@ -249,14 +249,19 @@ export default function PurchaseFollowup() {
       ];
 
       const snap = records;
-      // Track all known prNumbers (existing + newly added this loop) to prevent intra-loop duplicates
-      const knownPRs = new Set(snap.map(r => r.prNumber).filter(Boolean));
+      const normalize = (s: string) => (s || '').trim().toLowerCase();
+      // Track keys seen so far (prNumber or description) to prevent intra-loop duplicates
+      const knownPRs   = new Set(snap.map(r => r.prNumber).filter(Boolean));
+      const knownDescs = new Set(snap.map(r => normalize(r.itemDescription)).filter(Boolean));
 
       for (const inc of incoming) {
-        if (!inc.prNumber) continue;
         try {
-          // Match on prNumber alone — source is ignored so manual entries aren't duplicated
-          const existing = snap.find(r => r.prNumber === inc.prNumber);
+          const incDesc = normalize(inc.itemDescription);
+          // Match by prNumber first, then fall back to item description
+          const existing = snap.find(r =>
+            (inc.prNumber && r.prNumber === inc.prNumber) ||
+            (incDesc && normalize(r.itemDescription) === incDesc)
+          );
           if (existing) {
             const patch = {
               currentStatus:   inc.currentStatus,
@@ -267,14 +272,18 @@ export default function PurchaseFollowup() {
             const up = await apiFetch(`/api/purchase-followup/${existing.id}`, { method: 'PUT', body: JSON.stringify(patch) });
             setRecords(prev => prev.map(r => r.id === existing.id ? up : r));
             updated++;
-          } else if (!knownPRs.has(inc.prNumber)) {
-            // Not in DB and not already added in this sync loop
-            knownPRs.add(inc.prNumber);
+          } else if (
+            (!inc.prNumber || !knownPRs.has(inc.prNumber)) &&
+            (!incDesc     || !knownDescs.has(incDesc))
+          ) {
+            // Not a duplicate — safe to create
+            if (inc.prNumber) knownPRs.add(inc.prNumber);
+            if (incDesc)      knownDescs.add(incDesc);
             const created = await apiFetch('/api/purchase-followup', { method: 'POST', body: JSON.stringify(inc) });
             setRecords(prev => [...prev, created]);
             added++;
           }
-        } catch (e) { console.error('Sync error for', inc.prNumber, e); }
+        } catch (e) { console.error('Sync error for', inc.prNumber || inc.itemDescription, e); }
       }
     } catch (e) { console.error('Sync failed', e); }
     setSyncMsg(`Sync complete: ${added} added, ${updated} updated.`);
