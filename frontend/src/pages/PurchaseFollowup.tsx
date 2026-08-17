@@ -387,7 +387,12 @@ export default function PurchaseFollowup() {
     e.stopPropagation();
     if (openMenuId === r.id) { setOpenMenuId(null); setMenuRec(null); return; }
     const rect = (e.currentTarget as HTMLButtonElement).getBoundingClientRect();
-    setMenuPos({ top: rect.bottom + 4, left: Math.min(rect.right - 140, window.innerWidth - 148) });
+    const menuH = 148; // approximate menu height
+    const left  = Math.min(rect.right - 140, window.innerWidth - 148);
+    const top   = rect.bottom + 4 + menuH > window.innerHeight
+      ? rect.top - menuH - 4   // flip above when too close to bottom
+      : rect.bottom + 4;
+    setMenuPos({ top, left });
     setMenuRec(r);
     setOpenMenuId(r.id);
   };
