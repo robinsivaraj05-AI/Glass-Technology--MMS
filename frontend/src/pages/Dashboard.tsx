@@ -1,480 +1,748 @@
-﻿import { useState, useEffect } from 'react';
+// @ts-nocheck
 import {
   AreaChart, Area, BarChart, Bar, LineChart, Line, PieChart, Pie, Cell,
-  XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend
+  XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
 } from 'recharts';
 import {
-  AlertTriangle, CheckCircle, Clock, Zap, TrendingUp, TrendingDown,
-  Users, Package, Activity, Wrench, DollarSign, BarChart3,
-  Calendar, Bell, ThermometerSun, Wind, Gauge, UserCheck, UserCog,
-  UserX, Briefcase, Building2
+  TrendingUp, TrendingDown, Bell, Activity, Zap, Wrench, AlertTriangle,
+  CheckCircle, CheckCircle2, Clock, Users, DollarSign, Gauge, Cpu,
+  Calendar, Package, RefreshCw, ChevronRight, Battery, Monitor, Server,
+  FileText, User, Building2, BarChart2, BarChart3, Radio,
+  ClipboardList, ArrowUpRight, ArrowDownRight, Thermometer, Star,
+  UserCheck, HardDrive, Settings, Search, MapPin,
 } from 'lucide-react';
-import {
-  mockKPIs, mockBreakdowns, mockPMSchedules, mockMachines, mockEnergyData,
-  monthlyBreakdowns, pmComplianceData, topBreakdownMachines, departmentEnergyData, shiftInfo,
-  mockProjects,
-} from '../data/mockData';
-import type { Project } from '../types';
 import { useAuth } from '../context/AuthContext';
 
-function KPICard({ title, value, unit, icon, color, trend, trendVal, subtitle }: any) {
-  const colorMap: Record<string, string> = { blue: 'kpi-blue', green: 'kpi-green', orange: 'kpi-orange', red: 'kpi-red', purple: 'kpi-purple', cyan: 'kpi-cyan' };
-  const colorClass = colorMap[color] ?? 'kpi-blue';
-  return (
-    <div className={`glass-card kpi-card ${colorClass}`} style={{ padding: '16px 18px' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 10 }}>
-        <div style={{ fontSize: 11, color: '#64748b', fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.8 }}>{title}</div>
-        <div style={{
-          width: 32, height: 32, borderRadius: 8, flexShrink: 0,
-          background: `rgba(${color === 'blue' ? '59,130,246' : color === 'green' ? '34,197,94' : color === 'orange' ? '245,158,11' : color === 'red' ? '239,68,68' : color === 'purple' ? '139,92,246' : '6,182,212'}, 0.15)`,
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          color: color === 'blue' ? '#60a5fa' : color === 'green' ? '#4ade80' : color === 'orange' ? '#fbbf24' : color === 'red' ? '#f87171' : color === 'purple' ? '#a78bfa' : '#22d3ee',
-        }}>
-          {icon}
-        </div>
-      </div>
-      <div style={{ display: 'flex', alignItems: 'baseline', gap: 4 }}>
-        <span style={{ fontSize: 26, fontWeight: 700, color: '#f1f5f9', lineHeight: 1 }}>{value}</span>
-        {unit && <span style={{ fontSize: 13, color: '#64748b' }}>{unit}</span>}
-      </div>
-      {subtitle && <div style={{ fontSize: 11, color: '#475569', marginTop: 4 }}>{subtitle}</div>}
-      {trend && (
-        <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginTop: 8 }}>
-          {trend === 'up' ? <TrendingUp size={11} style={{ color: '#4ade80' }} /> : <TrendingDown size={11} style={{ color: '#f87171' }} />}
-          <span style={{ fontSize: 11, color: trend === 'up' ? '#4ade80' : '#f87171' }}>{trendVal} vs last month</span>
-        </div>
-      )}
-    </div>
-  );
-}
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+const NOW    = new Date();
+const hour   = NOW.getHours();
+const greet  = hour < 12 ? 'Good Morning' : hour < 17 ? 'Good Afternoon' : 'Good Evening';
+const shift  = hour < 8  ? 'Night Shift'  : hour < 16  ? 'Day Shift'     : 'Evening Shift';
+const dateLbl = NOW.toLocaleDateString('en-US', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
 
-function StatusBar({ label, value, max, color }: { label: string; value: number; max: number; color: string }) {
-  const pct = Math.round((value / max) * 100);
-  return (
-    <div style={{ marginBottom: 10 }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, marginBottom: 4 }}>
-        <span style={{ color: '#94a3b8' }}>{label}</span>
-        <span style={{ color: '#f1f5f9', fontWeight: 600 }}>{value}<span style={{ color: '#475569', fontSize: 10 }}>/{max}</span></span>
-      </div>
-      <div className="progress-bar">
-        <div className="progress-fill" style={{ width: `${pct}%`, background: color }} />
-      </div>
-    </div>
-  );
-}
+// ─── Design tokens ────────────────────────────────────────────────────────────
+const CARD: any = {
+  background: '#FFFFFF', borderRadius: 16,
+  boxShadow: '0 1px 4px rgba(0,0,0,0.07), 0 1px 2px rgba(0,0,0,0.04)',
+  border: '1px solid #F1F5F9',
+};
+const PAGE_BG = '#F0F4F8';
 
-const CustomTooltip = ({ active, payload, label }: any) => {
+// ─── KPI definitions ──────────────────────────────────────────────────────────
+const KPIS = [
+  { id:'oee',    label:'OEE',                value:'87.4', unit:'%',   color:'#22C55E', bg:'#F0FDF4', border:'#BBF7D0',
+    gradient:'linear-gradient(135deg,#22C55E,#16A34A)',  icon:<Gauge size={26}/>,   trend:'up',   trendVal:'+2.1%',
+    sub:'Overall Equipment Effectiveness',   equip:'Clamp Meter' },
+  { id:'mtbf',   label:'MTBF',               value:'342',  unit:'hrs', color:'#3B82F6', bg:'#EFF6FF', border:'#BFDBFE',
+    gradient:'linear-gradient(135deg,#3B82F6,#1D4ED8)',  icon:<Activity size={26}/>, trend:'up',  trendVal:'+18hrs',
+    sub:'Mean Time Between Failures',        equip:'Digital Multimeter' },
+  { id:'mttr',   label:'MTTR',               value:'2.3',  unit:'hrs', color:'#F97316', bg:'#FFF7ED', border:'#FED7AA',
+    gradient:'linear-gradient(135deg,#F97316,#EA580C)',  icon:<Clock size={26}/>,   trend:'down', trendVal:'-0.4hrs',
+    sub:'Mean Time To Repair',               equip:'Insulation Tester' },
+  { id:'pm',     label:'PM Compliance',       value:'94.2', unit:'%',   color:'#8B5CF6', bg:'#F5F3FF', border:'#DDD6FE',
+    gradient:'linear-gradient(135deg,#8B5CF6,#7C3AED)',  icon:<CheckCircle size={26}/>, trend:'up', trendVal:'+3.5%',
+    sub:'Preventive Maintenance',            equip:'Loop Calibrator' },
+  { id:'elec',   label:'Electrical Avail.',   value:'98.7', unit:'%',   color:'#F59E0B', bg:'#FFFBEB', border:'#FDE68A',
+    gradient:'linear-gradient(135deg,#F59E0B,#D97706)',  icon:<Zap size={26}/>,     trend:'up',  trendVal:'+0.3%',
+    sub:'Electrical Uptime Availability',    equip:'VFD Panel' },
+  { id:'inst',   label:'Instr. Avail.',       value:'97.1', unit:'%',   color:'#06B6D4', bg:'#ECFEFF', border:'#A5F3FC',
+    gradient:'linear-gradient(135deg,#06B6D4,#0891B2)',  icon:<Radio size={26}/>,   trend:'up',  trendVal:'+1.2%',
+    sub:'Instrumentation Uptime',            equip:'HART Communicator' },
+  { id:'pf',     label:'Power Factor',        value:'0.94', unit:'PF',  color:'#EC4899', bg:'#FDF2F8', border:'#FBCFE8',
+    gradient:'linear-gradient(135deg,#EC4899,#DB2777)',  icon:<Battery size={26}/>, trend:'up',  trendVal:'+0.02',
+    sub:'Plant Power Factor',                equip:'Power Analyzer' },
+  { id:'budget', label:'Budget Utilization',  value:'68.3', unit:'%',   color:'#14B8A6', bg:'#F0FDFA', border:'#99F6E4',
+    gradient:'linear-gradient(135deg,#14B8A6,#0D9488)',  icon:<DollarSign size={26}/>, trend:'up', trendVal:'+5.2%',
+    sub:'YTD Budget Utilization',            equip:'ERP Dashboard' },
+];
+
+// ─── Status cards ─────────────────────────────────────────────────────────────
+const STATUS_CARDS = [
+  { label:'Active Breakdowns', value:3,       icon:<AlertTriangle size={24}/>, color:'#EF4444', bg:'#FEF2F2', border:'#FECACA', sub:'2 Critical · 1 Minor',              borderLeft:'#EF4444' },
+  { label:'PM Due Today',      value:7,       icon:<Calendar size={24}/>,      color:'#F59E0B', bg:'#FFFBEB', border:'#FDE68A', sub:'3 Electrical · 4 Instrumentation',  borderLeft:'#F59E0B' },
+  { label:'Running Machines',  value:'42/45', icon:<Activity size={24}/>,      color:'#22C55E', bg:'#F0FDF4', border:'#BBF7D0', sub:'3 Machines scheduled for PM',       borderLeft:'#22C55E' },
+  { label:'Open Work Orders',  value:12,      icon:<ClipboardList size={24}/>, color:'#3B82F6', bg:'#EFF6FF', border:'#BFDBFE', sub:'5 High Priority',                   borderLeft:'#3B82F6' },
+];
+
+// ─── Staffing ─────────────────────────────────────────────────────────────────
+const STAFFING = [
+  { label:'Total Positions', value:28, color:'#3B82F6', icon:<Users size={14}/> },
+  { label:'Joined',          value:22, color:'#22C55E', icon:<CheckCircle size={14}/> },
+  { label:'Ready to Join',   value:2,  color:'#F59E0B', icon:<Clock size={14}/> },
+  { label:'HR Process',      value:3,  color:'#8B5CF6', icon:<FileText size={14}/> },
+  { label:'Pending',         value:1,  color:'#EF4444', icon:<AlertTriangle size={14}/> },
+];
+
+// ─── Maintenance progress ─────────────────────────────────────────────────────
+const MAINT = [
+  { label:'Planning',    value:8,  color:'#3B82F6', pct:8  },
+  { label:'In Progress', value:15, color:'#F59E0B', pct:15 },
+  { label:'On Hold',     value:4,  color:'#EF4444', pct:4  },
+  { label:'Completed',   value:73, color:'#22C55E', pct:73 },
+];
+
+// ─── Reminders ────────────────────────────────────────────────────────────────
+const REMINDERS = [
+  { freq:'Daily',     color:'#3B82F6', bg:'#EFF6FF', border:'#BFDBFE',
+    items:['Inspect MCC panels','Check UPS battery levels','Log energy readings'] },
+  { freq:'Weekly',    color:'#22C55E', bg:'#F0FDF4', border:'#BBF7D0',
+    items:['Test emergency lighting','PM on conveyor motors'] },
+  { freq:'Monthly',   color:'#8B5CF6', bg:'#F5F3FF', border:'#DDD6FE',
+    items:['Infrared thermography scan','VFD parameter backup'] },
+  { freq:'Quarterly', color:'#F59E0B', bg:'#FFFBEB', border:'#FDE68A',
+    items:['Megger test — HT cables','Full PLC backup'] },
+  { freq:'Yearly',    color:'#EF4444', bg:'#FEF2F2', border:'#FECACA',
+    items:['Annual shutdown PM','Transformer oil test'] },
+];
+
+// ─── Pending jobs ─────────────────────────────────────────────────────────────
+const JOBS = [
+  { id:'JOB-2025-001', equipment:'Furnace Motor M-12',       due:'20 Aug 2025', priority:'Critical', person:'Ahmed Ali', status:'Open'        },
+  { id:'JOB-2025-002', equipment:'Lehr Conveyor Belt',        due:'22 Aug 2025', priority:'High',     person:'Mohammed',  status:'In Progress' },
+  { id:'JOB-2025-003', equipment:'PLC Rack — Zone 3',         due:'25 Aug 2025', priority:'Medium',   person:'Rabin',     status:'Open'        },
+  { id:'JOB-2025-004', equipment:'Pressure Transmitter PT-204',due:'28 Aug 2025',priority:'High',     person:'Suresh',    status:'On Hold'     },
+  { id:'JOB-2025-005', equipment:'MCC Panel Section 5',       due:'30 Aug 2025', priority:'Low',      person:'Kumar',     status:'Open'        },
+];
+
+// ─── Follow-ups ───────────────────────────────────────────────────────────────
+const FOLLOWUPS = [
+  { id:'FLW-001', date:'18 Aug', owner:'Ahmed Ali', next:'Get spare motor from store',  progress:60, color:'#3B82F6' },
+  { id:'FLW-002', date:'19 Aug', owner:'Mohammed',  next:'Await vendor quotation',       progress:30, color:'#F59E0B' },
+  { id:'FLW-003', date:'20 Aug', owner:'Rabin',     next:'PLC program backup complete',  progress:80, color:'#22C55E' },
+  { id:'FLW-004', date:'21 Aug', owner:'Suresh',    next:'Calibration cert received',    progress:90, color:'#22C55E' },
+  { id:'FLW-005', date:'22 Aug', owner:'Kumar',     next:'Switchgear inspection done',   progress:20, color:'#EF4444' },
+];
+
+// ─── Chart data ───────────────────────────────────────────────────────────────
+const pmTrend = [
+  {m:'Jan',pm:88,tgt:95},{m:'Feb',pm:86,tgt:95},{m:'Mar',pm:90,tgt:95},{m:'Apr',pm:91,tgt:95},
+  {m:'May',pm:89,tgt:95},{m:'Jun',pm:92,tgt:95},{m:'Jul',pm:93,tgt:95},{m:'Aug',pm:94,tgt:95},
+];
+const bkdData = [
+  {cat:'Electrical',n:12,fill:'#3B82F6'},{cat:'Mechanical',n:8,fill:'#F59E0B'},
+  {cat:'Instrument',n:6,fill:'#8B5CF6'},{cat:'Utility',n:4,fill:'#22C55E'},{cat:'Civil',n:2,fill:'#EF4444'},
+];
+const eqHealth  = [{name:'Good',v:68,c:'#22C55E'},{name:'Fair',v:22,c:'#F59E0B'},{name:'Critical',v:10,c:'#EF4444'}];
+const woStatus  = [{name:'Completed',v:73,c:'#22C55E'},{name:'In Progress',v:15,c:'#3B82F6'},{name:'On Hold',v:8,c:'#F59E0B'},{name:'Cancelled',v:4,c:'#EF4444'}];
+const costData  = [
+  {m:'Jan',el:42,ins:28,ci:8},{m:'Feb',el:38,ins:32,ci:6},{m:'Mar',el:55,ins:30,ci:10},
+  {m:'Apr',el:48,ins:35,ci:5},{m:'May',el:52,ins:29,ci:7},{m:'Jun',el:46,ins:31,ci:9},
+  {m:'Jul',el:58,ins:33,ci:11},{m:'Aug',el:43,ins:27,ci:6},
+];
+const energyD   = [{m:'Jan',k:128},{m:'Feb',k:119},{m:'Mar',k:132},{m:'Apr',k:125},{m:'May',k:138},{m:'Jun',k:142},{m:'Jul',k:136},{m:'Aug',k:131}];
+const mtbfD     = [{m:'Jan',v:290},{m:'Feb',v:305},{m:'Mar',v:298},{m:'Apr',v:312},{m:'May',v:320},{m:'Jun',v:330},{m:'Jul',v:338},{m:'Aug',v:342}];
+const mttrD     = [{m:'Jan',v:3.2},{m:'Feb',v:3.0},{m:'Mar',v:2.9},{m:'Apr',v:2.8},{m:'May',v:2.7},{m:'Jun',v:2.5},{m:'Jul',v:2.4},{m:'Aug',v:2.3}];
+
+// ─── Mini components ──────────────────────────────────────────────────────────
+const Tip = ({ active, payload, label }: any) => {
   if (!active || !payload?.length) return null;
   return (
-    <div style={{ background: '#0d0d1a', border: '1px solid rgba(59,130,246,0.3)', borderRadius: 8, padding: '8px 14px', fontSize: 12 }}>
-      <div style={{ color: '#94a3b8', marginBottom: 4 }}>{label}</div>
-      {payload.map((p: any) => (
-        <div key={p.name} style={{ color: p.color, display: 'flex', justifyContent: 'space-between', gap: 12 }}>
-          <span>{p.name}:</span><span style={{ fontWeight: 600 }}>{p.value}</span>
-        </div>
+    <div style={{ background:'#fff', border:'1px solid #E5E7EB', borderRadius:10, padding:'10px 14px',
+      boxShadow:'0 4px 16px rgba(0,0,0,0.10)', fontSize:12 }}>
+      {label && <div style={{ fontWeight:700, color:'#374151', marginBottom:5 }}>{label}</div>}
+      {payload.map((p:any, i:number) => (
+        <div key={i} style={{ color:p.color||'#374151', fontWeight:600 }}>{p.name}: {p.value}</div>
       ))}
     </div>
   );
 };
 
+const PrioBadge = ({ p }: { p:string }) => {
+  const m: Record<string,any> = {
+    Critical:{bg:'#FEF2F2',tc:'#EF4444'}, High:{bg:'#FFF7ED',tc:'#F97316'},
+    Medium:{bg:'#FFFBEB',tc:'#F59E0B'},   Low:{bg:'#F0FDF4',tc:'#22C55E'},
+  };
+  const c = m[p]||m.Low;
+  return <span style={{ fontSize:10,fontWeight:800,padding:'2px 9px',borderRadius:20,background:c.bg,color:c.tc,border:`1px solid ${c.tc}40` }}>{p}</span>;
+};
+
+const StatBadge = ({ s }: { s:string }) => {
+  const m: Record<string,any> = {
+    Open:{bg:'#EFF6FF',tc:'#3B82F6'}, 'In Progress':{bg:'#FFFBEB',tc:'#F59E0B'},
+    'On Hold':{bg:'#FEF2F2',tc:'#EF4444'}, Completed:{bg:'#F0FDF4',tc:'#22C55E'},
+  };
+  const c = m[s]||m.Open;
+  return <span style={{ fontSize:10,fontWeight:800,padding:'2px 9px',borderRadius:20,background:c.bg,color:c.tc,border:`1px solid ${c.tc}40` }}>{s}</span>;
+};
+
+function EquipBadge({ gradient, icon }: { gradient:string; icon:React.ReactNode }) {
+  return (
+    <div style={{ width:78, height:68, borderRadius:14, background:gradient, flexShrink:0, display:'flex',
+      alignItems:'center', justifyContent:'center', position:'relative', overflow:'hidden',
+      boxShadow:'0 4px 14px rgba(0,0,0,0.18)' }}>
+      <div style={{ position:'absolute', top:-14, right:-14, width:44, height:44, borderRadius:'50%', background:'rgba(255,255,255,0.18)' }}/>
+      <div style={{ position:'absolute', bottom:-12, left:-12, width:36, height:36, borderRadius:'50%', background:'rgba(255,255,255,0.10)' }}/>
+      <div style={{ color:'#fff', position:'relative', zIndex:1, opacity:0.96 }}>{icon}</div>
+    </div>
+  );
+}
+
+function SectionTitle({ icon, label, action }: { icon:React.ReactNode; label:string; action?:string }) {
+  return (
+    <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:16 }}>
+      <div style={{ display:'flex', alignItems:'center', gap:8 }}>
+        <span style={{ color:'#374151' }}>{icon}</span>
+        <span style={{ fontSize:14, fontWeight:800, color:'#1E293B' }}>{label}</span>
+      </div>
+      {action && <span style={{ fontSize:11, color:'#3B82F6', fontWeight:700, cursor:'pointer', display:'flex', alignItems:'center', gap:2 }}>{action} <ChevronRight size={12}/></span>}
+    </div>
+  );
+}
+
+// ─── Dashboard ────────────────────────────────────────────────────────────────
 export default function Dashboard() {
   const { user } = useAuth();
-  const [activeTab, setActiveTab] = useState<'overview' | 'energy' | 'breakdowns'>('overview');
-
-  const todayBreakdowns = mockBreakdowns.filter(b => b.status === 'open' || b.status === 'in-progress');
-  const overduepm = mockPMSchedules.filter(p => p.status === 'overdue');
-  const criticalMachines = mockMachines.filter(m => m.status === 'breakdown').length;
-  const runningMachines = mockMachines.filter(m => m.status === 'running').length;
-
-  // Org position stats
-  const [orgStats, setOrgStats] = useState({ total: 0, joined: 0, readyToJoin: 0, hrProcess: 0, pending: 0 });
-  useEffect(() => {
-    fetch('/api/org-positions')
-      .then(r => r.json())
-      .then((positions: any[]) => {
-        const total       = positions.length;
-        const joined      = positions.filter(p => p.recruitmentStatus === 'joined').length;
-        const readyToJoin = positions.filter(p => p.recruitmentStatus === 'ready_to_join').length;
-        const hrProcess   = positions.filter(p => p.recruitmentStatus === 'hr_process').length;
-        const pending     = positions.filter(p => p.recruitmentStatus === 'pending').length;
-        setOrgStats({ total, joined, readyToJoin, hrProcess, pending });
-      })
-      .catch(() => {});
-  }, []);
-
-  // Project financial stats (live from localStorage, fall back to mock)
-  const projects: Project[] = (() => {
-    try { const s = localStorage.getItem('mms_projects'); return s ? JSON.parse(s) : mockProjects; }
-    catch { return mockProjects; }
-  })();
-  const totalBudget   = projects.reduce((a, p) => a + p.budget, 0);
-  const totalSpent    = projects.reduce((a, p) => a + p.spent, 0);
-  const totalRemaining = totalBudget - totalSpent;
-  const budgetUsedPct = totalBudget ? Math.round((totalSpent / totalBudget) * 100) : 0;
-  const projByType = ['electrical','automation','energy-saving','capex','opex'].map(t => ({
-    name: t.charAt(0).toUpperCase() + t.slice(1),
-    budget: projects.filter(p => p.type === t).reduce((a, p) => a + p.budget, 0) / 100000,
-    spent:  projects.filter(p => p.type === t).reduce((a, p) => a + p.spent,  0) / 100000,
-  })).filter(t => t.budget > 0);
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-      {/* Welcome Banner */}
-      <div style={{
-        padding: '18px 24px',
-        background: 'linear-gradient(135deg, rgba(59,130,246,0.12), rgba(99,102,241,0.08))',
-        border: '1px solid rgba(59,130,246,0.2)',
-        borderRadius: 14, display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-        flexWrap: 'wrap', gap: 12,
-      }}>
-        <div>
-          <div style={{ fontSize: 18, fontWeight: 700, color: '#f1f5f9' }}>
-            Good {new Date().getHours() < 12 ? 'Morning' : new Date().getHours() < 17 ? 'Afternoon' : 'Evening'}, {user?.name.split(' ')[0]} 👋
-          </div>
-          <div style={{ fontSize: 12, color: '#64748b', marginTop: 3 }}>
-            {new Date().toLocaleDateString('en-AE', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })} · {shiftInfo.current} · {shiftInfo.supervisor}
-          </div>
-        </div>
-        <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
-          {todayBreakdowns.length > 0 && (
-            <div style={{ padding: '8px 14px', background: 'rgba(239,68,68,0.15)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: 8, display: 'flex', alignItems: 'center', gap: 6 }}>
-              <AlertTriangle size={14} style={{ color: '#ef4444' }} />
-              <span style={{ fontSize: 12, color: '#ef4444', fontWeight: 600 }}>{todayBreakdowns.length} Active Breakdowns</span>
-            </div>
-          )}
-          {overduepm.length > 0 && (
-            <div style={{ padding: '8px 14px', background: 'rgba(245,158,11,0.15)', border: '1px solid rgba(245,158,11,0.3)', borderRadius: 8, display: 'flex', alignItems: 'center', gap: 6 }}>
-              <Clock size={14} style={{ color: '#f59e0b' }} />
-              <span style={{ fontSize: 12, color: '#f59e0b', fontWeight: 600 }}>{overduepm.length} PM Overdue</span>
-            </div>
-          )}
-        </div>
-      </div>
+    <div style={{ background:PAGE_BG, margin:'-20px -24px', padding:'24px 28px', minHeight:'100vh', fontFamily:"'Inter','Segoe UI',system-ui,sans-serif", color:'#111827' }}>
 
-      {/* Top KPI Grid */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: 14 }}>
-        <KPICard title="OEE" value={mockKPIs.oee} unit="%" icon={<Gauge size={16} />} color="blue" trend="up" trendVal="+2.1%" subtitle="Overall Equipment Effectiveness" />
-        <KPICard title="MTBF" value={mockKPIs.mtbf} unit="hrs" icon={<Activity size={16} />} color="green" trend="up" trendVal="+12h" subtitle="Mean Time Between Failures" />
-        <KPICard title="MTTR" value={mockKPIs.mttr} unit="hrs" icon={<Clock size={16} />} color="orange" trend="up" trendVal="-0.5h" subtitle="Mean Time To Repair" />
-        <KPICard title="PM Compliance" value={mockKPIs.pmCompliance} unit="%" icon={<CheckCircle size={16} />} color="green" trend="up" trendVal="+1.4%" subtitle="Preventive PM completion rate" />
-        <KPICard title="El. Availability" value={mockKPIs.electricalAvailability} unit="%" icon={<Zap size={16} />} color="blue" subtitle="Electrical system uptime" />
-        <KPICard title="Inst. Availability" value={mockKPIs.instrumentationAvailability} unit="%" icon={<BarChart3 size={16} />} color="purple" subtitle="Instrumentation uptime" />
-        <KPICard title="Power Factor" value={mockKPIs.powerFactor} icon={<TrendingUp size={16} />} color="cyan" trend="up" trendVal="+0.02" subtitle="Average power factor" />
-        <KPICard title="Budget Used" value={mockKPIs.budgetUtilization} unit="%" icon={<DollarSign size={16} />} color="orange" subtitle="Annual budget utilization" />
-      </div>
-
-      {/* Status Row */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 14 }}>
-        {[
-          { label: 'Active Breakdowns', value: todayBreakdowns.length, icon: <AlertTriangle size={20} />, color: '#ef4444', bg: 'rgba(239,68,68,0.1)', border: 'rgba(239,68,68,0.3)' },
-          { label: 'PM Due Today', value: overduepm.length + 2, icon: <Calendar size={20} />, color: '#f59e0b', bg: 'rgba(245,158,11,0.1)', border: 'rgba(245,158,11,0.3)' },
-          { label: 'Running Machines', value: `${runningMachines}/${mockMachines.length}`, icon: <Activity size={20} />, color: '#22c55e', bg: 'rgba(34,197,94,0.1)', border: 'rgba(34,197,94,0.3)' },
-          { label: 'Open Work Orders', value: 7, icon: <Wrench size={20} />, color: '#3b82f6', bg: 'rgba(59,130,246,0.1)', border: 'rgba(59,130,246,0.3)' },
-        ].map(s => (
-          <div key={s.label} className="glass-card" style={{ padding: '16px 18px', display: 'flex', alignItems: 'center', gap: 14, border: `1px solid ${s.border}`, background: s.bg }}>
-            <div style={{ color: s.color }}>{s.icon}</div>
+      {/* ══ HEADER ══════════════════════════════════════════════════════════════ */}
+      <div style={{ ...CARD, marginBottom:22, overflow:'hidden', background:'#fff' }}>
+        {/* Blue top accent bar */}
+        <div style={{ height:4, background:'linear-gradient(90deg,#1E40AF,#3B82F6,#06B6D4,#22C55E)' }}/>
+        <div style={{ padding:'18px 24px', display:'flex', justifyContent:'space-between', alignItems:'center', flexWrap:'wrap', gap:16 }}>
+          <div style={{ display:'flex', alignItems:'center', gap:18 }}>
+            {/* Logo circle */}
+            <div style={{ width:52, height:52, borderRadius:14, background:'linear-gradient(135deg,#1E40AF,#3B82F6)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:22, color:'#fff', fontWeight:900, flexShrink:0, boxShadow:'0 4px 12px rgba(59,130,246,0.35)' }}>
+              ⚡
+            </div>
             <div>
-              <div style={{ fontSize: 22, fontWeight: 700, color: '#f1f5f9' }}>{s.value}</div>
-              <div style={{ fontSize: 11, color: s.color }}>{s.label}</div>
+              <div style={{ fontSize:11, color:'#9CA3AF', fontWeight:700, textTransform:'uppercase', letterSpacing:1, marginBottom:3 }}>
+                E &amp; I Maintenance Management System
+              </div>
+              <div style={{ fontSize:20, fontWeight:900, color:'#1E293B', lineHeight:1.2 }}>
+                {greet}, {user?.name || 'Mr. Rabin'} 👋
+              </div>
+              <div style={{ display:'flex', gap:18, marginTop:7, flexWrap:'wrap' }}>
+                {[
+                  { icon:<Calendar size={12}/>, label:dateLbl },
+                  { icon:<Clock size={12}/>,    label:shift },
+                  { icon:<Building2 size={12}/>,label:'Glass Technology (MENA) L.L.C' },
+                  { icon:<MapPin size={12}/>,   label:'Sharjah, UAE' },
+                ].map((x,i) => (
+                  <span key={i} style={{ fontSize:11, color:'#6B7280', display:'flex', alignItems:'center', gap:5, fontWeight:500 }}>
+                    <span style={{ color:'#9CA3AF' }}>{x.icon}</span>{x.label}
+                  </span>
+                ))}
+              </div>
             </div>
           </div>
-        ))}
-      </div>
 
-      {/* Staffing / Position Status */}
-      <div>
-        <div style={{ fontSize: 13, fontWeight: 600, color: '#94a3b8', marginBottom: 10, display: 'flex', alignItems: 'center', gap: 6 }}>
-          <Users size={14} /> Staffing Overview
-        </div>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 12 }}>
-          {[
-            { label: 'Total Positions', value: orgStats.total, pct: null,        icon: <Building2 size={18} />, color: '#3b82f6', bg: 'rgba(59,130,246,0.1)',  border: 'rgba(59,130,246,0.25)' },
-            { label: 'Joined',          value: orgStats.joined,      pct: orgStats.total ? Math.round(orgStats.joined / orgStats.total * 100) : 0,      icon: <UserCheck size={18} />,  color: '#22c55e', bg: 'rgba(34,197,94,0.1)',   border: 'rgba(34,197,94,0.25)'  },
-            { label: 'Ready to Join',   value: orgStats.readyToJoin, pct: orgStats.total ? Math.round(orgStats.readyToJoin / orgStats.total * 100) : 0,  icon: <UserCog size={18} />,    color: '#06b6d4', bg: 'rgba(6,182,212,0.1)',   border: 'rgba(6,182,212,0.25)'  },
-            { label: 'HR Process',      value: orgStats.hrProcess,   pct: orgStats.total ? Math.round(orgStats.hrProcess / orgStats.total * 100) : 0,    icon: <Users size={18} />,      color: '#8b5cf6', bg: 'rgba(139,92,246,0.1)', border: 'rgba(139,92,246,0.25)' },
-            { label: 'Pending',         value: orgStats.pending,     pct: orgStats.total ? Math.round(orgStats.pending / orgStats.total * 100) : 0,      icon: <UserX size={18} />,      color: '#f59e0b', bg: 'rgba(245,158,11,0.1)', border: 'rgba(245,158,11,0.25)' },
-          ].map(s => (
-            <div key={s.label} className="glass-card" style={{ padding: '14px 16px', background: s.bg, border: `1px solid ${s.border}`, borderRadius: 12 }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
-                <div style={{ color: s.color, opacity: 0.8 }}>{s.icon}</div>
-                {s.pct !== null && (
-                  <span style={{ fontSize: 10, fontWeight: 700, color: s.color, background: s.border, padding: '2px 6px', borderRadius: 10 }}>{s.pct}%</span>
-                )}
-              </div>
-              <div style={{ fontSize: 28, fontWeight: 700, color: '#f1f5f9', lineHeight: 1 }}>{s.value}</div>
-              <div style={{ fontSize: 11, color: s.color, marginTop: 4 }}>{s.label}</div>
+          <div style={{ display:'flex', gap:10, alignItems:'center', flexWrap:'wrap' }}>
+            {/* Alert badges */}
+            <div style={{ display:'flex', alignItems:'center', gap:7, background:'#FEF2F2', border:'1px solid #FECACA', borderRadius:10, padding:'8px 14px', cursor:'pointer' }}>
+              <AlertTriangle size={13} color="#EF4444"/>
+              <span style={{ fontSize:12, fontWeight:700, color:'#EF4444' }}>3 Active Breakdowns</span>
             </div>
-          ))}
-        </div>
-      </div>
-
-      {/* Project Financial Summary */}
-      <div>
-        <div style={{ fontSize: 13, fontWeight: 600, color: '#94a3b8', marginBottom: 10, display: 'flex', alignItems: 'center', gap: 6 }}>
-          <Briefcase size={14} /> Project Financials
-        </div>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 2fr', gap: 12 }}>
-          {/* Budget cards */}
-          {[
-            { label: 'Total Budget',    value: `₹${(totalBudget / 100000).toFixed(1)}L`,    icon: <DollarSign size={16} />, color: '#8b5cf6', bg: 'rgba(139,92,246,0.1)', border: 'rgba(139,92,246,0.25)', sub: `${projects.length} projects` },
-            { label: 'Total Spent',     value: `₹${(totalSpent / 100000).toFixed(1)}L`,     icon: <TrendingUp size={16} />, color: '#ef4444', bg: 'rgba(239,68,68,0.1)',  border: 'rgba(239,68,68,0.25)',  sub: `${budgetUsedPct}% utilised` },
-            { label: 'Remaining',       value: `₹${(totalRemaining / 100000).toFixed(1)}L`, icon: <CheckCircle size={16} />, color: '#22c55e', bg: 'rgba(34,197,94,0.1)',  border: 'rgba(34,197,94,0.25)',  sub: `${100 - budgetUsedPct}% available` },
-          ].map(c => (
-            <div key={c.label} className="glass-card" style={{ padding: '14px 16px', background: c.bg, border: `1px solid ${c.border}`, borderRadius: 12 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-                <div style={{ color: c.color }}>{c.icon}</div>
-                <span style={{ fontSize: 11, color: '#64748b', fontWeight: 600 }}>{c.label}</span>
-              </div>
-              <div style={{ fontSize: 24, fontWeight: 700, color: '#f1f5f9' }}>{c.value}</div>
-              <div style={{ fontSize: 10, color: c.color, marginTop: 4 }}>{c.sub}</div>
-              <div className="progress-bar" style={{ marginTop: 8, height: 4 }}>
-                <div className="progress-fill" style={{
-                  width: c.label === 'Total Spent' ? `${budgetUsedPct}%` : c.label === 'Remaining' ? `${100 - budgetUsedPct}%` : '100%',
-                  background: c.color,
-                }} />
-              </div>
+            <div style={{ display:'flex', alignItems:'center', gap:7, background:'#FFFBEB', border:'1px solid #FDE68A', borderRadius:10, padding:'8px 14px', cursor:'pointer' }}>
+              <Calendar size={13} color="#F59E0B"/>
+              <span style={{ fontSize:12, fontWeight:700, color:'#F59E0B' }}>7 PM Due Today</span>
             </div>
-          ))}
-
-          {/* Budget vs Spent by type chart */}
-          <div className="glass-card" style={{ padding: '14px 16px', borderRadius: 12 }}>
-            <div style={{ fontSize: 12, fontWeight: 600, color: '#94a3b8', marginBottom: 10 }}>Budget vs Spent by Type (₹L)</div>
-            <ResponsiveContainer width="100%" height={100}>
-              <BarChart data={projByType} barGap={3} margin={{ left: -20, right: 0, top: 0, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" />
-                <XAxis dataKey="name" tick={{ fontSize: 9, fill: '#64748b' }} axisLine={false} tickLine={false} />
-                <YAxis tick={{ fontSize: 9, fill: '#64748b' }} axisLine={false} tickLine={false} tickFormatter={v => `${v}L`} />
-                <Tooltip formatter={(v: any) => [`₹${Number(v).toFixed(1)}L`]} contentStyle={{ background: '#0d0d1a', border: '1px solid rgba(59,130,246,0.3)', borderRadius: 6, fontSize: 11 }} />
-                <Bar dataKey="budget" name="Budget" fill="rgba(139,92,246,0.5)" radius={[3,3,0,0]} />
-                <Bar dataKey="spent"  name="Spent"  fill="#3b82f6"              radius={[3,3,0,0]} />
-              </BarChart>
-            </ResponsiveContainer>
+            {/* Bell */}
+            <div style={{ position:'relative', cursor:'pointer' }}>
+              <div style={{ width:40, height:40, borderRadius:12, background:'#F8FAFC', border:'1px solid #E5E7EB', display:'flex', alignItems:'center', justifyContent:'center' }}>
+                <Bell size={17} color="#374151"/>
+              </div>
+              <div style={{ position:'absolute', top:-4, right:-4, width:16, height:16, background:'#EF4444', borderRadius:'50%', fontSize:9, color:'#fff', display:'flex', alignItems:'center', justifyContent:'center', fontWeight:900, border:'2px solid #fff' }}>5</div>
+            </div>
+            {/* Avatar */}
+            <div style={{ width:40, height:40, borderRadius:12, background:'linear-gradient(135deg,#1E40AF,#3B82F6)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:15, fontWeight:900, color:'#fff', cursor:'pointer', boxShadow:'0 2px 8px rgba(59,130,246,0.3)' }}>
+              {(user?.name||'R').charAt(0)}
+            </div>
           </div>
         </div>
-
-        {/* Project status row */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 10, marginTop: 10 }}>
-          {[
-            { label: 'Planning',    count: projects.filter(p => p.status === 'planning').length,    color: '#3b82f6', bg: 'rgba(59,130,246,0.08)'  },
-            { label: 'In Progress', count: projects.filter(p => p.status === 'in-progress').length, color: '#f59e0b', bg: 'rgba(245,158,11,0.08)'  },
-            { label: 'On Hold',     count: projects.filter(p => p.status === 'on-hold').length,     color: '#64748b', bg: 'rgba(100,116,139,0.08)' },
-            { label: 'Completed',   count: projects.filter(p => p.status === 'completed').length,   color: '#22c55e', bg: 'rgba(34,197,94,0.08)'   },
-          ].map(s => (
-            <div key={s.label} className="glass-card" style={{ padding: '10px 14px', background: s.bg, borderRadius: 10, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <span style={{ fontSize: 12, color: '#64748b' }}>{s.label}</span>
-              <span style={{ fontSize: 20, fontWeight: 700, color: s.color }}>{s.count}</span>
-            </div>
-          ))}
-        </div>
       </div>
 
-      {/* Tab Navigation */}
-      <div style={{ display: 'flex', gap: 4, background: 'rgba(255,255,255,0.03)', padding: 4, borderRadius: 10, border: '1px solid rgba(255,255,255,0.06)', width: 'fit-content' }}>
-        {(['overview', 'energy', 'breakdowns'] as const).map(tab => (
-          <button
-            key={tab}
-            onClick={() => setActiveTab(tab)}
-            style={{
-              padding: '7px 18px', borderRadius: 7, border: 'none', cursor: 'pointer', fontSize: 12, fontWeight: 500,
-              background: activeTab === tab ? '#3b82f6' : 'none',
-              color: activeTab === tab ? 'white' : '#64748b',
-              transition: 'all 0.2s',
-              textTransform: 'capitalize',
-            }}
-          >
-            {tab === 'overview' ? 'Overview' : tab === 'energy' ? 'Energy' : 'Breakdowns'}
-          </button>
-        ))}
-      </div>
-
-      {activeTab === 'overview' && (
-        <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 16 }}>
-          {/* PM Compliance Chart */}
-          <div className="glass-card" style={{ padding: 20 }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+      {/* ══ KPI CARDS ══════════════════════════════════════════════════════════ */}
+      <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:14, marginBottom:20 }}>
+        {KPIS.map(k => (
+          <div key={k.id} style={{ ...CARD, padding:'18px 20px', background:k.bg, border:`1px solid ${k.border}`, position:'relative', overflow:'hidden' }}>
+            {/* Subtle top line */}
+            <div style={{ position:'absolute', top:0, left:0, right:0, height:3, background:k.gradient, borderRadius:'16px 16px 0 0' }}/>
+            <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:14 }}>
               <div>
-                <div style={{ fontSize: 14, fontWeight: 600, color: '#f1f5f9' }}>PM Compliance Trend</div>
-                <div style={{ fontSize: 11, color: '#64748b' }}>Planned vs Completed maintenance</div>
+                <div style={{ fontSize:9, fontWeight:800, color:'#9CA3AF', textTransform:'uppercase', letterSpacing:1.2, marginBottom:3 }}>{k.label}</div>
+                <div style={{ fontSize:10, color:'#9CA3AF', lineHeight:1.4, maxWidth:120 }}>{k.sub}</div>
               </div>
-              <span className="badge badge-success">94.6% YTD</span>
+              <EquipBadge gradient={k.gradient} icon={k.icon}/>
             </div>
-            <ResponsiveContainer width="100%" height={200}>
-              <BarChart data={pmComplianceData} barGap={4}>
-                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" />
-                <XAxis dataKey="month" tick={{ fontSize: 11, fill: '#64748b' }} axisLine={false} tickLine={false} />
-                <YAxis tick={{ fontSize: 11, fill: '#64748b' }} axisLine={false} tickLine={false} />
-                <Tooltip content={<CustomTooltip />} />
-                <Legend wrapperStyle={{ fontSize: 11, color: '#64748b' }} />
-                <Bar dataKey="planned" name="Planned" fill="rgba(99,102,241,0.5)" radius={[4,4,0,0]} />
-                <Bar dataKey="completed" name="Completed" fill="#3b82f6" radius={[4,4,0,0]} />
-              </BarChart>
-            </ResponsiveContainer>
+            <div style={{ display:'flex', alignItems:'baseline', gap:5, marginBottom:10 }}>
+              <span style={{ fontSize:34, fontWeight:900, color:k.color, lineHeight:1, letterSpacing:-1 }}>{k.value}</span>
+              <span style={{ fontSize:13, color:'#6B7280', fontWeight:600 }}>{k.unit}</span>
+            </div>
+            {/* Trend */}
+            <div style={{ display:'flex', alignItems:'center', gap:6, padding:'5px 9px', background:'rgba(255,255,255,0.7)', borderRadius:8, width:'fit-content' }}>
+              {k.trend === 'up'
+                ? <ArrowUpRight size={13} color="#22C55E"/>
+                : <ArrowDownRight size={13} color="#EF4444"/>}
+              <span style={{ fontSize:11, fontWeight:800, color:k.trend==='up'?'#22C55E':'#EF4444' }}>{k.trendVal}</span>
+              <span style={{ fontSize:10, color:'#9CA3AF' }}>vs last month</span>
+            </div>
+            {/* Equip label */}
+            <div style={{ position:'absolute', bottom:8, right:10, fontSize:8, color:'#9CA3AF', fontStyle:'italic' }}>{k.equip}</div>
           </div>
+        ))}
+      </div>
 
-          {/* Machine Status */}
-          <div className="glass-card" style={{ padding: 20 }}>
-            <div style={{ fontSize: 14, fontWeight: 600, color: '#f1f5f9', marginBottom: 4 }}>Machine Status</div>
-            <div style={{ fontSize: 11, color: '#64748b', marginBottom: 16 }}>Real-time equipment status</div>
-            <StatusBar label="Running" value={runningMachines} max={mockMachines.length} color="#22c55e" />
-            <StatusBar label="Breakdown" value={criticalMachines} max={mockMachines.length} color="#ef4444" />
-            <StatusBar label="Maintenance" value={1} max={mockMachines.length} color="#f59e0b" />
-            <StatusBar label="Idle" value={1} max={mockMachines.length} color="#64748b" />
-            <div style={{ marginTop: 16, paddingTop: 14, borderTop: '1px solid rgba(255,255,255,0.06)' }}>
-              <div style={{ fontSize: 11, color: '#64748b', marginBottom: 8 }}>Shift Manpower</div>
-              <StatusBar label="Technicians" value={shiftInfo.technicians} max={8} color="#3b82f6" />
-              <StatusBar label="Total Staff" value={shiftInfo.totalMen} max={16} color="#8b5cf6" />
+      {/* ══ STATUS CARDS ════════════════════════════════════════════════════════ */}
+      <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:14, marginBottom:20 }}>
+        {STATUS_CARDS.map((s,i) => (
+          <div key={i} style={{ ...CARD, padding:'18px 20px', display:'flex', alignItems:'center', gap:16,
+            borderLeft:`4px solid ${s.borderLeft}`, background:s.bg, border:`1px solid ${s.border}`,
+            borderLeftColor:s.borderLeft, position:'relative', overflow:'hidden' }}>
+            <div style={{ width:52, height:52, borderRadius:14, background:`${s.color}18`, display:'flex', alignItems:'center', justifyContent:'center', color:s.color, flexShrink:0 }}>
+              {s.icon}
+            </div>
+            <div>
+              <div style={{ fontSize:30, fontWeight:900, color:s.color, lineHeight:1, letterSpacing:-1 }}>{s.value}</div>
+              <div style={{ fontSize:12, fontWeight:700, color:'#374151', marginTop:3 }}>{s.label}</div>
+              <div style={{ fontSize:10, color:'#6B7280', marginTop:2 }}>{s.sub}</div>
             </div>
           </div>
+        ))}
+      </div>
 
-          {/* OEE + KPI Gauges Row */}
-          <div className="glass-card" style={{ padding: 20, gridColumn: '1 / -1' }}>
-            <div style={{ fontSize: 14, fontWeight: 600, color: '#f1f5f9', marginBottom: 16 }}>Top 8 Breakdown Machines — YTD</div>
-            <ResponsiveContainer width="100%" height={200}>
-              <BarChart data={topBreakdownMachines} layout="vertical" margin={{ left: 20 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" horizontal={false} />
-                <XAxis type="number" tick={{ fontSize: 11, fill: '#64748b' }} axisLine={false} tickLine={false} />
-                <YAxis dataKey="name" type="category" tick={{ fontSize: 11, fill: '#94a3b8' }} width={130} axisLine={false} tickLine={false} />
-                <Tooltip content={<CustomTooltip />} />
-                <Bar dataKey="breakdowns" name="Breakdowns" fill="#ef4444" radius={[0,4,4,0]} opacity={0.8} />
-                <Bar dataKey="downtime" name="Downtime (h)" fill="#f59e0b" radius={[0,4,4,0]} opacity={0.8} />
-              </BarChart>
-            </ResponsiveContainer>
+      {/* ══ MIDDLE ROW ══════════════════════════════════════════════════════════ */}
+      <div style={{ display:'grid', gridTemplateColumns:'220px 1fr 220px 240px', gap:14, marginBottom:20, alignItems:'start' }}>
+
+        {/* Staffing Overview */}
+        <div style={{ ...CARD, padding:'20px' }}>
+          <SectionTitle icon={<Users size={15}/>} label="Staffing" />
+          {/* Engineer banner */}
+          <div style={{ borderRadius:14, background:'linear-gradient(135deg,#1E40AF 0%,#3B82F6 60%,#06B6D4 100%)', padding:'14px 16px', marginBottom:16, display:'flex', alignItems:'center', gap:12 }}>
+            <div style={{ width:48, height:48, borderRadius:'50%', background:'rgba(255,255,255,0.2)', display:'flex', alignItems:'center', justifyContent:'center', border:'2px solid rgba(255,255,255,0.4)', flexShrink:0 }}>
+              <UserCheck size={24} color="white"/>
+            </div>
+            <div>
+              <div style={{ fontSize:9, color:'rgba(255,255,255,0.7)', fontWeight:700, textTransform:'uppercase', letterSpacing:0.8 }}>E &amp; I Team</div>
+              <div style={{ fontSize:22, fontWeight:900, color:'#fff' }}>22 <span style={{ fontSize:13, fontWeight:500, opacity:0.8 }}>/ 28</span></div>
+              <div style={{ fontSize:9, color:'rgba(255,255,255,0.7)' }}>Positions Filled</div>
+            </div>
           </div>
+          {/* Filled bar */}
+          <div style={{ marginBottom:14 }}>
+            <div style={{ display:'flex', justifyContent:'space-between', fontSize:10, color:'#6B7280', marginBottom:4 }}>
+              <span style={{ fontWeight:600 }}>Workforce Filled</span>
+              <span style={{ fontWeight:800, color:'#22C55E' }}>78.6%</span>
+            </div>
+            <div style={{ height:7, background:'#F3F4F6', borderRadius:99, overflow:'hidden' }}>
+              <div style={{ height:'100%', width:'78.6%', background:'linear-gradient(90deg,#22C55E,#16A34A)', borderRadius:99 }}/>
+            </div>
+          </div>
+          {STAFFING.map((s,i) => (
+            <div key={i} style={{ display:'flex', justifyContent:'space-between', alignItems:'center', padding:'7px 0', borderBottom:i<STAFFING.length-1?'1px solid #F8FAFC':'none' }}>
+              <div style={{ display:'flex', alignItems:'center', gap:7, fontSize:12, color:'#374151' }}>
+                <span style={{ color:s.color }}>{s.icon}</span>{s.label}
+              </div>
+              <span style={{ fontSize:15, fontWeight:900, color:s.color }}>{s.value}</span>
+            </div>
+          ))}
         </div>
-      )}
 
-      {activeTab === 'energy' && (
-        <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 16 }}>
-          <div className="glass-card" style={{ padding: 20 }}>
-            <div style={{ fontSize: 14, fontWeight: 600, color: '#f1f5f9', marginBottom: 4 }}>Monthly Energy Consumption</div>
-            <div style={{ fontSize: 11, color: '#64748b', marginBottom: 16 }}>kWh consumption trend — 2026</div>
-            <ResponsiveContainer width="100%" height={220}>
-              <AreaChart data={mockEnergyData}>
-                <defs>
-                  <linearGradient id="energyGrad" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.3} />
-                    <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
-                  </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" />
-                <XAxis dataKey="date" tick={{ fontSize: 11, fill: '#64748b' }} axisLine={false} tickLine={false} />
-                <YAxis tick={{ fontSize: 11, fill: '#64748b' }} axisLine={false} tickLine={false} />
-                <Tooltip content={<CustomTooltip />} />
-                <Area type="monotone" dataKey="consumption" name="kWh" stroke="#3b82f6" strokeWidth={2} fill="url(#energyGrad)" />
-              </AreaChart>
-            </ResponsiveContainer>
-          </div>
-          <div className="glass-card" style={{ padding: 20 }}>
-            <div style={{ fontSize: 14, fontWeight: 600, color: '#f1f5f9', marginBottom: 16 }}>Department-wise Energy</div>
-            <ResponsiveContainer width="100%" height={180}>
-              <PieChart>
-                <Pie data={departmentEnergyData} cx="50%" cy="50%" innerRadius={50} outerRadius={80} dataKey="value" nameKey="name">
-                  {departmentEnergyData.map((entry, i) => <Cell key={i} fill={entry.fill} />)}
-                </Pie>
-                <Tooltip content={<CustomTooltip />} />
-              </PieChart>
-            </ResponsiveContainer>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 8 }}>
-              {departmentEnergyData.map(d => (
-                <div key={d.name} style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11 }}>
-                  <div style={{ width: 8, height: 8, borderRadius: 2, background: d.fill }} />
-                  <span style={{ color: '#94a3b8' }}>{d.name} ({d.value}%)</span>
-                </div>
-              ))}
-            </div>
-          </div>
-          <div className="glass-card" style={{ padding: 20 }}>
-            <div style={{ fontSize: 14, fontWeight: 600, color: '#f1f5f9', marginBottom: 16 }}>Power Factor Trend</div>
-            <ResponsiveContainer width="100%" height={200}>
-              <LineChart data={mockEnergyData}>
-                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" />
-                <XAxis dataKey="date" tick={{ fontSize: 11, fill: '#64748b' }} axisLine={false} tickLine={false} />
-                <YAxis domain={[0.88, 1]} tick={{ fontSize: 11, fill: '#64748b' }} axisLine={false} tickLine={false} />
-                <Tooltip content={<CustomTooltip />} />
-                <Line type="monotone" dataKey="powerFactor" name="PF" stroke="#22c55e" strokeWidth={2} dot={{ fill: '#22c55e', r: 3 }} />
-              </LineChart>
-            </ResponsiveContainer>
-          </div>
-          <div className="glass-card" style={{ padding: 20 }}>
-            <div style={{ fontSize: 14, fontWeight: 600, color: '#f1f5f9', marginBottom: 12 }}>Energy KPIs</div>
+        {/* Project Financials */}
+        <div style={{ ...CARD, padding:'20px' }}>
+          <SectionTitle icon={<DollarSign size={15}/>} label="Project Financials" action="Full Report"/>
+          {/* Summary tiles */}
+          <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:10, marginBottom:18 }}>
             {[
-              { label: 'This Month', value: '1,45,000 kWh', sub: '↑ 5.1% vs last month', color: '#f59e0b' },
-              { label: 'Energy Cost', value: 'AED 10.15 L', sub: '@ AED 7.00/kWh avg', color: '#ef4444' },
-              { label: 'Max Demand', value: '498 kVA', sub: 'Peak this month', color: '#3b82f6' },
-              { label: 'Power Factor', value: '0.94', sub: 'Monthly average', color: '#22c55e' },
-              { label: 'DG Running', value: '18 hrs', sub: 'This month', color: '#8b5cf6' },
-            ].map(k => (
-              <div key={k.label} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 0', borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
-                <span style={{ fontSize: 12, color: '#64748b' }}>{k.label}</span>
-                <div style={{ textAlign: 'right' }}>
-                  <div style={{ fontSize: 13, fontWeight: 600, color: k.color }}>{k.value}</div>
-                  <div style={{ fontSize: 10, color: '#334155' }}>{k.sub}</div>
+              {label:'Total Budget', value:'AED 850K', color:'#3B82F6', bg:'#EFF6FF', icon:<DollarSign size={16}/>},
+              {label:'Total Spent',  value:'AED 581K', color:'#F59E0B', bg:'#FFFBEB', icon:<TrendingUp size={16}/>},
+              {label:'Remaining',    value:'AED 269K', color:'#22C55E', bg:'#F0FDF4', icon:<BarChart3 size={16}/>},
+            ].map((f,i) => (
+              <div key={i} style={{ background:f.bg, borderRadius:14, padding:'14px', textAlign:'center', border:`1px solid ${f.color}20` }}>
+                <div style={{ color:f.color, marginBottom:6, display:'flex', justifyContent:'center' }}>{f.icon}</div>
+                <div style={{ fontSize:16, fontWeight:900, color:f.color }}>{f.value}</div>
+                <div style={{ fontSize:9, color:'#6B7280', marginTop:3, fontWeight:700, textTransform:'uppercase', letterSpacing:0.6 }}>{f.label}</div>
+              </div>
+            ))}
+          </div>
+          {/* Horizontal bars */}
+          <div style={{ marginBottom:16 }}>
+            {[
+              {label:'Total Budget',value:100,color:'#3B82F6',display:'AED 850K'},
+              {label:'Spent',       value:68.4,color:'#F59E0B',display:'AED 581K'},
+              {label:'Remaining',   value:31.6,color:'#22C55E',display:'AED 269K'},
+            ].map((b,i) => (
+              <div key={i} style={{ marginBottom:10 }}>
+                <div style={{ display:'flex', justifyContent:'space-between', fontSize:11, marginBottom:4 }}>
+                  <span style={{ color:'#374151', fontWeight:600 }}>{b.label}</span>
+                  <span style={{ color:b.color, fontWeight:800 }}>{b.display}</span>
                 </div>
+                <div style={{ height:6, background:'#F3F4F6', borderRadius:99, overflow:'hidden' }}>
+                  <div style={{ height:'100%', width:`${b.value}%`, background:b.color, borderRadius:99 }}/>
+                </div>
+              </div>
+            ))}
+          </div>
+          {/* Stacked bar chart */}
+          <div style={{ height:140 }}>
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={costData} barSize={20} barGap={2}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#F3F4F6" vertical={false}/>
+                <XAxis dataKey="m" tick={{fill:'#9CA3AF',fontSize:10}} axisLine={false} tickLine={false}/>
+                <YAxis tick={{fill:'#9CA3AF',fontSize:10}} axisLine={false} tickLine={false} tickFormatter={v=>`${v}K`}/>
+                <Tooltip content={<Tip/>} formatter={(v:any)=>`AED ${v}K`}/>
+                <Bar dataKey="el"  name="Electrical"      stackId="a" fill="#3B82F6"/>
+                <Bar dataKey="ins" name="Instrumentation" stackId="a" fill="#8B5CF6"/>
+                <Bar dataKey="ci"  name="Civil"           stackId="a" fill="#22C55E" radius={[4,4,0,0]}/>
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+          <div style={{ display:'flex', gap:16, marginTop:8, justifyContent:'center' }}>
+            {[{c:'#3B82F6',l:'Electrical'},{c:'#8B5CF6',l:'Instrumentation'},{c:'#22C55E',l:'Civil'}].map((x,i)=>(
+              <div key={i} style={{ display:'flex', alignItems:'center', gap:5 }}>
+                <div style={{ width:10,height:4,borderRadius:2,background:x.c }}/>
+                <span style={{ fontSize:10,color:'#6B7280' }}>{x.l}</span>
               </div>
             ))}
           </div>
         </div>
-      )}
 
-      {activeTab === 'breakdowns' && (
-        <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 16 }}>
-          <div className="glass-card" style={{ padding: 20 }}>
-            <div style={{ fontSize: 14, fontWeight: 600, color: '#f1f5f9', marginBottom: 16 }}>Monthly Breakdown Trend</div>
-            <ResponsiveContainer width="100%" height={220}>
-              <BarChart data={monthlyBreakdowns}>
-                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" />
-                <XAxis dataKey="month" tick={{ fontSize: 11, fill: '#64748b' }} axisLine={false} tickLine={false} />
-                <YAxis tick={{ fontSize: 11, fill: '#64748b' }} axisLine={false} tickLine={false} />
-                <Tooltip content={<CustomTooltip />} />
-                <Legend wrapperStyle={{ fontSize: 11 }} />
-                <Bar dataKey="count" name="Breakdowns" fill="#ef4444" radius={[4,4,0,0]} opacity={0.8} />
-                <Bar dataKey="resolved" name="Resolved" fill="#22c55e" radius={[4,4,0,0]} opacity={0.8} />
-              </BarChart>
-            </ResponsiveContainer>
+        {/* Maintenance Progress */}
+        <div style={{ ...CARD, padding:'20px' }}>
+          <SectionTitle icon={<BarChart2 size={15}/>} label="Maintenance" />
+          <div style={{ textAlign:'center', marginBottom:14 }}>
+            <div style={{ height:120, position:'relative' }}>
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie data={MAINT} cx="50%" cy="50%" innerRadius={34} outerRadius={52} dataKey="value" paddingAngle={3}>
+                    {MAINT.map((m,i)=><Cell key={i} fill={m.color}/>)}
+                  </Pie>
+                  <Tooltip content={<Tip/>}/>
+                </PieChart>
+              </ResponsiveContainer>
+              <div style={{ position:'absolute', top:'50%', left:'50%', transform:'translate(-50%,-50%)', textAlign:'center', pointerEvents:'none' }}>
+                <div style={{ fontSize:20,fontWeight:900,color:'#1E293B' }}>100</div>
+                <div style={{ fontSize:9,color:'#6B7280' }}>Work Orders</div>
+              </div>
+            </div>
           </div>
-          <div className="glass-card" style={{ padding: 20 }}>
-            <div style={{ fontSize: 14, fontWeight: 600, color: '#f1f5f9', marginBottom: 12 }}>Active Breakdowns</div>
-            {mockBreakdowns.filter(b => b.status !== 'closed').slice(0,4).map(b => (
-              <div key={b.id} style={{ padding: '10px 0', borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
-                  <span style={{ fontSize: 12, fontWeight: 600, color: '#e2e8f0' }}>{b.machineName}</span>
-                  <span className={`badge ${b.priority === 'critical' ? 'badge-danger' : b.priority === 'high' ? 'badge-warning' : 'badge-blue'}`}>{b.priority}</span>
+          {MAINT.map((m,i)=>(
+            <div key={i} style={{ marginBottom:10 }}>
+              <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:4 }}>
+                <div style={{ display:'flex', alignItems:'center', gap:7 }}>
+                  <div style={{ width:8,height:8,borderRadius:'50%',background:m.color }}/>
+                  <span style={{ fontSize:11,color:'#374151',fontWeight:600 }}>{m.label}</span>
                 </div>
-                <div style={{ fontSize: 11, color: '#64748b' }}>{b.problem.slice(0, 50)}...</div>
-                <div style={{ display: 'flex', gap: 12, marginTop: 4, fontSize: 10, color: '#475569' }}>
-                  <span>DT: {b.downtime}h</span>
-                  <span>{b.assignedTo || 'Unassigned'}</span>
-                  <span className={`badge ${b.status === 'open' ? 'badge-danger' : 'badge-warning'}`}>{b.status}</span>
+                <div style={{ display:'flex', gap:6, alignItems:'center' }}>
+                  <span style={{ fontSize:13,fontWeight:900,color:m.color }}>{m.value}</span>
+                  <span style={{ fontSize:9,color:'#9CA3AF' }}>{m.pct}%</span>
                 </div>
+              </div>
+              <div style={{ height:5,background:'#F3F4F6',borderRadius:99,overflow:'hidden' }}>
+                <div style={{ height:'100%',width:`${m.pct}%`,background:m.color,borderRadius:99 }}/>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Reminder Center */}
+        <div style={{ ...CARD, padding:'20px' }}>
+          <SectionTitle icon={<Bell size={15}/>} label="Reminder Center" action="All"/>
+          <div style={{ display:'flex', flexDirection:'column', gap:9 }}>
+            {REMINDERS.map((r,i)=>(
+              <div key={i} style={{ background:r.bg, borderRadius:12, padding:'10px 12px', border:`1px solid ${r.border}`, position:'relative', overflow:'hidden' }}>
+                <div style={{ position:'absolute', top:-8,right:-8,width:30,height:30,borderRadius:'50%',background:r.color,opacity:0.08 }}/>
+                <div style={{ fontSize:9,fontWeight:900,color:r.color,textTransform:'uppercase',letterSpacing:1,marginBottom:5,display:'flex',alignItems:'center',gap:5 }}>
+                  <div style={{ width:6,height:6,borderRadius:'50%',background:r.color }}/>{r.freq}
+                </div>
+                {r.items.slice(0,2).map((item,j)=>(
+                  <div key={j} style={{ display:'flex',alignItems:'flex-start',gap:6,fontSize:10,color:'#374151',marginBottom:3 }}>
+                    <div style={{ width:3,height:3,borderRadius:'50%',background:r.color,marginTop:4,flexShrink:0 }}/>
+                    <span style={{ lineHeight:1.3 }}>{item}</span>
+                  </div>
+                ))}
               </div>
             ))}
           </div>
-          <div className="glass-card" style={{ padding: 20, gridColumn: '1 / -1' }}>
-            <div style={{ fontSize: 14, fontWeight: 600, color: '#f1f5f9', marginBottom: 16 }}>Recent Breakdowns</div>
-            <table className="data-table">
+        </div>
+      </div>
+
+      {/* ══ JOBS & FOLLOW-UP ════════════════════════════════════════════════════ */}
+      <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:14, marginBottom:20 }}>
+
+        {/* Pending Jobs */}
+        <div style={{ ...CARD, padding:'20px' }}>
+          <SectionTitle icon={<ClipboardList size={15}/>} label="Pending Jobs" action="View All"/>
+          <div style={{ overflowX:'auto' }}>
+            <table style={{ width:'100%', borderCollapse:'collapse' }}>
               <thead>
-                <tr>
-                  <th>Ticket No</th><th>Machine</th><th>Problem</th><th>Priority</th>
-                  <th>Downtime</th><th>Cost</th><th>Status</th>
+                <tr style={{ background:'#F8FAFC' }}>
+                  {['Job ID','Equipment','Due Date','Priority','Responsible','Status'].map(h=>(
+                    <th key={h} style={{ padding:'9px 10px',textAlign:'left',fontSize:9,fontWeight:800,color:'#6B7280',textTransform:'uppercase',letterSpacing:0.8,borderBottom:'2px solid #F1F5F9',whiteSpace:'nowrap' }}>{h}</th>
+                  ))}
                 </tr>
               </thead>
               <tbody>
-                {mockBreakdowns.map(b => (
-                  <tr key={b.id}>
-                    <td style={{ color: '#60a5fa', fontFamily: 'monospace', fontSize: 12 }}>{b.ticketNo}</td>
-                    <td>{b.machineName}</td>
-                    <td style={{ maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: '#94a3b8' }}>{b.problem}</td>
-                    <td><span className={`badge ${b.priority === 'critical' ? 'badge-danger' : b.priority === 'high' ? 'badge-warning' : 'badge-blue'}`}>{b.priority}</span></td>
-                    <td style={{ color: '#f59e0b' }}>{b.downtime}h</td>
-                    <td style={{ color: '#22c55e' }}>AED {(b.cost ?? 0).toLocaleString()}</td>
-                    <td><span className={`badge ${b.status === 'closed' ? 'badge-success' : b.status === 'resolved' ? 'badge-blue' : 'badge-danger'}`}>{b.status}</span></td>
+                {JOBS.map((j,i)=>(
+                  <tr key={j.id} style={{ background:i%2===0?'#FAFAFA':'#FFF', transition:'background 0.15s' }}>
+                    <td style={{ padding:'10px 10px',fontSize:11,fontFamily:'monospace',color:'#3B82F6',fontWeight:700,whiteSpace:'nowrap' }}>{j.id}</td>
+                    <td style={{ padding:'10px 10px',fontSize:11,color:'#374151',fontWeight:600,maxWidth:140,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap' }}>{j.equipment}</td>
+                    <td style={{ padding:'10px 10px',fontSize:11,color:'#6B7280',whiteSpace:'nowrap' }}>{j.due}</td>
+                    <td style={{ padding:'10px 10px' }}><PrioBadge p={j.priority}/></td>
+                    <td style={{ padding:'10px 10px',fontSize:11,color:'#374151' }}>{j.person}</td>
+                    <td style={{ padding:'10px 10px' }}><StatBadge s={j.status}/></td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
         </div>
-      )}
+
+        {/* Follow-up Widget */}
+        <div style={{ ...CARD, padding:'20px' }}>
+          <SectionTitle icon={<RefreshCw size={15}/>} label="Follow-up Status" action="View All"/>
+          <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
+            {FOLLOWUPS.map((f,i)=>(
+              <div key={f.id} style={{ background:'#FAFAFA', borderRadius:12, padding:'12px 14px', border:'1px solid #F1F5F9', display:'flex', alignItems:'center', gap:12 }}>
+                {/* Avatar */}
+                <div style={{ width:38,height:38,borderRadius:'50%',background:`${f.color}20`,border:`2px solid ${f.color}40`,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0,fontSize:13,fontWeight:900,color:f.color }}>
+                  {f.owner.charAt(0)}
+                </div>
+                <div style={{ flex:1, minWidth:0 }}>
+                  <div style={{ display:'flex', justifyContent:'space-between', marginBottom:3 }}>
+                    <span style={{ fontSize:12,fontWeight:700,color:'#374151' }}>{f.owner}</span>
+                    <span style={{ fontSize:10,color:'#9CA3AF' }}>{f.date}</span>
+                  </div>
+                  <div style={{ fontSize:11,color:'#6B7280',marginBottom:6,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap' }}>{f.next}</div>
+                  <div style={{ display:'flex', alignItems:'center', gap:8 }}>
+                    <div style={{ flex:1,height:5,background:'#F3F4F6',borderRadius:99,overflow:'hidden' }}>
+                      <div style={{ height:'100%',width:`${f.progress}%`,background:f.color,borderRadius:99 }}/>
+                    </div>
+                    <span style={{ fontSize:10,fontWeight:800,color:f.color,flexShrink:0 }}>{f.progress}%</span>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* ══ CHARTS ROW 1 ════════════════════════════════════════════════════════ */}
+      <div style={{ display:'grid', gridTemplateColumns:'1.8fr 1fr 0.85fr 0.85fr', gap:14, marginBottom:20 }}>
+
+        {/* PM Compliance Trend */}
+        <div style={{ ...CARD, padding:'20px' }}>
+          <SectionTitle icon={<TrendingUp size={15}/>} label="PM Compliance Trend"/>
+          <div style={{ display:'flex', gap:16, marginBottom:12 }}>
+            <div style={{ fontSize:28,fontWeight:900,color:'#22C55E' }}>94.2<span style={{ fontSize:14,color:'#6B7280',fontWeight:600 }}>%</span></div>
+            <div style={{ display:'flex', alignItems:'center', gap:5, background:'#F0FDF4', borderRadius:8, padding:'4px 10px' }}>
+              <ArrowUpRight size={13} color="#22C55E"/>
+              <span style={{ fontSize:11,fontWeight:800,color:'#22C55E' }}>+3.5%</span>
+            </div>
+          </div>
+          <div style={{ height:180 }}>
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart data={pmTrend}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#F3F4F6" vertical={false}/>
+                <XAxis dataKey="m" tick={{fill:'#9CA3AF',fontSize:10}} axisLine={false} tickLine={false}/>
+                <YAxis domain={[80,100]} tick={{fill:'#9CA3AF',fontSize:10}} axisLine={false} tickLine={false}/>
+                <Tooltip content={<Tip/>}/>
+                <Line type="monotone" dataKey="tgt" name="Target" stroke="#E5E7EB" strokeDasharray="5 5" strokeWidth={1.5} dot={false}/>
+                <Line type="monotone" dataKey="pm" name="PM Compliance %" stroke="#22C55E" strokeWidth={2.5} dot={{r:3,fill:'#22C55E',strokeWidth:0}} activeDot={{r:5,fill:'#22C55E'}}/>
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+
+        {/* Breakdown Analysis */}
+        <div style={{ ...CARD, padding:'20px' }}>
+          <SectionTitle icon={<AlertTriangle size={15}/>} label="Breakdown Analysis"/>
+          <div style={{ height:220 }}>
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={bkdData} layout="vertical" barSize={16}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#F3F4F6" horizontal={false}/>
+                <XAxis type="number" tick={{fill:'#9CA3AF',fontSize:10}} axisLine={false} tickLine={false}/>
+                <YAxis type="category" dataKey="cat" tick={{fill:'#374151',fontSize:10}} axisLine={false} tickLine={false} width={72}/>
+                <Tooltip content={<Tip/>}/>
+                <Bar dataKey="n" name="Count" radius={[0,8,8,0]}>
+                  {bkdData.map((d,i)=><Cell key={i} fill={d.fill}/>)}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+
+        {/* Equipment Health */}
+        <div style={{ ...CARD, padding:'20px' }}>
+          <SectionTitle icon={<Activity size={15}/>} label="Equipment Health"/>
+          <div style={{ height:140, position:'relative' }}>
+            <ResponsiveContainer width="100%" height="100%">
+              <PieChart>
+                <Pie data={eqHealth} cx="50%" cy="50%" innerRadius={40} outerRadius={60} dataKey="v" paddingAngle={3}>
+                  {eqHealth.map((e,i)=><Cell key={i} fill={e.c}/>)}
+                </Pie>
+                <Tooltip content={<Tip/>}/>
+              </PieChart>
+            </ResponsiveContainer>
+            <div style={{ position:'absolute',top:'50%',left:'50%',transform:'translate(-50%,-50%)',textAlign:'center',pointerEvents:'none' }}>
+              <div style={{ fontSize:20,fontWeight:900,color:'#22C55E' }}>68%</div>
+              <div style={{ fontSize:9,color:'#6B7280' }}>Good</div>
+            </div>
+          </div>
+          <div style={{ display:'flex', flexDirection:'column', gap:6, marginTop:10 }}>
+            {eqHealth.map((e,i)=>(
+              <div key={i} style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+                <div style={{ display:'flex', gap:7, alignItems:'center' }}>
+                  <div style={{ width:8,height:8,borderRadius:'50%',background:e.c }}/>
+                  <span style={{ fontSize:11,color:'#374151',fontWeight:600 }}>{e.name}</span>
+                </div>
+                <span style={{ fontSize:12,fontWeight:800,color:e.c }}>{e.v}%</span>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* WO Status */}
+        <div style={{ ...CARD, padding:'20px' }}>
+          <SectionTitle icon={<CheckCircle size={15}/>} label="Work Order Status"/>
+          <div style={{ height:140, position:'relative' }}>
+            <ResponsiveContainer width="100%" height="100%">
+              <PieChart>
+                <Pie data={woStatus} cx="50%" cy="50%" innerRadius={40} outerRadius={60} dataKey="v" paddingAngle={3}>
+                  {woStatus.map((w,i)=><Cell key={i} fill={w.c}/>)}
+                </Pie>
+                <Tooltip content={<Tip/>}/>
+              </PieChart>
+            </ResponsiveContainer>
+            <div style={{ position:'absolute',top:'50%',left:'50%',transform:'translate(-50%,-50%)',textAlign:'center',pointerEvents:'none' }}>
+              <div style={{ fontSize:20,fontWeight:900,color:'#22C55E' }}>100</div>
+              <div style={{ fontSize:9,color:'#6B7280' }}>Total WOs</div>
+            </div>
+          </div>
+          <div style={{ display:'flex', flexDirection:'column', gap:6, marginTop:10 }}>
+            {woStatus.map((w,i)=>(
+              <div key={i} style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+                <div style={{ display:'flex', gap:7, alignItems:'center' }}>
+                  <div style={{ width:8,height:8,borderRadius:'50%',background:w.c }}/>
+                  <span style={{ fontSize:11,color:'#374151',fontWeight:600 }}>{w.name}</span>
+                </div>
+                <span style={{ fontSize:12,fontWeight:800,color:w.c }}>{w.v}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* ══ CHARTS ROW 2 ════════════════════════════════════════════════════════ */}
+      <div style={{ display:'grid', gridTemplateColumns:'1.8fr 1fr 1fr 1fr', gap:14 }}>
+
+        {/* Monthly Maintenance Cost */}
+        <div style={{ ...CARD, padding:'20px' }}>
+          <SectionTitle icon={<DollarSign size={15}/>} label="Monthly Maintenance Cost (AED '000)"/>
+          <div style={{ height:200 }}>
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={costData} barGap={1} barSize={16}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#F3F4F6" vertical={false}/>
+                <XAxis dataKey="m" tick={{fill:'#9CA3AF',fontSize:10}} axisLine={false} tickLine={false}/>
+                <YAxis tick={{fill:'#9CA3AF',fontSize:10}} axisLine={false} tickLine={false} tickFormatter={v=>`${v}K`}/>
+                <Tooltip content={<Tip/>} formatter={(v:any)=>`AED ${v}K`}/>
+                <Bar dataKey="el"  name="Electrical"      stackId="a" fill="#3B82F6"/>
+                <Bar dataKey="ins" name="Instrumentation" stackId="a" fill="#8B5CF6"/>
+                <Bar dataKey="ci"  name="Civil"           stackId="a" fill="#22C55E" radius={[4,4,0,0]}/>
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+          <div style={{ display:'flex', gap:16, marginTop:8, justifyContent:'center' }}>
+            {[{c:'#3B82F6',l:'Electrical'},{c:'#8B5CF6',l:'Instrumentation'},{c:'#22C55E',l:'Civil'}].map((x,i)=>(
+              <div key={i} style={{ display:'flex', alignItems:'center', gap:5 }}>
+                <div style={{ width:12,height:4,borderRadius:2,background:x.c }}/>
+                <span style={{ fontSize:10,color:'#6B7280' }}>{x.l}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Energy Consumption */}
+        <div style={{ ...CARD, padding:'20px' }}>
+          <SectionTitle icon={<Zap size={15}/>} label="Energy Consumption"/>
+          <div style={{ marginBottom:12 }}>
+            <div style={{ fontSize:26,fontWeight:900,color:'#F59E0B' }}>131K<span style={{ fontSize:12,color:'#6B7280',fontWeight:600 }}> kWh</span></div>
+            <div style={{ fontSize:10,color:'#6B7280',marginTop:2 }}>Current month consumption</div>
+          </div>
+          <div style={{ height:155 }}>
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart data={energyD}>
+                <defs>
+                  <linearGradient id="eg" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%"  stopColor="#F59E0B" stopOpacity={0.18}/>
+                    <stop offset="95%" stopColor="#F59E0B" stopOpacity={0.01}/>
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" stroke="#F3F4F6" vertical={false}/>
+                <XAxis dataKey="m" tick={{fill:'#9CA3AF',fontSize:9}} axisLine={false} tickLine={false}/>
+                <YAxis tick={{fill:'#9CA3AF',fontSize:9}} axisLine={false} tickLine={false} tickFormatter={v=>`${v}K`}/>
+                <Tooltip content={<Tip/>}/>
+                <Area type="monotone" dataKey="k" name="kWh (thousands)" stroke="#F59E0B" strokeWidth={2} fill="url(#eg)" dot={false}/>
+              </AreaChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+
+        {/* MTBF Trend */}
+        <div style={{ ...CARD, padding:'20px' }}>
+          <SectionTitle icon={<TrendingUp size={15}/>} label="MTBF Trend"/>
+          <div style={{ marginBottom:12 }}>
+            <div style={{ fontSize:26,fontWeight:900,color:'#3B82F6' }}>342<span style={{ fontSize:12,color:'#6B7280',fontWeight:600 }}> hrs</span></div>
+            <div style={{ display:'flex', alignItems:'center', gap:5 }}>
+              <ArrowUpRight size={12} color="#22C55E"/>
+              <span style={{ fontSize:10,color:'#22C55E',fontWeight:700 }}>Improving trend</span>
+            </div>
+          </div>
+          <div style={{ height:155 }}>
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart data={mtbfD}>
+                <defs>
+                  <linearGradient id="mbg" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%"  stopColor="#3B82F6" stopOpacity={0.15}/>
+                    <stop offset="95%" stopColor="#3B82F6" stopOpacity={0.01}/>
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" stroke="#F3F4F6" vertical={false}/>
+                <XAxis dataKey="m" tick={{fill:'#9CA3AF',fontSize:9}} axisLine={false} tickLine={false}/>
+                <YAxis domain={[260,360]} tick={{fill:'#9CA3AF',fontSize:9}} axisLine={false} tickLine={false}/>
+                <Tooltip content={<Tip/>}/>
+                <Area type="monotone" dataKey="v" name="MTBF (hrs)" stroke="#3B82F6" strokeWidth={2} fill="url(#mbg)" dot={false}/>
+              </AreaChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+
+        {/* MTTR Trend */}
+        <div style={{ ...CARD, padding:'20px' }}>
+          <SectionTitle icon={<TrendingDown size={15}/>} label="MTTR Trend"/>
+          <div style={{ marginBottom:12 }}>
+            <div style={{ fontSize:26,fontWeight:900,color:'#22C55E' }}>2.3<span style={{ fontSize:12,color:'#6B7280',fontWeight:600 }}> hrs</span></div>
+            <div style={{ display:'flex', alignItems:'center', gap:5 }}>
+              <ArrowDownRight size={12} color="#22C55E"/>
+              <span style={{ fontSize:10,color:'#22C55E',fontWeight:700 }}>Decreasing (Good)</span>
+            </div>
+          </div>
+          <div style={{ height:155 }}>
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart data={mttrD}>
+                <defs>
+                  <linearGradient id="mtrg" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%"  stopColor="#22C55E" stopOpacity={0.15}/>
+                    <stop offset="95%" stopColor="#22C55E" stopOpacity={0.01}/>
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" stroke="#F3F4F6" vertical={false}/>
+                <XAxis dataKey="m" tick={{fill:'#9CA3AF',fontSize:9}} axisLine={false} tickLine={false}/>
+                <YAxis domain={[2,3.5]} tick={{fill:'#9CA3AF',fontSize:9}} axisLine={false} tickLine={false}/>
+                <Tooltip content={<Tip/>}/>
+                <Area type="monotone" dataKey="v" name="MTTR (hrs)" stroke="#22C55E" strokeWidth={2} fill="url(#mtrg)" dot={false}/>
+              </AreaChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+      </div>
+
+      {/* ══ FOOTER ══════════════════════════════════════════════════════════════ */}
+      <div style={{ marginTop:24, textAlign:'center', fontSize:11, color:'#9CA3AF', paddingBottom:8 }}>
+        E &amp; I Maintenance Management System · Glass Technology (MENA) L.L.C · Sharjah, UAE · {dateLbl}
+      </div>
+
     </div>
   );
 }
