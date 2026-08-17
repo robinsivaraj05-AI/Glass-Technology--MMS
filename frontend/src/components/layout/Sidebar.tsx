@@ -22,10 +22,11 @@ const navItems: NavItem[] = [
   {
     label: 'Maintenance',  icon: <Wrench size={16} />,
     children: [
-      { label: 'Preventive PM',  path: '/pm',         icon: <Calendar size={14} /> },
-      { label: 'Breakdown',      path: '/breakdowns',  icon: <AlertTriangle size={14} /> },
-      { label: 'Work Orders',    path: '/work-orders', icon: <ClipboardList size={14} /> },
-      { label: 'Predictive',     path: '/predictive',  icon: <Activity size={14} /> },
+      { label: 'Preventive PM',  path: '/pm',           icon: <Calendar size={14} /> },
+      { label: 'Breakdown',      path: '/breakdowns',   icon: <AlertTriangle size={14} /> },
+      { label: 'Work Orders',    path: '/work-orders',  icon: <ClipboardList size={14} /> },
+      { label: 'Predictive',     path: '/predictive',   icon: <Activity size={14} /> },
+      { label: 'Job Tracker',    path: '/job-tracker',  icon: <Bell size={14} /> },
     ],
   },
   {

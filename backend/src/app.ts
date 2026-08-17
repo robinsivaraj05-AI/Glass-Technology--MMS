@@ -19,6 +19,9 @@ import machineRoutes from './routes/machines';
 import calibrationRoutes from './routes/calibration';
 import amcRoutes from './routes/amc';
 import projectRoutes from './routes/projects';
+import pendingJobRoutes from './routes/pendingJobs';
+import followupJobRoutes from './routes/followupJobs';
+import reminderRoutes from './routes/reminders';
 
 const app = express();
 
@@ -52,6 +55,9 @@ app.use('/api/machines', machineRoutes);
 app.use('/api/calibration', calibrationRoutes);
 app.use('/api/amc', amcRoutes);
 app.use('/api/projects', projectRoutes);
+app.use('/api/pending-jobs', pendingJobRoutes);
+app.use('/api/followup-jobs', followupJobRoutes);
+app.use('/api/reminders', reminderRoutes);
 
 // 404 handler
 app.use((req, res) => res.status(404).json({ message: `Route ${req.originalUrl} not found` }));
