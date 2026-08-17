@@ -53,7 +53,7 @@ const STATUS_XLS: Record<string, string> = {
   'RFQ created':           '#4472C4',
   'Technical Review':      '#FFA500',
   'Quotation Received':    '#7030A0',
-  'PO done':               '#FFFF00',
+  'PO done':               '#B8860B',
   'Material Not Delivered':'#FF0000',
   'Rejected':              '#808080',
   'Material Received':     '#00B050',
@@ -131,15 +131,20 @@ const SEED: FollowupRecord[] = [
 function downloadXLS(records: FollowupRecord[]) {
   const today = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: '2-digit' });
 
+  // Exclude items that are already received — report is for PENDING items only
+  const pending = records.filter(r => r.currentStatus !== 'Material Received' && r.currentStatus !== 'Payment Done' && r.currentStatus !== 'Rejected');
+
   const sectionOrder: string[] = [];
   const sectionMap: Record<string, FollowupRecord[]> = {};
-  records.forEach(r => {
+  pending.forEach(r => {
     const s = r.section || '__main__';
     if (!sectionOrder.includes(s)) sectionOrder.push(s);
     (sectionMap[s] = sectionMap[s] || []).push(r);
   });
 
   let rows = '';
+  let slNo = 0;
+  let totalBudget = 0;
   const td = (v: string, bg = '', tc = '#000000', bold = false, align = 'left') =>
     `<td style="padding:5px 7px;border:1px solid #bbb;background:${bg||'#ffffff'};color:${tc};font-weight:${bold?'bold':'normal'};text-align:${align};font-family:Arial;font-size:10pt;">${v}</td>`;
 
@@ -148,20 +153,20 @@ function downloadXLS(records: FollowupRecord[]) {
     if (sKey !== '__main__') {
       rows += `<tr><td colspan="11" style="background:#C00000;color:#fff;font-weight:bold;font-size:11pt;text-align:center;padding:7px;border:1px solid #bbb;font-family:Arial;">${sKey}</td></tr>`;
     }
-    recs.forEach((r, i) => {
+    recs.forEach(r => {
+      slNo++;
+      totalBudget += r.budget || 0;
       const days = r.requestDate ? daysSince(r.requestDate) : '';
       const sBg  = STATUS_XLS[r.currentStatus] || '#ffffff';
-      const sTc  = r.currentStatus === 'PO done' ? '#000000' : (r.currentStatus ? '#ffffff' : '#000000');
+      const sTc  = r.currentStatus ? '#ffffff' : '#000000';
       const tlc  = ({ 'Second Priority': '#007700', 'Primary Priority': '#CC4400' } as Record<string,string>)[r.requiredTimeline] || '#000000';
-      const pBg  = PAYMENT_XLS[r.paymentStatus] || '#ffffff';
-      const pTc  = r.paymentStatus ? '#ffffff' : '#000000';
       rows += `<tr>
-        ${td(String(i + 1), '', '#000000', false, 'center')}
+        ${td(String(slNo), '', '#000000', false, 'center')}
         ${td(r.itemDescription)}
         ${td(r.requestDate ? fmtDate(r.requestDate) : '', '', '#000000', false, 'center')}
         ${td(days ? String(days) : '', '', '#FF0000', true, 'center')}
-        ${td(r.requiredTimeline, '', tlc, !!TL_COLOR[r.requiredTimeline])}
-        ${td(r.currentStatus, sBg, sTc, true)}
+        ${td(r.requiredTimeline, '', tlc, !!TL_COLOR[r.requiredTimeline], 'center')}
+        ${td(r.currentStatus, sBg, sTc, true, 'center')}
         ${td(r.prNumber)}
         ${td(r.reqDate ? fmtMonYear(r.reqDate) : '', '', '#000000', false, 'center')}
         ${td(r.budget ? String(r.budget) : '', '', '#000000', false, 'center')}
@@ -170,6 +175,13 @@ function downloadXLS(records: FollowupRecord[]) {
       </tr>`;
     });
   });
+
+  // Budget total row
+  rows += `<tr>
+    <td colspan="8" style="padding:6px 7px;border:1px solid #bbb;background:#FFFF00;font-weight:bold;font-family:Arial;font-size:10pt;text-align:right;">Total Budget (AED)</td>
+    <td style="padding:6px 7px;border:1px solid #bbb;background:#FFFF00;font-weight:bold;font-family:Arial;font-size:11pt;text-align:center;">${totalBudget.toLocaleString()}</td>
+    <td colspan="2" style="border:1px solid #bbb;background:#FFFF00;"></td>
+  </tr>`;
 
   const html = `<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel">
 <head><meta charset="utf-8"/></head><body><table>
