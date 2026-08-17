@@ -9,7 +9,9 @@ const PendingJobSchema = new Schema({
   createdDate: { type: String, default: '' },
   dueDate:     { type: String, default: '' },
   status:      { type: String, enum: ['Open', 'In Progress', 'On Hold', 'Completed', 'Cancelled'], default: 'Open' },
-  remarks:     { type: String, default: '' },
+  remarks:       { type: String, default: '' },
+  completedBy:   { type: String, default: '' },
+  completedDate: { type: String, default: '' },
 }, { timestamps: true });
 
 export default mongoose.model('PendingJob', PendingJobSchema);
