@@ -102,6 +102,13 @@ function mapRFQStatus(s: string): string {
 function mapPOStatus(s: string): string {
   return ({ ordered:'PO done', acknowledged:'PO done', 'in-transit':'Material Not Delivered', 'partially-received':'Material Not Delivered', received:'Material Received', delayed:'Material Not Delivered', cancelled:'Rejected' } as Record<string,string>)[s] || s;
 }
+
+// Higher rank = further along in the workflow. Sync never downgrades.
+const STATUS_RANK: Record<string, number> = {
+  'RFQ created': 1, 'Technical Review': 2, 'Quotation Received': 3,
+  'PO done': 4, 'Material Not Delivered': 4,
+  'Material Received': 5, 'Payment Done': 6, 'Rejected': 0,
+};
 function mapPriority(p: string): string {
   return ({ urgent:'Primary Priority', high:'Second Priority', normal:'Need', low:'' } as Record<string,string>)[p] || '';
 }
@@ -263,12 +270,15 @@ export default function PurchaseFollowup() {
             (incDesc && normalize(r.itemDescription) === incDesc)
           );
           if (existing) {
-            const patch = {
-              currentStatus:   inc.currentStatus,
+            // Never downgrade status — only advance it
+            const existingRank = STATUS_RANK[existing.currentStatus] ?? 0;
+            const incomingRank = STATUS_RANK[inc.currentStatus]      ?? 0;
+            const patch: Record<string, any> = {
               itemDescription: inc.itemDescription,
               reqDate:         inc.reqDate || existing.reqDate,
               budget:          inc.budget  || existing.budget,
             };
+            if (incomingRank > existingRank) patch.currentStatus = inc.currentStatus;
             const up = await apiFetch(`/api/purchase-followup/${existing.id}`, { method: 'PUT', body: JSON.stringify(patch) });
             setRecords(prev => prev.map(r => r.id === existing.id ? up : r));
             updated++;
