@@ -248,14 +248,16 @@ export default function PurchaseFollowup() {
         ...pos.map(p  => ({ section:'', itemDescription:p.items?.[0]?.description||p.poNo, requestDate:p.poDate, requiredTimeline:'', currentStatus:mapPOStatus(p.status), paymentStatus:'', prNumber:p.poNo, reqDate:p.estimatedDelivery||'', budget:p.totalValue||0, leadTime:'', workingTime:'', source:'po', remarks:p.remarks||'', receivedDate:'', paymentHistory:[] })),
       ];
 
-      // Use a snapshot of current records to avoid stale closure issues
       const snap = records;
+      // Track all known prNumbers (existing + newly added this loop) to prevent intra-loop duplicates
+      const knownPRs = new Set(snap.map(r => r.prNumber).filter(Boolean));
+
       for (const inc of incoming) {
+        if (!inc.prNumber) continue;
         try {
-          // Check if a followup record already exists for this prNumber + source
-          const existing = snap.find(r => r.prNumber === inc.prNumber && r.source === inc.source);
+          // Match on prNumber alone — source is ignored so manual entries aren't duplicated
+          const existing = snap.find(r => r.prNumber === inc.prNumber);
           if (existing) {
-            // Update only status, description and reqDate — preserve user's manual data
             const patch = {
               currentStatus:   inc.currentStatus,
               itemDescription: inc.itemDescription,
@@ -265,7 +267,9 @@ export default function PurchaseFollowup() {
             const up = await apiFetch(`/api/purchase-followup/${existing.id}`, { method: 'PUT', body: JSON.stringify(patch) });
             setRecords(prev => prev.map(r => r.id === existing.id ? up : r));
             updated++;
-          } else {
+          } else if (!knownPRs.has(inc.prNumber)) {
+            // Not in DB and not already added in this sync loop
+            knownPRs.add(inc.prNumber);
             const created = await apiFetch('/api/purchase-followup', { method: 'POST', body: JSON.stringify(inc) });
             setRecords(prev => [...prev, created]);
             added++;
