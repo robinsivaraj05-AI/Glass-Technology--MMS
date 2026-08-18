@@ -652,9 +652,9 @@ export default function JobTracker() {
               <Search size={13} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: '#475569' }} />
               <input value={jpSearch} onChange={e => setJpSearch(e.target.value)} placeholder="Search jobs…" className="input-dark" style={{ paddingLeft: 30, width: '100%' }} />
             </div>
-            <select value={jpStatus} onChange={e => setJpStatus(e.target.value)} className="input-dark" style={{ width: 140, fontSize: 13 }}>
+            <select value={jpStatus} onChange={e => setJpStatus(e.target.value)} className="input-dark" style={{ width: 150, fontSize: 13 }}>
               <option value="All">All Status</option>
-              {['Open','In Progress','On Hold'].map(s => <option key={s} value={s}>{s}</option>)}
+              {JOB_STATUSES.map(s => <option key={s} value={s}>{s}</option>)}
             </select>
             <select value={jpPriority} onChange={e => setJpPriority(e.target.value)} className="input-dark" style={{ width: 130, fontSize: 13 }}>
               <option value="All">All Priority</option>
@@ -675,50 +675,43 @@ export default function JobTracker() {
                 <thead>
                   <tr>
                     <th style={{ width: 36, textAlign: 'center' }}>Sl.</th>
-                    <th style={{ width: 110 }}>Job ID</th>
-                    <th style={{ width: 130 }}>Asset</th>
+                    <th style={{ width: 100 }}>Job ID</th>
+                    <th style={{ width: 100, textAlign: 'center' }}>Created Date</th>
+                    <th style={{ width: 130 }}>Area / Location</th>
                     <th>Description</th>
-                    <th style={{ width: 90, textAlign: 'center' }}>Priority</th>
-                    <th style={{ width: 140 }}>Assigned To</th>
-                    <th style={{ width: 100, textAlign: 'center' }}>Due Date</th>
-                    <th style={{ width: 120, textAlign: 'center' }}>Status</th>
-                    <th style={{ width: 70, textAlign: 'center' }}>Pending</th>
+                    <th style={{ width: 88, textAlign: 'center' }}>Priority</th>
+                    <th style={{ width: 130 }}>Responsible</th>
+                    <th style={{ width: 130, textAlign: 'center' }}>Status</th>
+                    <th style={{ width: 140 }}>Doing / Completed By</th>
+                    <th style={{ width: 140 }}>Remarks</th>
                     <th style={{ width: 72, textAlign: 'center' }}>Actions</th>
                   </tr>
                 </thead>
                 <tbody>
                   {filteredJobs.length === 0 && (
-                    <tr><td colSpan={10} style={{ textAlign: 'center', padding: 32, color: '#475569', fontStyle: 'italic' }}>No active jobs. Add one or upload an Excel file.</td></tr>
+                    <tr><td colSpan={11} style={{ textAlign: 'center', padding: 32, color: '#475569', fontStyle: 'italic' }}>No active jobs. Add one or upload an Excel file.</td></tr>
                   )}
                   {filteredJobs.map((j, i) => {
                     const pc = PRIORITY_CFG[j.priority] || PRIORITY_CFG.Medium;
                     const sc = JOB_STATUS_CFG[j.status] || JOB_STATUS_CFG.Open;
-                    const od = isOverdue(j.dueDate, j.status);
-                    const du = daysUntil(j.dueDate);
                     return (
-                      <tr key={j.id} style={{ background: od ? 'rgba(239,68,68,0.04)' : undefined }}>
+                      <tr key={j.id}>
                         <td style={{ textAlign: 'center', color: '#64748b' }}>{i + 1}</td>
                         <td style={{ fontFamily: 'monospace', color: '#60a5fa', fontWeight: 700, fontSize: 11 }}>{j.jobId || '—'}</td>
-                        <td style={{ color: '#94a3b8', fontSize: 11 }}>{j.asset || '—'}</td>
-                        <td style={{ fontWeight: 500, color: '#e2e8f0' }}>
-                          {j.description}
-                          {j.remarks && <div style={{ fontSize: 10, color: '#64748b', marginTop: 2 }}>{j.remarks}</div>}
-                        </td>
+                        <td style={{ textAlign: 'center', color: '#94a3b8', fontSize: 11 }}>{fmtDate(j.createdDate)}</td>
+                        <td style={{ color: '#374151', fontSize: 12 }}>{j.asset || '—'}</td>
+                        <td style={{ fontWeight: 500, color: '#1e293b' }}>{j.description}</td>
                         <td style={{ textAlign: 'center' }}><Badge label={j.priority} cfg={pc} /></td>
-                        <td style={{ color: '#94a3b8' }}>
-                          {j.assignedTo
-                            ? <span style={{ display: 'flex', alignItems: 'center', gap: 5 }}><User size={11} />{j.assignedTo}</span>
-                            : '—'}
-                        </td>
-                        <td style={{ textAlign: 'center', color: od ? '#ef4444' : '#94a3b8', fontWeight: od ? 700 : 400 }}>
-                          {fmtDate(j.dueDate)}
-                          {od && <div style={{ fontSize: 9, color: '#ef4444' }}>OVERDUE</div>}
-                          {!od && du !== null && du <= 3 && du >= 0 && <div style={{ fontSize: 9, color: '#f59e0b' }}>in {du}d</div>}
+                        <td style={{ color: '#374151' }}>
+                          {j.assignedTo ? <span style={{ display: 'flex', alignItems: 'center', gap: 5 }}><User size={11} />{j.assignedTo}</span> : '—'}
                         </td>
                         <td style={{ textAlign: 'center' }}>
                           <StatusSelect value={j.status} options={JOB_STATUSES} cfg={sc} onChange={v => updateStatus(j, v)} />
                         </td>
-                        <td style={{ textAlign: 'center', fontWeight: 700, color: '#94a3b8', fontSize: 11 }}>{daysPending(j.createdDate)}d</td>
+                        <td style={{ color: '#374151' }}>
+                          {j.completedBy ? <span style={{ display: 'flex', alignItems: 'center', gap: 5 }}><User size={11} />{j.completedBy}</span> : '—'}
+                        </td>
+                        <td style={{ color: '#6b7280', fontSize: 11 }}>{j.remarks || '—'}</td>
                         <td style={{ textAlign: 'center' }}>
                           <div style={{ display: 'flex', gap: 5, justifyContent: 'center' }}>
                             <button onClick={() => openJobForm(j)} style={{ width: 27, height: 25, borderRadius: 5, background: 'rgba(59,130,246,0.15)', border: '1px solid rgba(59,130,246,0.4)', color: '#60a5fa', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -759,20 +752,21 @@ export default function JobTracker() {
                 <thead>
                   <tr>
                     <th style={{ width: 36, textAlign: 'center' }}>Sl.</th>
-                    <th style={{ width: 110 }}>Job ID</th>
-                    <th style={{ width: 130 }}>Asset</th>
+                    <th style={{ width: 100 }}>Job ID</th>
+                    <th style={{ width: 100, textAlign: 'center' }}>Created Date</th>
+                    <th style={{ width: 130 }}>Area / Location</th>
                     <th>Description</th>
-                    <th style={{ width: 90, textAlign: 'center' }}>Priority</th>
-                    <th style={{ width: 140 }}>Assigned To</th>
-                    <th style={{ width: 140, color: '#22c55e' }}>Completed By</th>
-                    <th style={{ width: 110, textAlign: 'center' }}>Completed Date</th>
-                    <th style={{ width: 90, textAlign: 'center' }}>Status</th>
+                    <th style={{ width: 88, textAlign: 'center' }}>Priority</th>
+                    <th style={{ width: 130 }}>Responsible</th>
+                    <th style={{ width: 120, textAlign: 'center' }}>Status</th>
+                    <th style={{ width: 140 }}>Doing / Completed By</th>
+                    <th style={{ width: 140 }}>Remarks</th>
                     <th style={{ width: 60, textAlign: 'center' }}>Edit</th>
                   </tr>
                 </thead>
                 <tbody>
                   {filteredCompleted.length === 0 && (
-                    <tr><td colSpan={10} style={{ textAlign: 'center', padding: 32, color: '#475569', fontStyle: 'italic' }}>No completed jobs yet.</td></tr>
+                    <tr><td colSpan={11} style={{ textAlign: 'center', padding: 32, color: '#475569', fontStyle: 'italic' }}>No completed jobs yet.</td></tr>
                   )}
                   {filteredCompleted.map((j, i) => {
                     const pc = PRIORITY_CFG[j.priority] || PRIORITY_CFG.Medium;
@@ -781,12 +775,14 @@ export default function JobTracker() {
                       <tr key={j.id}>
                         <td style={{ textAlign: 'center', color: '#64748b' }}>{i + 1}</td>
                         <td style={{ fontFamily: 'monospace', color: '#60a5fa', fontWeight: 700, fontSize: 11 }}>{j.jobId || '—'}</td>
-                        <td style={{ color: '#94a3b8', fontSize: 11 }}>{j.asset || '—'}</td>
-                        <td style={{ fontWeight: 500, color: '#e2e8f0' }}>{j.description}</td>
+                        <td style={{ textAlign: 'center', color: '#94a3b8', fontSize: 11 }}>{fmtDate(j.createdDate)}</td>
+                        <td style={{ color: '#374151', fontSize: 12 }}>{j.asset || '—'}</td>
+                        <td style={{ fontWeight: 500, color: '#1e293b' }}>{j.description}</td>
                         <td style={{ textAlign: 'center' }}><Badge label={j.priority} cfg={pc} /></td>
-                        <td style={{ color: '#94a3b8' }}>
+                        <td style={{ color: '#374151' }}>
                           {j.assignedTo ? <span style={{ display: 'flex', alignItems: 'center', gap: 5 }}><User size={11} />{j.assignedTo}</span> : '—'}
                         </td>
+                        <td style={{ textAlign: 'center' }}><Badge label={j.status} cfg={sc} /></td>
                         <td>
                           {j.completedBy
                             ? <span style={{ display: 'flex', alignItems: 'center', gap: 6, color: '#22c55e', fontWeight: 700 }}>
@@ -794,8 +790,7 @@ export default function JobTracker() {
                               </span>
                             : <span style={{ color: '#475569', fontStyle: 'italic', fontSize: 11 }}>—</span>}
                         </td>
-                        <td style={{ textAlign: 'center', color: '#22c55e', fontWeight: 600 }}>{fmtDate(j.completedDate)}</td>
-                        <td style={{ textAlign: 'center' }}><Badge label={j.status} cfg={sc} /></td>
+                        <td style={{ color: '#6b7280', fontSize: 11 }}>{j.remarks || '—'}</td>
                         <td style={{ textAlign: 'center' }}>
                           <button onClick={() => openJobForm(j)} style={{ width: 27, height: 25, borderRadius: 5, background: 'rgba(59,130,246,0.15)', border: '1px solid rgba(59,130,246,0.4)', color: '#60a5fa', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: 'auto' }}>
                             <Edit2 size={11} />
@@ -838,18 +833,20 @@ export default function JobTracker() {
                 <thead>
                   <tr>
                     <th style={{ width: 36, textAlign: 'center' }}>Sl.</th>
-                    <th style={{ width: 110 }}>Followup ID</th>
+                    <th style={{ width: 100 }}>Followup ID</th>
+                    <th style={{ width: 100, textAlign: 'center' }}>Next Date</th>
                     <th style={{ width: 110 }}>Related Job</th>
                     <th>Description</th>
-                    <th style={{ width: 120, textAlign: 'center' }}>Next Follow-up</th>
                     <th style={{ width: 120, textAlign: 'center' }}>Status</th>
                     <th style={{ width: 140 }}>Responsible</th>
+                    <th style={{ width: 140 }}>Doing / Completed By</th>
+                    <th style={{ width: 140 }}>Remarks / Comments</th>
                     <th style={{ width: 72, textAlign: 'center' }}>Actions</th>
                   </tr>
                 </thead>
                 <tbody>
                   {filteredFlw.length === 0 && (
-                    <tr><td colSpan={8} style={{ textAlign: 'center', padding: 32, color: '#475569', fontStyle: 'italic' }}>No follow-up jobs. Click "+ Add Follow-up" to create one.</td></tr>
+                    <tr><td colSpan={10} style={{ textAlign: 'center', padding: 32, color: '#475569', fontStyle: 'italic' }}>No follow-up jobs. Click "+ Add Follow-up" to create one.</td></tr>
                   )}
                   {filteredFlw.map((f, i) => {
                     const sc  = FLW_STATUS_CFG[f.status] || FLW_STATUS_CFG.Pending;
@@ -859,18 +856,28 @@ export default function JobTracker() {
                       <tr key={f.id} style={{ background: od ? 'rgba(239,68,68,0.04)' : undefined }}>
                         <td style={{ textAlign: 'center', color: '#64748b' }}>{i + 1}</td>
                         <td style={{ fontFamily: 'monospace', color: '#a855f7', fontWeight: 700, fontSize: 11 }}>{f.followupId || '—'}</td>
-                        <td style={{ fontFamily: 'monospace', color: '#60a5fa', fontSize: 11 }}>{f.relatedJobId || '—'}</td>
-                        <td style={{ fontWeight: 500, color: '#e2e8f0' }}>
-                          {f.description}
-                          {f.comments && <div style={{ fontSize: 10, color: '#64748b', marginTop: 2 }}>{f.comments}</div>}
-                        </td>
                         <td style={{ textAlign: 'center', color: od ? '#ef4444' : '#94a3b8', fontWeight: od ? 700 : 400 }}>
                           {fmtDate(f.nextFollowupDate)}
                           {od && <div style={{ fontSize: 9, color: '#ef4444' }}>OVERDUE</div>}
                           {!od && du !== null && du <= 3 && du >= 0 && <div style={{ fontSize: 9, color: '#f59e0b' }}>in {du}d</div>}
                         </td>
-                        <td style={{ textAlign: 'center' }}><Badge label={f.status} cfg={sc} /></td>
-                        <td style={{ color: '#94a3b8' }}>{f.responsiblePerson || '—'}</td>
+                        <td style={{ fontFamily: 'monospace', color: '#60a5fa', fontSize: 11 }}>{f.relatedJobId || '—'}</td>
+                        <td style={{ fontWeight: 500, color: '#1e293b' }}>{f.description}</td>
+                        <td style={{ textAlign: 'center' }}>
+                          <StatusSelect value={f.status} options={FLW_STATUSES} cfg={sc} onChange={async v => {
+                            try {
+                              const up = await apiFetch(`/api/followup-jobs/${f.id}`, { method: 'PUT', body: JSON.stringify({ status: v }) });
+                              setFollowupJobs(p => p.map(x => x.id === f.id ? up : x));
+                            } catch {}
+                          }} />
+                        </td>
+                        <td style={{ color: '#374151' }}>
+                          {f.responsiblePerson ? <span style={{ display: 'flex', alignItems: 'center', gap: 5 }}><User size={11} />{f.responsiblePerson}</span> : '—'}
+                        </td>
+                        <td style={{ color: '#374151' }}>
+                          {f.responsiblePerson ? <span style={{ display: 'flex', alignItems: 'center', gap: 5 }}><User size={11} />{f.responsiblePerson}</span> : '—'}
+                        </td>
+                        <td style={{ color: '#6b7280', fontSize: 11 }}>{f.comments || '—'}</td>
                         <td style={{ textAlign: 'center' }}>
                           <div style={{ display: 'flex', gap: 5, justifyContent: 'center' }}>
                             <button onClick={() => openFlwForm(f)} style={{ width: 27, height: 25, borderRadius: 5, background: 'rgba(59,130,246,0.15)', border: '1px solid rgba(59,130,246,0.4)', color: '#60a5fa', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Edit2 size={11} /></button>
