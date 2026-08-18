@@ -168,8 +168,8 @@ const StatCard = ({ label, value, sub, color, icon }: any) => (
 function downloadTemplate() {
   const ws = XLSX.utils.aoa_to_sheet([
     ['Created Date', 'Area / Location', 'Description', 'Priority', 'Responsible', 'Status', 'Doing / Completed By', 'Remarks'],
-    [today, 'Furnace Motor', 'Replace bearing on main drive motor', 'High', '', 'Open', 'Ahmed Ali', ''],
-    [today, 'Lehr Belt', 'Inspect and tension lehr conveyor belt', 'Medium', '', 'Open', 'Mohammed', 'Check every joint'],
+    [today, 'Furnace', 'Replace bearing on main drive motor', 'High', 'GT-E&I', 'Open', '', ''],
+    [today, 'Lehr', 'Inspect and tension lehr conveyor belt', 'Medium', 'GT-E&I', 'Open', '', 'Check every joint'],
   ]);
   ws['!cols'] = [14, 22, 42, 12, 18, 16, 22, 28].map(w => ({ wch: w }));
   // Style header row
@@ -463,7 +463,7 @@ export default function JobTracker() {
     setPendingJobs(p => p.filter(x => x.id !== id));
   };
 
-  // ── Excel upload ──
+  // ── Excel upload (upload = add new, update = patch existing by description match) ──
   const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -471,17 +471,25 @@ export default function JobTracker() {
     try {
       const rows = await parseUploadedFile(file, employees);
       if (rows.length === 0) { alert('No valid rows found. Make sure "Description" column is filled.'); return; }
-      let added = 0;
+      let added = 0, updated = 0;
       const snapshot = [...pendingJobs];
       for (const row of rows) {
         const existing = snapshot.find(j => j.description.trim().toLowerCase() === row.description.trim().toLowerCase());
-        if (existing) continue;
-        row.jobId = autoId('JOB', [...snapshot, ...Array(added).fill(null)]);
-        const cr = await apiFetch('/api/pending-jobs', { method: 'POST', body: JSON.stringify(row) });
-        setPendingJobs(p => [cr, ...p]);
-        added++;
+        if (existing) {
+          // UPDATE — exact description match → patch the existing job
+          const patch = { asset: row.asset, priority: row.priority, assignedTo: row.assignedTo, createdDate: row.createdDate, status: row.status, completedBy: row.completedBy, remarks: row.remarks };
+          const up = await apiFetch(`/api/pending-jobs/${existing.id}`, { method: 'PUT', body: JSON.stringify(patch) });
+          setPendingJobs(p => p.map(x => x.id === existing.id ? up : x));
+          updated++;
+        } else {
+          // ADD — no match → create new job
+          row.jobId = autoId('JOB', [...snapshot, ...Array(added).fill(null)]);
+          const cr = await apiFetch('/api/pending-jobs', { method: 'POST', body: JSON.stringify(row) });
+          setPendingJobs(p => [cr, ...p]);
+          added++;
+        }
       }
-      alert(`Upload complete: ${added} job${added !== 1 ? 's' : ''} added${rows.length - added > 0 ? `, ${rows.length - added} skipped (duplicate descriptions)` : ''}.`);
+      alert(`Done! ${added} job${added !== 1 ? 's' : ''} added, ${updated} updated (matched by description).`);
     } catch (err: any) { alert('Failed to parse file: ' + err.message); }
     finally { setUploading(false); if (uploadRef.current) uploadRef.current.value = ''; }
   };
@@ -550,23 +558,27 @@ export default function JobTracker() {
     doc.text('Maintenance Job Tracker Report', pw / 2, 11, { align: 'center' });
     doc.setFontSize(9); doc.setFont('helvetica', 'normal'); doc.setTextColor(148, 163, 184);
     doc.text(`Generated: ${fmtDate(today)}   ·   E & I Maintenance Dept.`, pw / 2, 20, { align: 'center' });
+    doc.setFontSize(10); doc.setFont('helvetica', 'bold'); doc.setTextColor(96, 165, 250);
+    doc.text('Pending Jobs', 10, 30);
     autoTable(doc, {
-      startY: 32, margin: { left: 10, right: 10 },
-      head: [['Job ID', 'Asset', 'Description', 'Priority', 'Assigned To', 'Due Date', 'Status', 'Days Pending']],
-      body: activeJobs.map(j => [j.jobId, j.asset||'—', j.description, j.priority, j.assignedTo||'—', fmtDate(j.dueDate), j.status, daysPending(j.createdDate)]),
-      headStyles: { fillColor: [30, 64, 175], textColor: 255, fontStyle: 'bold', fontSize: 8 },
-      bodyStyles: { fontSize: 8 },
+      startY: 33, margin: { left: 10, right: 10 },
+      head: [['#', 'Created Date', 'Area / Location', 'Description', 'Priority', 'Responsible', 'Status', 'Doing / Completed By', 'Remarks']],
+      body: activeJobs.map((j, i) => [i + 1, fmtDate(j.createdDate), j.asset||'—', j.description, j.priority, j.assignedTo||'—', j.status, j.completedBy||'—', j.remarks||'—']),
+      headStyles: { fillColor: [30, 64, 175], textColor: 255, fontStyle: 'bold', fontSize: 7 },
+      bodyStyles: { fontSize: 7 },
+      columnStyles: { 3: { cellWidth: 55 }, 7: { cellWidth: 32 }, 8: { cellWidth: 30 } },
     });
     if (completedJobs.length > 0) {
       const y2 = (doc as any).lastAutoTable.finalY + 8;
       doc.setFontSize(10); doc.setFont('helvetica', 'bold'); doc.setTextColor(34, 197, 94);
-      doc.text('Completed Jobs', 10, y2 + 5);
+      doc.text('Completed Jobs', 10, y2 + 4);
       autoTable(doc, {
-        startY: y2 + 9, margin: { left: 10, right: 10 },
-        head: [['Job ID', 'Asset', 'Description', 'Assigned To', 'Completed By', 'Completed Date']],
-        body: completedJobs.map(j => [j.jobId, j.asset||'—', j.description, j.assignedTo||'—', j.completedBy||'—', fmtDate(j.completedDate)]),
-        headStyles: { fillColor: [20, 83, 45], textColor: 255, fontStyle: 'bold', fontSize: 8 },
-        bodyStyles: { fontSize: 8 },
+        startY: y2 + 8, margin: { left: 10, right: 10 },
+        head: [['#', 'Created Date', 'Area / Location', 'Description', 'Priority', 'Responsible', 'Status', 'Doing / Completed By', 'Remarks']],
+        body: completedJobs.map((j, i) => [i + 1, fmtDate(j.createdDate), j.asset||'—', j.description, j.priority, j.assignedTo||'—', j.status, j.completedBy||'—', j.remarks||'—']),
+        headStyles: { fillColor: [20, 83, 45], textColor: 255, fontStyle: 'bold', fontSize: 7 },
+        bodyStyles: { fontSize: 7 },
+        columnStyles: { 3: { cellWidth: 55 }, 7: { cellWidth: 32 }, 8: { cellWidth: 30 } },
       });
     }
     doc.save(`Job_Tracker_${today}.pdf`);
@@ -575,16 +587,32 @@ export default function JobTracker() {
   // ── Excel export ──
   const downloadXLS = () => {
     const wb = XLSX.utils.book_new();
-    const activeSheet = XLSX.utils.json_to_sheet(activeJobs.map(j => ({
-      'Job ID': j.jobId, 'Asset': j.asset, 'Description': j.description,
-      'Priority': j.priority, 'Assigned To': j.assignedTo, 'Created Date': j.createdDate,
-      'Due Date': j.dueDate, 'Status': j.status, 'Days Pending': daysPending(j.createdDate), 'Remarks': j.remarks,
+    const cols = [14, 18, 52, 12, 16, 16, 26, 30].map(w => ({ wch: w }));
+    const activeSheet = XLSX.utils.json_to_sheet(activeJobs.map((j, i) => ({
+      '#': i + 1,
+      'Created Date': fmtDate(j.createdDate),
+      'Area / Location': j.asset || '',
+      'Description': j.description,
+      'Priority': j.priority,
+      'Responsible': j.assignedTo || '',
+      'Status': j.status,
+      'Doing / Completed By': j.completedBy || '',
+      'Remarks': j.remarks || '',
     })));
+    activeSheet['!cols'] = [{ wch: 5 }, ...cols];
     XLSX.utils.book_append_sheet(wb, activeSheet, 'Pending Jobs');
-    const completedSheet = XLSX.utils.json_to_sheet(completedJobs.map(j => ({
-      'Job ID': j.jobId, 'Asset': j.asset, 'Description': j.description,
-      'Assigned To': j.assignedTo, 'Completed By': j.completedBy, 'Completed Date': j.completedDate,
+    const completedSheet = XLSX.utils.json_to_sheet(completedJobs.map((j, i) => ({
+      '#': i + 1,
+      'Created Date': fmtDate(j.createdDate),
+      'Area / Location': j.asset || '',
+      'Description': j.description,
+      'Priority': j.priority,
+      'Responsible': j.assignedTo || '',
+      'Status': j.status,
+      'Doing / Completed By': j.completedBy || '',
+      'Remarks': j.remarks || '',
     })));
+    completedSheet['!cols'] = [{ wch: 5 }, ...cols];
     XLSX.utils.book_append_sheet(wb, completedSheet, 'Completed Jobs');
     const flwSheet = XLSX.utils.json_to_sheet(followupJobs.map(f => ({
       'Followup ID': f.followupId, 'Related Job': f.relatedJobId, 'Description': f.description,
