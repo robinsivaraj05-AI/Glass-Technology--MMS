@@ -410,7 +410,7 @@ export default function Employees() {
                   return (
                   <tr key={e.id} style={{ cursor: 'pointer' }} onClick={() => navigate(`/employees/${e.id}`)}>
                     <td style={{ fontFamily: 'monospace', color: '#60a5fa', fontSize: 11 }}>{e.empId}</td>
-                    <td style={{ fontWeight: 600, color: '#e2e8f0' }}>
+                    <td>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                         {e.photo ? (
                           <img src={e.photo} alt={e.name} style={{ width: 28, height: 28, borderRadius: '50%', objectFit: 'cover', flexShrink: 0, border: '1px solid rgba(59,130,246,0.4)' }} />
@@ -419,7 +419,7 @@ export default function Employees() {
                             {e.name.split(' ').map((n: string) => n[0]).join('').slice(0, 2)}
                           </div>
                         )}
-                        {e.name}
+                        <span style={{ fontWeight: 700, color: '#111827', fontSize: 13 }}>{e.name}</span>
                       </div>
                     </td>
                     <td style={{ fontSize: 11, color: '#94a3b8' }}>{e.department}</td>

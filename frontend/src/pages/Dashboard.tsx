@@ -91,22 +91,8 @@ const REMINDERS = [
 ];
 
 // ─── Pending jobs ─────────────────────────────────────────────────────────────
-const JOBS = [
-  { id:'JOB-2025-001', equipment:'Furnace Motor M-12',       due:'20 Aug 2025', priority:'Critical', person:'Ahmed Ali', status:'Open'        },
-  { id:'JOB-2025-002', equipment:'Lehr Conveyor Belt',        due:'22 Aug 2025', priority:'High',     person:'Mohammed',  status:'In Progress' },
-  { id:'JOB-2025-003', equipment:'PLC Rack — Zone 3',         due:'25 Aug 2025', priority:'Medium',   person:'Rabin',     status:'Open'        },
-  { id:'JOB-2025-004', equipment:'Pressure Transmitter PT-204',due:'28 Aug 2025',priority:'High',     person:'Suresh',    status:'On Hold'     },
-  { id:'JOB-2025-005', equipment:'MCC Panel Section 5',       due:'30 Aug 2025', priority:'Low',      person:'Kumar',     status:'Open'        },
-];
-
-// ─── Follow-ups ───────────────────────────────────────────────────────────────
-const FOLLOWUPS = [
-  { id:'FLW-001', date:'18 Aug', owner:'Ahmed Ali', next:'Get spare motor from store',  progress:60, color:'#3B82F6' },
-  { id:'FLW-002', date:'19 Aug', owner:'Mohammed',  next:'Await vendor quotation',       progress:30, color:'#F59E0B' },
-  { id:'FLW-003', date:'20 Aug', owner:'Rabin',     next:'PLC program backup complete',  progress:80, color:'#22C55E' },
-  { id:'FLW-004', date:'21 Aug', owner:'Suresh',    next:'Calibration cert received',    progress:90, color:'#22C55E' },
-  { id:'FLW-005', date:'22 Aug', owner:'Kumar',     next:'Switchgear inspection done',   progress:20, color:'#EF4444' },
-];
+// ─── Area order (same as Job Tracker) ─────────────────────────────────────────
+const DASH_AREA_LIST = ['Batch Plant','Furnace','Rolling Machine','Lehr','Cutting Line','Cullet Return','Solar Line','Green House','Utility','Diesel Engine','UPS','Electrical Panel','Raw Material','General','Power Plant','IT','Project'];
 
 // ─── Chart data ───────────────────────────────────────────────────────────────
 const pmTrend = [
@@ -189,12 +175,24 @@ export default function Dashboard() {
   const { user } = useAuth();
   const navigate = useNavigate();
   const [orgPositions, setOrgPositions] = useState<any[]>([]);
+  const [dashJobs,     setDashJobs]     = useState<any[]>([]);
+  const [dashFollowups,setDashFollowups]= useState<any[]>([]);
 
   useEffect(() => {
-    fetch('/api/org-positions')
-      .then(r => r.json())
-      .then(d => setOrgPositions(Array.isArray(d) ? d : []))
-      .catch(() => {});
+    fetch('/api/org-positions').then(r => r.json()).then(d => setOrgPositions(Array.isArray(d) ? d : [])).catch(() => {});
+    fetch('/api/pending-jobs').then(r => r.json()).then(d => {
+      if (Array.isArray(d)) {
+        const active = d.filter((j: any) => j.status !== 'Completed')
+          .sort((a: any, b: any) => {
+            const ai = DASH_AREA_LIST.indexOf(a.asset || ''); const bi = DASH_AREA_LIST.indexOf(b.asset || '');
+            return (ai === -1 ? 999 : ai) - (bi === -1 ? 999 : bi);
+          });
+        setDashJobs(active.slice(0, 5));
+      }
+    }).catch(() => {});
+    fetch('/api/followup-jobs').then(r => r.json()).then(d => {
+      if (Array.isArray(d)) setDashFollowups(d.filter((f: any) => f.status !== 'Completed' && f.status !== 'Cancelled').slice(0, 5));
+    }).catch(() => {});
   }, []);
 
   // Mirror exact logic from OrgChartSummary
@@ -478,25 +476,36 @@ export default function Dashboard() {
 
         {/* Pending Jobs */}
         <div style={{ ...CARD, padding:'16px' }}>
-          <SectionTitle icon={<ClipboardList size={15}/>} label="Pending Jobs" action="View All"/>
+          <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:16 }}>
+            <div style={{ display:'flex', alignItems:'center', gap:8 }}>
+              <span style={{ color:'#374151' }}><ClipboardList size={15}/></span>
+              <span style={{ fontSize:14, fontWeight:800, color:'#1E293B' }}>Pending Jobs</span>
+              <span style={{ fontSize:11, color:'#9CA3AF' }}>({dashJobs.length} shown)</span>
+            </div>
+            <span onClick={() => navigate('/job-tracker')} style={{ fontSize:11, color:'#3B82F6', fontWeight:700, cursor:'pointer', display:'flex', alignItems:'center', gap:2 }}>View All <ChevronRight size={12}/></span>
+          </div>
           <div style={{ overflowX:'auto' }}>
             <table style={{ width:'100%', borderCollapse:'collapse' }}>
               <thead>
                 <tr style={{ background:'#F8FAFC' }}>
-                  {['Job ID','Equipment','Due Date','Priority','Responsible','Status'].map(h=>(
+                  {['Area / Location','Description','Priority','Responsible','Status'].map(h=>(
                     <th key={h} style={{ padding:'9px 10px',textAlign:'left',fontSize:9,fontWeight:800,color:'#6B7280',textTransform:'uppercase',letterSpacing:0.8,borderBottom:'2px solid #F1F5F9',whiteSpace:'nowrap' }}>{h}</th>
                   ))}
                 </tr>
               </thead>
               <tbody>
-                {JOBS.map((j,i)=>(
-                  <tr key={j.id} style={{ background:i%2===0?'#FAFAFA':'#FFF', transition:'background 0.15s' }}>
-                    <td style={{ padding:'10px 10px',fontSize:11,fontFamily:'monospace',color:'#3B82F6',fontWeight:700,whiteSpace:'nowrap' }}>{j.id}</td>
-                    <td style={{ padding:'10px 10px',fontSize:11,color:'#374151',fontWeight:600,maxWidth:140,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap' }}>{j.equipment}</td>
-                    <td style={{ padding:'10px 10px',fontSize:11,color:'#6B7280',whiteSpace:'nowrap' }}>{j.due}</td>
-                    <td style={{ padding:'10px 10px' }}><PrioBadge p={j.priority}/></td>
-                    <td style={{ padding:'10px 10px',fontSize:11,color:'#374151' }}>{j.person}</td>
-                    <td style={{ padding:'10px 10px' }}><StatBadge s={j.status}/></td>
+                {dashJobs.length === 0 && (
+                  <tr><td colSpan={5} style={{ padding:'24px 10px', textAlign:'center', color:'#9CA3AF', fontSize:12 }}>No active pending jobs</td></tr>
+                )}
+                {dashJobs.map((j,i)=>(
+                  <tr key={j._id||j.id} style={{ background:i%2===0?'#FAFAFA':'#FFF' }}>
+                    <td style={{ padding:'9px 10px' }}>
+                      <span style={{ display:'inline-block', padding:'2px 8px', borderRadius:6, background:'#EFF6FF', color:'#1D4ED8', fontWeight:700, fontSize:11, whiteSpace:'nowrap' }}>{j.asset || '—'}</span>
+                    </td>
+                    <td style={{ padding:'9px 10px',fontSize:11,color:'#374151',fontWeight:500,maxWidth:160,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap' }}>{j.description}</td>
+                    <td style={{ padding:'9px 10px' }}><PrioBadge p={j.priority}/></td>
+                    <td style={{ padding:'9px 10px',fontSize:11,color:'#374151' }}>{j.assignedTo || '—'}</td>
+                    <td style={{ padding:'9px 10px' }}><StatBadge s={j.status}/></td>
                   </tr>
                 ))}
               </tbody>
@@ -506,29 +515,45 @@ export default function Dashboard() {
 
         {/* Follow-up Widget */}
         <div style={{ ...CARD, padding:'16px' }}>
-          <SectionTitle icon={<RefreshCw size={15}/>} label="Follow-up Status" action="View All"/>
+          <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:16 }}>
+            <div style={{ display:'flex', alignItems:'center', gap:8 }}>
+              <span style={{ color:'#374151' }}><RefreshCw size={15}/></span>
+              <span style={{ fontSize:14, fontWeight:800, color:'#1E293B' }}>Follow-up Status</span>
+            </div>
+            <span onClick={() => navigate('/job-tracker')} style={{ fontSize:11, color:'#3B82F6', fontWeight:700, cursor:'pointer', display:'flex', alignItems:'center', gap:2 }}>View All <ChevronRight size={12}/></span>
+          </div>
           <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
-            {FOLLOWUPS.map((f,i)=>(
-              <div key={f.id} style={{ background:'#FAFAFA', borderRadius:12, padding:'12px 14px', border:'1px solid #F1F5F9', display:'flex', alignItems:'center', gap:12 }}>
-                {/* Avatar */}
-                <div style={{ width:38,height:38,borderRadius:'50%',background:`${f.color}20`,border:`2px solid ${f.color}40`,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0,fontSize:13,fontWeight:900,color:f.color }}>
-                  {f.owner.charAt(0)}
-                </div>
-                <div style={{ flex:1, minWidth:0 }}>
-                  <div style={{ display:'flex', justifyContent:'space-between', marginBottom:3 }}>
-                    <span style={{ fontSize:12,fontWeight:700,color:'#374151' }}>{f.owner}</span>
-                    <span style={{ fontSize:10,color:'#9CA3AF' }}>{f.date}</span>
+            {dashFollowups.length === 0 && (
+              <div style={{ textAlign:'center', padding:'24px 0', color:'#9CA3AF', fontSize:12 }}>No open follow-ups</div>
+            )}
+            {dashFollowups.map((f)=>{
+              const progressMap: Record<string,number> = { Pending:20, 'In Progress':60, Completed:100, Cancelled:0 };
+              const colorMap: Record<string,string>   = { Pending:'#F59E0B', 'In Progress':'#3B82F6', Completed:'#22C55E', Cancelled:'#EF4444' };
+              const progress = progressMap[f.status] ?? 20;
+              const color    = colorMap[f.status]   ?? '#F59E0B';
+              const owner    = f.responsiblePerson || '?';
+              const dateStr  = f.nextFollowupDate ? new Date(f.nextFollowupDate).toLocaleDateString('en-GB',{day:'numeric',month:'short'}) : '—';
+              return (
+                <div key={f._id||f.id} style={{ background:'#FAFAFA', borderRadius:12, padding:'12px 14px', border:'1px solid #F1F5F9', display:'flex', alignItems:'center', gap:12 }}>
+                  <div style={{ width:38,height:38,borderRadius:'50%',background:`${color}20`,border:`2px solid ${color}40`,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0,fontSize:13,fontWeight:900,color }}>
+                    {owner.charAt(0).toUpperCase()}
                   </div>
-                  <div style={{ fontSize:11,color:'#6B7280',marginBottom:6,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap' }}>{f.next}</div>
-                  <div style={{ display:'flex', alignItems:'center', gap:8 }}>
-                    <div style={{ flex:1,height:5,background:'#F3F4F6',borderRadius:99,overflow:'hidden' }}>
-                      <div style={{ height:'100%',width:`${f.progress}%`,background:f.color,borderRadius:99 }}/>
+                  <div style={{ flex:1, minWidth:0 }}>
+                    <div style={{ display:'flex', justifyContent:'space-between', marginBottom:3 }}>
+                      <span style={{ fontSize:12,fontWeight:700,color:'#374151' }}>{owner}</span>
+                      <span style={{ fontSize:10,color:'#9CA3AF' }}>{dateStr}</span>
                     </div>
-                    <span style={{ fontSize:10,fontWeight:800,color:f.color,flexShrink:0 }}>{f.progress}%</span>
+                    <div style={{ fontSize:11,color:'#6B7280',marginBottom:6,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap' }}>{f.description}</div>
+                    <div style={{ display:'flex', alignItems:'center', gap:8 }}>
+                      <div style={{ flex:1,height:5,background:'#F3F4F6',borderRadius:99,overflow:'hidden' }}>
+                        <div style={{ height:'100%',width:`${progress}%`,background:color,borderRadius:99,transition:'width 0.4s' }}/>
+                      </div>
+                      <span style={{ fontSize:10,fontWeight:800,color,flexShrink:0 }}>{f.status}</span>
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       </div>
