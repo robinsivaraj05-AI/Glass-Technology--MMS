@@ -165,13 +165,13 @@ const StatBadge = ({ s }: { s:string }) => {
   return <span style={{ fontSize:10,fontWeight:800,padding:'2px 9px',borderRadius:20,background:c.bg,color:c.tc,border:`1px solid ${c.tc}40` }}>{s}</span>;
 };
 
-function EquipBadge({ gradient, icon }: { gradient:string; icon:React.ReactNode }) {
+function EquipBadge({ gradient, icon, w=78, h=68 }: { gradient:string; icon:React.ReactNode; w?:number; h?:number }) {
   return (
-    <div style={{ width:78, height:68, borderRadius:14, background:gradient, flexShrink:0, display:'flex',
+    <div style={{ width:w, height:h, borderRadius:12, background:gradient, flexShrink:0, display:'flex',
       alignItems:'center', justifyContent:'center', position:'relative', overflow:'hidden',
       boxShadow:'0 4px 14px rgba(0,0,0,0.18)' }}>
-      <div style={{ position:'absolute', top:-14, right:-14, width:44, height:44, borderRadius:'50%', background:'rgba(255,255,255,0.18)' }}/>
-      <div style={{ position:'absolute', bottom:-12, left:-12, width:36, height:36, borderRadius:'50%', background:'rgba(255,255,255,0.10)' }}/>
+      <div style={{ position:'absolute', top:-10, right:-10, width:34, height:34, borderRadius:'50%', background:'rgba(255,255,255,0.18)' }}/>
+      <div style={{ position:'absolute', bottom:-8, left:-8, width:26, height:26, borderRadius:'50%', background:'rgba(255,255,255,0.10)' }}/>
       <div style={{ color:'#fff', position:'relative', zIndex:1, opacity:0.96 }}>{icon}</div>
     </div>
   );
@@ -253,60 +253,60 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* ══ KPI CARDS ══════════════════════════════════════════════════════════ */}
-      <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:14, marginBottom:20 }}>
+      {/* ══ KPI CARDS — all 8 in one row ══════════════════════════════════════ */}
+      <div style={{ display:'grid', gridTemplateColumns:'repeat(8,1fr)', gap:10, marginBottom:16 }}>
         {KPIS.map(k => (
-          <div key={k.id} style={{ ...CARD, padding:'18px 20px', background:k.bg, border:`1px solid ${k.border}`, position:'relative', overflow:'hidden' }}>
-            {/* Subtle top line */}
+          <div key={k.id} style={{ ...CARD, padding:'12px 14px', background:k.bg, border:`1px solid ${k.border}`, position:'relative', overflow:'hidden' }}>
+            {/* Top accent line */}
             <div style={{ position:'absolute', top:0, left:0, right:0, height:3, background:k.gradient, borderRadius:'16px 16px 0 0' }}/>
-            <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:14 }}>
-              <div>
-                <div style={{ fontSize:9, fontWeight:800, color:'#9CA3AF', textTransform:'uppercase', letterSpacing:1.2, marginBottom:3 }}>{k.label}</div>
-                <div style={{ fontSize:10, color:'#9CA3AF', lineHeight:1.4, maxWidth:120 }}>{k.sub}</div>
+            {/* Label row + badge */}
+            <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:8 }}>
+              <div style={{ flex:1, minWidth:0, paddingRight:6 }}>
+                <div style={{ fontSize:11, fontWeight:800, color:'#6B7280', textTransform:'uppercase', letterSpacing:0.8, lineHeight:1.3 }}>{k.label}</div>
               </div>
-              <EquipBadge gradient={k.gradient} icon={k.icon}/>
+              <EquipBadge gradient={k.gradient} icon={k.icon} w={52} h={46}/>
             </div>
-            <div style={{ display:'flex', alignItems:'baseline', gap:5, marginBottom:10 }}>
-              <span style={{ fontSize:34, fontWeight:900, color:k.color, lineHeight:1, letterSpacing:-1 }}>{k.value}</span>
-              <span style={{ fontSize:13, color:'#6B7280', fontWeight:600 }}>{k.unit}</span>
+            {/* Value */}
+            <div style={{ display:'flex', alignItems:'baseline', gap:4, marginBottom:8 }}>
+              <span style={{ fontSize:30, fontWeight:900, color:k.color, lineHeight:1, letterSpacing:-1 }}>{k.value}</span>
+              <span style={{ fontSize:14, color:'#6B7280', fontWeight:700 }}>{k.unit}</span>
             </div>
             {/* Trend */}
-            <div style={{ display:'flex', alignItems:'center', gap:6, padding:'5px 9px', background:'rgba(255,255,255,0.7)', borderRadius:8, width:'fit-content' }}>
+            <div style={{ display:'flex', alignItems:'center', gap:4, padding:'3px 7px', background:'rgba(255,255,255,0.75)', borderRadius:7, width:'fit-content' }}>
               {k.trend === 'up'
-                ? <ArrowUpRight size={13} color="#22C55E"/>
-                : <ArrowDownRight size={13} color="#EF4444"/>}
+                ? <ArrowUpRight size={12} color="#22C55E"/>
+                : <ArrowDownRight size={12} color="#EF4444"/>}
               <span style={{ fontSize:11, fontWeight:800, color:k.trend==='up'?'#22C55E':'#EF4444' }}>{k.trendVal}</span>
-              <span style={{ fontSize:10, color:'#9CA3AF' }}>vs last month</span>
             </div>
             {/* Equip label */}
-            <div style={{ position:'absolute', bottom:8, right:10, fontSize:8, color:'#9CA3AF', fontStyle:'italic' }}>{k.equip}</div>
+            <div style={{ position:'absolute', bottom:5, right:8, fontSize:8, color:'#9CA3AF', fontStyle:'italic' }}>{k.equip}</div>
           </div>
         ))}
       </div>
 
       {/* ══ STATUS CARDS ════════════════════════════════════════════════════════ */}
-      <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:14, marginBottom:20 }}>
+      <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:10, marginBottom:16 }}>
         {STATUS_CARDS.map((s,i) => (
-          <div key={i} style={{ ...CARD, padding:'18px 20px', display:'flex', alignItems:'center', gap:16,
+          <div key={i} style={{ ...CARD, padding:'14px 18px', display:'flex', alignItems:'center', gap:14,
             borderLeft:`4px solid ${s.borderLeft}`, background:s.bg, border:`1px solid ${s.border}`,
             borderLeftColor:s.borderLeft, position:'relative', overflow:'hidden' }}>
-            <div style={{ width:52, height:52, borderRadius:14, background:`${s.color}18`, display:'flex', alignItems:'center', justifyContent:'center', color:s.color, flexShrink:0 }}>
+            <div style={{ width:46, height:46, borderRadius:13, background:`${s.color}18`, display:'flex', alignItems:'center', justifyContent:'center', color:s.color, flexShrink:0 }}>
               {s.icon}
             </div>
             <div>
-              <div style={{ fontSize:30, fontWeight:900, color:s.color, lineHeight:1, letterSpacing:-1 }}>{s.value}</div>
-              <div style={{ fontSize:12, fontWeight:700, color:'#374151', marginTop:3 }}>{s.label}</div>
-              <div style={{ fontSize:10, color:'#6B7280', marginTop:2 }}>{s.sub}</div>
+              <div style={{ fontSize:32, fontWeight:900, color:s.color, lineHeight:1, letterSpacing:-1 }}>{s.value}</div>
+              <div style={{ fontSize:13, fontWeight:700, color:'#374151', marginTop:3 }}>{s.label}</div>
+              <div style={{ fontSize:11, color:'#6B7280', marginTop:2 }}>{s.sub}</div>
             </div>
           </div>
         ))}
       </div>
 
       {/* ══ MIDDLE ROW ══════════════════════════════════════════════════════════ */}
-      <div style={{ display:'grid', gridTemplateColumns:'220px 1fr 220px 240px', gap:14, marginBottom:20, alignItems:'start' }}>
+      <div style={{ display:'grid', gridTemplateColumns:'220px 1fr 220px 240px', gap:10, marginBottom:16, alignItems:'start' }}>
 
         {/* Staffing Overview */}
-        <div style={{ ...CARD, padding:'20px' }}>
+        <div style={{ ...CARD, padding:'16px' }}>
           <SectionTitle icon={<Users size={15}/>} label="Staffing" />
           {/* Engineer banner */}
           <div style={{ borderRadius:14, background:'linear-gradient(135deg,#1E40AF 0%,#3B82F6 60%,#06B6D4 100%)', padding:'14px 16px', marginBottom:16, display:'flex', alignItems:'center', gap:12 }}>
@@ -340,7 +340,7 @@ export default function Dashboard() {
         </div>
 
         {/* Project Financials */}
-        <div style={{ ...CARD, padding:'20px' }}>
+        <div style={{ ...CARD, padding:'16px' }}>
           <SectionTitle icon={<DollarSign size={15}/>} label="Project Financials" action="Full Report"/>
           {/* Summary tiles */}
           <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:10, marginBottom:18 }}>
@@ -399,7 +399,7 @@ export default function Dashboard() {
         </div>
 
         {/* Maintenance Progress */}
-        <div style={{ ...CARD, padding:'20px' }}>
+        <div style={{ ...CARD, padding:'16px' }}>
           <SectionTitle icon={<BarChart2 size={15}/>} label="Maintenance" />
           <div style={{ textAlign:'center', marginBottom:14 }}>
             <div style={{ height:120, position:'relative' }}>
@@ -437,7 +437,7 @@ export default function Dashboard() {
         </div>
 
         {/* Reminder Center */}
-        <div style={{ ...CARD, padding:'20px' }}>
+        <div style={{ ...CARD, padding:'16px' }}>
           <SectionTitle icon={<Bell size={15}/>} label="Reminder Center" action="All"/>
           <div style={{ display:'flex', flexDirection:'column', gap:9 }}>
             {REMINDERS.map((r,i)=>(
@@ -459,10 +459,10 @@ export default function Dashboard() {
       </div>
 
       {/* ══ JOBS & FOLLOW-UP ════════════════════════════════════════════════════ */}
-      <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:14, marginBottom:20 }}>
+      <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10, marginBottom:14 }}>
 
         {/* Pending Jobs */}
-        <div style={{ ...CARD, padding:'20px' }}>
+        <div style={{ ...CARD, padding:'16px' }}>
           <SectionTitle icon={<ClipboardList size={15}/>} label="Pending Jobs" action="View All"/>
           <div style={{ overflowX:'auto' }}>
             <table style={{ width:'100%', borderCollapse:'collapse' }}>
@@ -490,7 +490,7 @@ export default function Dashboard() {
         </div>
 
         {/* Follow-up Widget */}
-        <div style={{ ...CARD, padding:'20px' }}>
+        <div style={{ ...CARD, padding:'16px' }}>
           <SectionTitle icon={<RefreshCw size={15}/>} label="Follow-up Status" action="View All"/>
           <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
             {FOLLOWUPS.map((f,i)=>(
@@ -519,10 +519,10 @@ export default function Dashboard() {
       </div>
 
       {/* ══ CHARTS ROW 1 ════════════════════════════════════════════════════════ */}
-      <div style={{ display:'grid', gridTemplateColumns:'1.8fr 1fr 0.85fr 0.85fr', gap:14, marginBottom:20 }}>
+      <div style={{ display:'grid', gridTemplateColumns:'1.8fr 1fr 0.85fr 0.85fr', gap:10, marginBottom:14 }}>
 
         {/* PM Compliance Trend */}
-        <div style={{ ...CARD, padding:'20px' }}>
+        <div style={{ ...CARD, padding:'16px' }}>
           <SectionTitle icon={<TrendingUp size={15}/>} label="PM Compliance Trend"/>
           <div style={{ display:'flex', gap:16, marginBottom:12 }}>
             <div style={{ fontSize:28,fontWeight:900,color:'#22C55E' }}>94.2<span style={{ fontSize:14,color:'#6B7280',fontWeight:600 }}>%</span></div>
@@ -546,7 +546,7 @@ export default function Dashboard() {
         </div>
 
         {/* Breakdown Analysis */}
-        <div style={{ ...CARD, padding:'20px' }}>
+        <div style={{ ...CARD, padding:'16px' }}>
           <SectionTitle icon={<AlertTriangle size={15}/>} label="Breakdown Analysis"/>
           <div style={{ height:220 }}>
             <ResponsiveContainer width="100%" height="100%">
@@ -564,7 +564,7 @@ export default function Dashboard() {
         </div>
 
         {/* Equipment Health */}
-        <div style={{ ...CARD, padding:'20px' }}>
+        <div style={{ ...CARD, padding:'16px' }}>
           <SectionTitle icon={<Activity size={15}/>} label="Equipment Health"/>
           <div style={{ height:140, position:'relative' }}>
             <ResponsiveContainer width="100%" height="100%">
@@ -594,7 +594,7 @@ export default function Dashboard() {
         </div>
 
         {/* WO Status */}
-        <div style={{ ...CARD, padding:'20px' }}>
+        <div style={{ ...CARD, padding:'16px' }}>
           <SectionTitle icon={<CheckCircle size={15}/>} label="Work Order Status"/>
           <div style={{ height:140, position:'relative' }}>
             <ResponsiveContainer width="100%" height="100%">
@@ -625,10 +625,10 @@ export default function Dashboard() {
       </div>
 
       {/* ══ CHARTS ROW 2 ════════════════════════════════════════════════════════ */}
-      <div style={{ display:'grid', gridTemplateColumns:'1.8fr 1fr 1fr 1fr', gap:14 }}>
+      <div style={{ display:'grid', gridTemplateColumns:'1.8fr 1fr 1fr 1fr', gap:10 }}>
 
         {/* Monthly Maintenance Cost */}
-        <div style={{ ...CARD, padding:'20px' }}>
+        <div style={{ ...CARD, padding:'16px' }}>
           <SectionTitle icon={<DollarSign size={15}/>} label="Monthly Maintenance Cost (AED '000)"/>
           <div style={{ height:200 }}>
             <ResponsiveContainer width="100%" height="100%">
@@ -654,7 +654,7 @@ export default function Dashboard() {
         </div>
 
         {/* Energy Consumption */}
-        <div style={{ ...CARD, padding:'20px' }}>
+        <div style={{ ...CARD, padding:'16px' }}>
           <SectionTitle icon={<Zap size={15}/>} label="Energy Consumption"/>
           <div style={{ marginBottom:12 }}>
             <div style={{ fontSize:26,fontWeight:900,color:'#F59E0B' }}>131K<span style={{ fontSize:12,color:'#6B7280',fontWeight:600 }}> kWh</span></div>
@@ -680,7 +680,7 @@ export default function Dashboard() {
         </div>
 
         {/* MTBF Trend */}
-        <div style={{ ...CARD, padding:'20px' }}>
+        <div style={{ ...CARD, padding:'16px' }}>
           <SectionTitle icon={<TrendingUp size={15}/>} label="MTBF Trend"/>
           <div style={{ marginBottom:12 }}>
             <div style={{ fontSize:26,fontWeight:900,color:'#3B82F6' }}>342<span style={{ fontSize:12,color:'#6B7280',fontWeight:600 }}> hrs</span></div>
@@ -709,7 +709,7 @@ export default function Dashboard() {
         </div>
 
         {/* MTTR Trend */}
-        <div style={{ ...CARD, padding:'20px' }}>
+        <div style={{ ...CARD, padding:'16px' }}>
           <SectionTitle icon={<TrendingDown size={15}/>} label="MTTR Trend"/>
           <div style={{ marginBottom:12 }}>
             <div style={{ fontSize:26,fontWeight:900,color:'#22C55E' }}>2.3<span style={{ fontSize:12,color:'#6B7280',fontWeight:600 }}> hrs</span></div>
