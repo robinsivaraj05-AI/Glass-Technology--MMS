@@ -57,16 +57,26 @@ const FREQ_COLORS: Record<string, string> = {
   Daily: '#60a5fa', Weekly: '#34d399', Monthly: '#a78bfa', Quarterly: '#f59e0b', Yearly: '#f472b6',
 };
 const FREQUENCIES  = ['Daily', 'Weekly', 'Monthly', 'Quarterly', 'Yearly'];
-const JOB_STATUSES    = ['Open', 'Completed', 'Partially Done', 'Follow Up'];
-const FLW_STATUSES    = ['Pending', 'In Progress', 'Completed', 'Cancelled'];
-const PRIORITIES      = ['Low', 'Medium', 'High', 'Critical'];
+const JOB_STATUSES     = ['Open', 'Completed', 'Partially Done', 'Follow Up'];
+const FLW_STATUSES     = ['Pending', 'In Progress', 'Completed', 'Cancelled'];
+const PRIORITIES       = ['Low', 'Medium', 'High', 'Critical'];
 const RESPONSIBLE_LIST = ['GT-E&I', 'EBC', 'Creative', 'GT-PUR', 'GT-IT', 'Contractor', 'GT-M&U', 'GT-PRD', 'OEM', 'Others'];
+const AREA_LIST        = ['Batch Plant', 'Furnace', 'Rolling Machine', 'Lehr', 'Cutting Line', 'Cullet Return', 'Solar Line', 'Green House', 'Utility', 'Diesel Engine', 'UPS', 'Electrical Panel', 'Admin Block', 'GYM', 'Staff Room', 'Guard Room', 'Raw Material'];
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 const today = new Date().toISOString().slice(0, 10);
 function fmtDate(iso: string) {
   if (!iso) return '—';
-  return new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: '2-digit' });
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return '—';
+  return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: '2-digit' });
+}
+function toIsoDate(val: string) {
+  if (!val) return '';
+  if (/^\d{4}-\d{2}-\d{2}$/.test(val)) return val;
+  const d = new Date(val);
+  if (isNaN(d.getTime())) return '';
+  return d.toISOString().slice(0, 10);
 }
 function daysPending(d: string) { return d ? Math.floor((Date.now() - new Date(d).getTime()) / 86400000) : 0; }
 function daysUntil(d: string)   { return d ? Math.ceil((new Date(d).getTime() - Date.now()) / 86400000) : null; }
@@ -351,9 +361,24 @@ export default function JobTracker() {
     } catch (e: any) { alert(e.message); }
   };
 
+  const updateArea = async (j: PendingJob, area: string) => {
+    try {
+      const up = await apiFetch(`/api/pending-jobs/${j.id}`, { method: 'PUT', body: JSON.stringify({ asset: area }) });
+      setPendingJobs(p => p.map(x => x.id === j.id ? up : x));
+    } catch (e: any) { alert(e.message); }
+  };
+
+  const updateCreatedDate = async (j: PendingJob, date: string) => {
+    if (!date) return;
+    try {
+      const up = await apiFetch(`/api/pending-jobs/${j.id}`, { method: 'PUT', body: JSON.stringify({ createdDate: date }) });
+      setPendingJobs(p => p.map(x => x.id === j.id ? up : x));
+    } catch (e: any) { alert(e.message); }
+  };
+
   const openQuickEdit = (j: PendingJob) => {
     setQuickJob(j);
-    setQuickForm({ status: j.status, assignedTo: j.assignedTo, completedBy: j.completedBy, remarks: j.remarks, dueDate: j.dueDate });
+    setQuickForm({ status: j.status, assignedTo: j.assignedTo, completedBy: j.completedBy, remarks: j.remarks, dueDate: j.dueDate, asset: j.asset, createdDate: toIsoDate(j.createdDate) });
   };
   const saveQuick = async () => {
     if (!quickJob) return;
@@ -754,8 +779,17 @@ export default function JobTracker() {
                       <tr key={j.id}>
                         <td style={{ textAlign: 'center', color: '#64748b' }}>{i + 1}</td>
                         <td style={{ fontFamily: 'monospace', color: '#60a5fa', fontWeight: 700, fontSize: 11 }}>{j.jobId || '—'}</td>
-                        <td style={{ textAlign: 'center', color: '#94a3b8', fontSize: 11 }}>{fmtDate(j.createdDate)}</td>
-                        <td style={{ color: '#374151', fontSize: 12 }}>{j.asset || '—'}</td>
+                        <td style={{ textAlign: 'center' }}>
+                          <input type="date" value={toIsoDate(j.createdDate)} onChange={e => updateCreatedDate(j, e.target.value)}
+                            style={{ border:'1px solid #E5E7EB', borderRadius:6, padding:'3px 6px', fontSize:11, color:'#374151', background:'#F8FAFC', cursor:'pointer', width:'100%' }}/>
+                        </td>
+                        <td>
+                          <select value={j.asset || ''} onChange={e => updateArea(j, e.target.value)}
+                            style={{ padding:'4px 8px', borderRadius:7, fontSize:11, fontWeight:600, background:'#F8FAFC', color: j.asset ? '#1E293B' : '#9CA3AF', border:'1px solid #E5E7EB', cursor:'pointer', width:'100%', minWidth:110 }}>
+                            <option value="">— Select —</option>
+                            {AREA_LIST.map(a => <option key={a} value={a}>{a}</option>)}
+                          </select>
+                        </td>
                         <td style={{ fontWeight: 500, color: '#1e293b' }}>{j.description}</td>
                         <td style={{ textAlign: 'center' }}><Badge label={j.priority} cfg={pc} /></td>
                         <td style={{ color: '#374151' }}>
@@ -838,8 +872,17 @@ export default function JobTracker() {
                       <tr key={j.id}>
                         <td style={{ textAlign: 'center', color: '#64748b' }}>{i + 1}</td>
                         <td style={{ fontFamily: 'monospace', color: '#60a5fa', fontWeight: 700, fontSize: 11 }}>{j.jobId || '—'}</td>
-                        <td style={{ textAlign: 'center', color: '#94a3b8', fontSize: 11 }}>{fmtDate(j.createdDate)}</td>
-                        <td style={{ color: '#374151', fontSize: 12 }}>{j.asset || '—'}</td>
+                        <td style={{ textAlign: 'center' }}>
+                          <input type="date" value={toIsoDate(j.createdDate)} onChange={e => updateCreatedDate(j, e.target.value)}
+                            style={{ border:'1px solid #E5E7EB', borderRadius:6, padding:'3px 6px', fontSize:11, color:'#374151', background:'#F8FAFC', cursor:'pointer', width:'100%' }}/>
+                        </td>
+                        <td>
+                          <select value={j.asset || ''} onChange={e => updateArea(j, e.target.value)}
+                            style={{ padding:'4px 8px', borderRadius:7, fontSize:11, fontWeight:600, background:'#F8FAFC', color: j.asset ? '#1E293B' : '#9CA3AF', border:'1px solid #E5E7EB', cursor:'pointer', width:'100%', minWidth:110 }}>
+                            <option value="">— Select —</option>
+                            {AREA_LIST.map(a => <option key={a} value={a}>{a}</option>)}
+                          </select>
+                        </td>
                         <td style={{ fontWeight: 500, color: '#1e293b' }}>{j.description}</td>
                         <td style={{ textAlign: 'center' }}><Badge label={j.priority} cfg={pc} /></td>
                         <td style={{ color: '#374151' }}>
@@ -1096,8 +1139,14 @@ export default function JobTracker() {
               <Field label="Doing / Completed By">
                 <EmpSelect value={quickForm.completedBy} onChange={(v:string) => setQuickForm((f:any) => ({...f, completedBy:v}))} employees={employees} placeholder="Select employee"/>
               </Field>
-              <Field label="Due Date">
-                <Input type="date" value={quickForm.dueDate} onChange={(e:any) => setQuickForm((f:any) => ({...f, dueDate:e.target.value}))}/>
+              <Field label="Area / Location">
+                <select value={quickForm.asset || ''} onChange={e => setQuickForm((f:any) => ({...f, asset: e.target.value}))} className="input-dark" style={{ width:'100%',padding:'8px 10px',fontSize:13 }}>
+                  <option value="">— Select Area —</option>
+                  {AREA_LIST.map(a => <option key={a} value={a}>{a}</option>)}
+                </select>
+              </Field>
+              <Field label="Created Date">
+                <Input type="date" value={quickForm.createdDate} onChange={(e:any) => setQuickForm((f:any) => ({...f, createdDate:e.target.value}))}/>
               </Field>
               <Field label="Remarks">
                 <Input value={quickForm.remarks} onChange={(e:any) => setQuickForm((f:any) => ({...f, remarks:e.target.value}))} placeholder="Optional remarks"/>
@@ -1118,7 +1167,10 @@ export default function JobTracker() {
         <Modal title={editJobId ? 'Edit Job' : 'Add Pending Job'} onClose={() => setShowJobForm(false)}>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
             <Field label="Area / Location">
-              <Input value={jobForm.asset} onChange={e => setJobForm(f => ({ ...f, asset: e.target.value }))} placeholder="e.g. Furnace Motor" />
+              <select value={jobForm.asset || ''} onChange={e => setJobForm(f => ({ ...f, asset: e.target.value }))} className="input-dark" style={{ width:'100%', padding:'8px 10px', fontSize:13 }}>
+                <option value="">— Select Area —</option>
+                {AREA_LIST.map(a => <option key={a} value={a}>{a}</option>)}
+              </select>
             </Field>
             <Field label="Priority">
               <select value={jobForm.priority} onChange={e => setJobForm(f => ({ ...f, priority: e.target.value }))} className="input-dark" style={{ width: '100%', padding: '8px 10px', fontSize: 13 }}>
