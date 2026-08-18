@@ -321,12 +321,18 @@ export default function JobTracker() {
   const activeJobs    = useMemo(() => pendingJobs.filter(j => j.status !== 'Completed'), [pendingJobs]);
   const completedJobs = useMemo(() => pendingJobs.filter(j => j.status === 'Completed'), [pendingJobs]);
 
-  const filteredJobs = useMemo(() => activeJobs.filter(j => {
-    if (jpStatus !== 'All' && j.status !== jpStatus) return false;
-    if (jpPriority !== 'All' && j.priority !== jpPriority) return false;
-    if (jpSearch && !`${j.jobId} ${j.asset} ${j.description} ${j.assignedTo}`.toLowerCase().includes(jpSearch.toLowerCase())) return false;
-    return true;
-  }), [activeJobs, jpSearch, jpStatus, jpPriority]);
+  const filteredJobs = useMemo(() => {
+    const list = activeJobs.filter(j => {
+      if (jpStatus !== 'All' && j.status !== jpStatus) return false;
+      if (jpPriority !== 'All' && j.priority !== jpPriority) return false;
+      if (jpSearch && !`${j.jobId} ${j.asset} ${j.description} ${j.assignedTo}`.toLowerCase().includes(jpSearch.toLowerCase())) return false;
+      return true;
+    });
+    return list.sort((a, b) => {
+      const ai = AREA_LIST.indexOf(a.asset || ''); const bi = AREA_LIST.indexOf(b.asset || '');
+      return (ai === -1 ? 999 : ai) - (bi === -1 ? 999 : bi);
+    });
+  }, [activeJobs, jpSearch, jpStatus, jpPriority]);
 
   const filteredFlw = useMemo(() => followupJobs.filter(f => {
     if (flStatus !== 'All' && f.status !== flStatus) return false;
@@ -340,10 +346,16 @@ export default function JobTracker() {
     return true;
   }), [reminders, remFreq, remStatus]);
 
-  const filteredCompleted = useMemo(() => completedJobs.filter(j => {
-    if (!cpSearch) return true;
-    return `${j.jobId} ${j.asset} ${j.description} ${j.assignedTo} ${j.completedBy}`.toLowerCase().includes(cpSearch.toLowerCase());
-  }), [completedJobs, cpSearch]);
+  const filteredCompleted = useMemo(() => {
+    const list = completedJobs.filter(j => {
+      if (!cpSearch) return true;
+      return `${j.jobId} ${j.asset} ${j.description} ${j.assignedTo} ${j.completedBy}`.toLowerCase().includes(cpSearch.toLowerCase());
+    });
+    return list.sort((a, b) => {
+      const ai = AREA_LIST.indexOf(a.asset || ''); const bi = AREA_LIST.indexOf(b.asset || '');
+      return (ai === -1 ? 999 : ai) - (bi === -1 ? 999 : bi);
+    });
+  }, [completedJobs, cpSearch]);
 
   // ── Inline status update ──
   const updateStatus = async (j: PendingJob, newStatus: string) => {
@@ -842,7 +854,7 @@ export default function JobTracker() {
                       <tr key={j.id}>
                         <td style={{ textAlign: 'center', color: '#64748b' }}>{i + 1}</td>
                         <td style={{ textAlign: 'center', color: '#374151', fontSize: 11, whiteSpace: 'nowrap' }}>{fmtDate(j.createdDate) || '—'}</td>
-                        <td><span style={{ display:'inline-block', padding:'3px 9px', borderRadius:6, background:'#EFF6FF', color:'#1D4ED8', fontWeight:600, fontSize:11, whiteSpace:'nowrap' }}>{j.asset || '—'}</span></td>
+                        <td><span style={{ display:'inline-block', padding:'3px 9px', borderRadius:6, background:'#EFF6FF', color:'#1D4ED8', fontWeight:700, fontSize:13, whiteSpace:'nowrap' }}>{j.asset || '—'}</span></td>
                         <td style={{ fontWeight: 500, color: '#1e293b' }}>{j.description}</td>
                         <td style={{ textAlign: 'center' }}><Badge label={j.priority} cfg={pc} /></td>
                         <td style={{ fontWeight: 600, fontSize: 11, color: '#374151' }}>{j.assignedTo || '—'}</td>
@@ -918,7 +930,7 @@ export default function JobTracker() {
                       <tr key={j.id}>
                         <td style={{ textAlign: 'center', color: '#64748b' }}>{i + 1}</td>
                         <td style={{ textAlign: 'center', color: '#374151', fontSize: 11, whiteSpace: 'nowrap' }}>{fmtDate(j.createdDate) || '—'}</td>
-                        <td><span style={{ display:'inline-block', padding:'3px 9px', borderRadius:6, background:'#EFF6FF', color:'#1D4ED8', fontWeight:600, fontSize:11, whiteSpace:'nowrap' }}>{j.asset || '—'}</span></td>
+                        <td><span style={{ display:'inline-block', padding:'3px 9px', borderRadius:6, background:'#EFF6FF', color:'#1D4ED8', fontWeight:700, fontSize:13, whiteSpace:'nowrap' }}>{j.asset || '—'}</span></td>
                         <td style={{ fontWeight: 500, color: '#1e293b' }}>{j.description}</td>
                         <td style={{ textAlign: 'center' }}><Badge label={j.priority} cfg={pc} /></td>
                         <td style={{ fontWeight: 600, fontSize: 11, color: '#374151' }}>{j.assignedTo || '—'}</td>
