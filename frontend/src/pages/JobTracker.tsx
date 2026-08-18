@@ -34,11 +34,13 @@ const PRIORITY_CFG: Record<string, { bg: string; tc: string }> = {
   Critical: { bg: 'rgba(168,85,247,0.15)', tc: '#a855f7' },
 };
 const JOB_STATUS_CFG: Record<string, { bg: string; tc: string }> = {
-  'Open':        { bg: 'rgba(59,130,246,0.15)',  tc: '#3b82f6' },
-  'In Progress': { bg: 'rgba(245,158,11,0.15)',  tc: '#f59e0b' },
-  'On Hold':     { bg: 'rgba(100,116,139,0.15)', tc: '#94a3b8' },
-  'Completed':   { bg: 'rgba(34,197,94,0.15)',   tc: '#22c55e' },
-  'Cancelled':   { bg: 'rgba(239,68,68,0.15)',   tc: '#ef4444' },
+  'Open':           { bg: 'rgba(59,130,246,0.15)',  tc: '#3b82f6' },
+  'Completed':      { bg: 'rgba(34,197,94,0.15)',   tc: '#22c55e' },
+  'Partially Done': { bg: 'rgba(245,158,11,0.15)',  tc: '#f59e0b' },
+  'Follow Up':      { bg: 'rgba(168,85,247,0.15)',  tc: '#a855f7' },
+  'In Progress':    { bg: 'rgba(245,158,11,0.15)',  tc: '#f59e0b' },
+  'On Hold':        { bg: 'rgba(100,116,139,0.15)', tc: '#94a3b8' },
+  'Cancelled':      { bg: 'rgba(239,68,68,0.15)',   tc: '#ef4444' },
 };
 const FLW_STATUS_CFG: Record<string, { bg: string; tc: string }> = {
   'Pending':     { bg: 'rgba(245,158,11,0.15)',  tc: '#f59e0b' },
@@ -55,7 +57,7 @@ const FREQ_COLORS: Record<string, string> = {
   Daily: '#60a5fa', Weekly: '#34d399', Monthly: '#a78bfa', Quarterly: '#f59e0b', Yearly: '#f472b6',
 };
 const FREQUENCIES  = ['Daily', 'Weekly', 'Monthly', 'Quarterly', 'Yearly'];
-const JOB_STATUSES = ['Open', 'In Progress', 'On Hold', 'Completed', 'Cancelled'];
+const JOB_STATUSES = ['Open', 'Completed', 'Partially Done', 'Follow Up'];
 const FLW_STATUSES = ['Pending', 'In Progress', 'Completed', 'Cancelled'];
 const PRIORITIES   = ['Low', 'Medium', 'High', 'Critical'];
 
@@ -68,7 +70,7 @@ function fmtDate(iso: string) {
 function daysPending(d: string) { return d ? Math.floor((Date.now() - new Date(d).getTime()) / 86400000) : 0; }
 function daysUntil(d: string)   { return d ? Math.ceil((new Date(d).getTime() - Date.now()) / 86400000) : null; }
 function isOverdue(dueDate: string, status: string) {
-  if (!dueDate || status === 'Completed' || status === 'Cancelled') return false;
+  if (!dueDate || status === 'Completed') return false;
   return new Date(dueDate) < new Date(today);
 }
 function autoId(prefix: string, list: any[]) {
@@ -141,13 +143,23 @@ const StatCard = ({ label, value, sub, color, icon }: any) => (
 // ── XLSX helpers ──────────────────────────────────────────────────────────────
 function downloadTemplate() {
   const ws = XLSX.utils.aoa_to_sheet([
-    ['Asset/Equipment', 'Description', 'Priority', 'Assigned To', 'Created Date', 'Due Date', 'Status', 'Remarks'],
-    ['Furnace Motor', 'Replace bearing on main drive motor', 'High', 'Ahmed Ali', today, '', 'Open', ''],
-    ['Lehr Belt', 'Inspect and tension lehr conveyor belt', 'Medium', 'Mohammed', today, '', 'Open', 'Check every joint'],
+    ['Created Date', 'Area / Location', 'Description', 'Priority', 'Responsible', 'Status', 'Doing / Completed By', 'Remarks'],
+    [today, 'Furnace Motor', 'Replace bearing on main drive motor', 'High', '', 'Open', 'Ahmed Ali', ''],
+    [today, 'Lehr Belt', 'Inspect and tension lehr conveyor belt', 'Medium', '', 'Open', 'Mohammed', 'Check every joint'],
   ]);
-  ws['!cols'] = [14,40,10,18,14,14,14,24].map(w => ({ wch: w }));
+  ws['!cols'] = [14, 22, 42, 12, 18, 16, 22, 28].map(w => ({ wch: w }));
+  // Style header row
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, 'Jobs');
+  // Add status options sheet as reference
+  const wsRef = XLSX.utils.aoa_to_sheet([
+    ['Status Options', 'Priority Options'],
+    ['Open',           'Low'],
+    ['Completed',      'Medium'],
+    ['Partially Done', 'High'],
+    ['Follow Up',      'Critical'],
+  ]);
+  XLSX.utils.book_append_sheet(wb, wsRef, 'Reference');
   XLSX.writeFile(wb, 'JobTracker_Template.xlsx');
 }
 
@@ -162,15 +174,16 @@ function parseUploadedFile(file: File, employees: Employee[]): Promise<any[]> {
         const rows: any[] = XLSX.utils.sheet_to_json(ws, { defval: '' });
         const parsed = rows.map((r, i) => ({
           jobId:       '',
-          asset:       String(r['Asset/Equipment'] || r['asset'] || ''),
+          asset:       String(r['Area / Location'] || r['Asset/Equipment'] || r['asset'] || ''),
           description: String(r['Description'] || r['description'] || ''),
           priority:    PRIORITIES.includes(r['Priority']) ? r['Priority'] : 'Medium',
-          assignedTo:  String(r['Assigned To'] || r['assignedTo'] || ''),
+          assignedTo:  String(r['Responsible'] || r['Assigned To'] || r['assignedTo'] || ''),
           createdDate: r['Created Date'] || today,
           dueDate:     r['Due Date'] || '',
           status:      JOB_STATUSES.includes(r['Status']) ? r['Status'] : 'Open',
           remarks:     String(r['Remarks'] || r['remarks'] || ''),
-          completedBy: '', completedDate: '',
+          completedBy: String(r['Doing / Completed By'] || r['Assigned To'] || ''),
+          completedDate: '',
         })).filter(r => r.description.trim());
         resolve(parsed);
       } catch (err) { reject(err); }
@@ -249,8 +262,8 @@ export default function JobTracker() {
   }, [pendingJobs, followupJobs, reminders]);
 
   // ── Filtered ──
-  const activeJobs = useMemo(() => pendingJobs.filter(j => j.status !== 'Completed' && j.status !== 'Cancelled'), [pendingJobs]);
-  const completedJobs = useMemo(() => pendingJobs.filter(j => j.status === 'Completed' || j.status === 'Cancelled'), [pendingJobs]);
+  const activeJobs    = useMemo(() => pendingJobs.filter(j => j.status !== 'Completed'), [pendingJobs]);
+  const completedJobs = useMemo(() => pendingJobs.filter(j => j.status === 'Completed'), [pendingJobs]);
 
   const filteredJobs = useMemo(() => activeJobs.filter(j => {
     if (jpStatus !== 'All' && j.status !== jpStatus) return false;
@@ -279,13 +292,29 @@ export default function JobTracker() {
   // ── Inline status update ──
   const updateStatus = async (j: PendingJob, newStatus: string) => {
     const patch: any = { status: newStatus };
-    if (newStatus === 'Completed') {
+    if (newStatus === 'Completed' || newStatus === 'Partially Done') {
       patch.completedDate = today;
       if (!j.completedBy) patch.completedBy = j.assignedTo || '';
     }
     try {
       const up = await apiFetch(`/api/pending-jobs/${j.id}`, { method: 'PUT', body: JSON.stringify(patch) });
       setPendingJobs(p => p.map(x => x.id === j.id ? up : x));
+      if (newStatus === 'Follow Up') {
+        const flwPayload = {
+          followupId:       autoId('FLW', followupJobs),
+          relatedJobId:     j.jobId,
+          description:      j.description,
+          nextFollowupDate: '',
+          status:           'Pending',
+          responsiblePerson: j.assignedTo || '',
+          comments:         '',
+        };
+        const newFlw = await apiFetch('/api/followup-jobs', { method: 'POST', body: JSON.stringify(flwPayload) });
+        setFollowupJobs(p => [newFlw, ...p]);
+        setTab('followup');
+      } else if (newStatus === 'Completed') {
+        setTab('completed');
+      }
     } catch (e: any) { alert(e.message); }
   };
 
@@ -299,15 +328,22 @@ export default function JobTracker() {
     if (!jobForm.description.trim()) { alert('Description is required.'); return; }
     try {
       const payload = { ...jobForm, jobId: editJobId ? jobForm.jobId : autoId('JOB', pendingJobs) };
-      if (payload.status === 'Completed' && !payload.completedDate) payload.completedDate = today;
+      if ((payload.status === 'Completed' || payload.status === 'Partially Done') && !payload.completedDate) payload.completedDate = today;
       if (editJobId) {
         const up = await apiFetch(`/api/pending-jobs/${editJobId}`, { method: 'PUT', body: JSON.stringify(payload) });
         setPendingJobs(p => p.map(x => x.id === editJobId ? up : x));
       } else {
         const cr = await apiFetch('/api/pending-jobs', { method: 'POST', body: JSON.stringify(payload) });
         setPendingJobs(p => [cr, ...p]);
+        if (payload.status === 'Follow Up') {
+          const flwPayload = { followupId: autoId('FLW', followupJobs), relatedJobId: payload.jobId, description: payload.description, nextFollowupDate: '', status: 'Pending', responsiblePerson: payload.assignedTo || '', comments: '' };
+          const newFlw = await apiFetch('/api/followup-jobs', { method: 'POST', body: JSON.stringify(flwPayload) });
+          setFollowupJobs(p => [newFlw, ...p]);
+        }
       }
       setShowJobForm(false);
+      if (payload.status === 'Completed') setTab('completed');
+      else if (payload.status === 'Follow Up') setTab('followup');
     } catch (e: any) { alert(e.message); }
   };
   const deleteJob = async (id: string) => {
@@ -946,7 +982,7 @@ export default function JobTracker() {
       {showJobForm && (
         <Modal title={editJobId ? 'Edit Job' : 'Add Pending Job'} onClose={() => setShowJobForm(false)}>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-            <Field label="Asset / Equipment">
+            <Field label="Area / Location">
               <Input value={jobForm.asset} onChange={e => setJobForm(f => ({ ...f, asset: e.target.value }))} placeholder="e.g. Furnace Motor" />
             </Field>
             <Field label="Priority">
@@ -959,7 +995,7 @@ export default function JobTracker() {
             <Textarea value={jobForm.description} onChange={e => setJobForm(f => ({ ...f, description: e.target.value }))} placeholder="Describe the job in detail…" />
           </Field>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-            <Field label="Assigned To">
+            <Field label="Responsible">
               <EmpSelect value={jobForm.assignedTo} onChange={v => setJobForm(f => ({ ...f, assignedTo: v }))} employees={employees} placeholder="Select employee" />
             </Field>
             <Field label="Status">
@@ -974,13 +1010,13 @@ export default function JobTracker() {
               <Input type="date" value={jobForm.dueDate} onChange={e => setJobForm(f => ({ ...f, dueDate: e.target.value }))} />
             </Field>
           </div>
-          {/* Show completed-by fields when status is Completed */}
-          {jobForm.status === 'Completed' && (
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, padding: '12px 14px', background: 'rgba(34,197,94,0.08)', borderRadius: 10, border: '1px solid rgba(34,197,94,0.2)', marginBottom: 14 }}>
-              <Field label="Completed By *">
-                <EmpSelect value={jobForm.completedBy} onChange={v => setJobForm(f => ({ ...f, completedBy: v }))} employees={employees} placeholder="Who completed it?" />
+          {/* Show Doing / Completed By for Completed and Partially Done */}
+          {(jobForm.status === 'Completed' || jobForm.status === 'Partially Done') && (
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, padding: '12px 14px', background: jobForm.status === 'Completed' ? 'rgba(34,197,94,0.08)' : 'rgba(245,158,11,0.08)', borderRadius: 10, border: `1px solid ${jobForm.status === 'Completed' ? 'rgba(34,197,94,0.2)' : 'rgba(245,158,11,0.2)'}`, marginBottom: 14 }}>
+              <Field label="Doing / Completed By">
+                <EmpSelect value={jobForm.completedBy} onChange={v => setJobForm(f => ({ ...f, completedBy: v }))} employees={employees} placeholder="Select employee" />
               </Field>
-              <Field label="Completed Date">
+              <Field label={jobForm.status === 'Completed' ? 'Completed Date' : 'Date'}>
                 <Input type="date" value={jobForm.completedDate || today} onChange={e => setJobForm(f => ({ ...f, completedDate: e.target.value }))} />
               </Field>
             </div>
