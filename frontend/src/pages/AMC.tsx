@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, useRef } from 'react';
+﻿import { useState, useMemo, useEffect, useRef } from 'react';
 import { useAuth } from '../context/AuthContext';
 import {
   Plus, Pencil, Trash2, Search, Download, FileSpreadsheet,
@@ -324,17 +324,17 @@ function PaymentStatusBadge({ status }: { status: string }) {
 // ── Shared styles ─────────────────────────────────────────────────────────────
 
 const S = {
-  page:       { background: '#0f172a', minHeight: '100vh', padding: '24px', color: '#e2e8f0' } as React.CSSProperties,
+  page:       { background: '#0f172a', minHeight: '100vh', padding: '24px', color: '#374151' } as React.CSSProperties,
   card:       { background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 10, padding: '16px 20px' } as React.CSSProperties,
-  input:      { background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 6, color: '#e2e8f0', padding: '8px 12px', fontSize: 13, width: '100%', boxSizing: 'border-box' as const },
-  select:     { background: 'rgba(30,30,50,0.9)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 6, color: '#e2e8f0', padding: '8px 12px', fontSize: 13, width: '100%', boxSizing: 'border-box' as const },
+  input:      { background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 6, color: '#374151', padding: '8px 12px', fontSize: 13, width: '100%', boxSizing: 'border-box' as const },
+  select:     { background: 'rgba(30,30,50,0.9)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 6, color: '#374151', padding: '8px 12px', fontSize: 13, width: '100%', boxSizing: 'border-box' as const },
   label:      { display: 'block', fontSize: 11, color: '#94a3b8', marginBottom: 4, fontWeight: 500, textTransform: 'uppercase' as const, letterSpacing: '0.05em' },
   btn:        { borderRadius: 6, padding: '8px 16px', fontSize: 13, fontWeight: 600, cursor: 'pointer', border: 'none', display: 'flex', alignItems: 'center', gap: 6 } as React.CSSProperties,
   btnPrimary: { background: 'linear-gradient(135deg,#1E3A8A,#2563EB)', color: '#fff' } as React.CSSProperties,
   btnDanger:  { background: 'rgba(239,68,68,0.15)', color: '#EF4444', border: '1px solid rgba(239,68,68,0.3)' } as React.CSSProperties,
   btnGhost:   { background: 'rgba(255,255,255,0.06)', color: '#94a3b8', border: '1px solid rgba(255,255,255,0.1)' } as React.CSSProperties,
   th:         { padding: '10px 12px', textAlign: 'left' as const, fontSize: 11, color: '#64748b', fontWeight: 600, textTransform: 'uppercase' as const, letterSpacing: '0.05em', whiteSpace: 'nowrap' as const },
-  td:         { padding: '10px 12px', fontSize: 12, color: '#cbd5e1', borderBottom: '1px solid rgba(255,255,255,0.04)' },
+  td:         { padding: '10px 12px', fontSize: 12, color: '#64748b', borderBottom: '1px solid rgba(255,255,255,0.04)' },
 };
 
 // ── KPI Card ──────────────────────────────────────────────────────────────────
@@ -344,7 +344,7 @@ function KpiCard({ label, value, icon, color, sub }: { label: string; value: str
     <div style={{ ...S.card, display: 'flex', alignItems: 'flex-start', gap: 12 }}>
       <div style={{ background: `${color}22`, borderRadius: 8, padding: 10, color, flexShrink: 0 }}>{icon}</div>
       <div style={{ minWidth: 0 }}>
-        <div style={{ fontSize: 22, fontWeight: 700, color: '#f1f5f9', lineHeight: 1.2 }}>{value}</div>
+        <div style={{ fontSize: 22, fontWeight: 700, color: '#1e293b', lineHeight: 1.2 }}>{value}</div>
         <div style={{ fontSize: 11, color: '#64748b', marginTop: 2 }}>{label}</div>
         {sub && <div style={{ fontSize: 11, color: '#475569', marginTop: 1 }}>{sub}</div>}
       </div>
@@ -1206,7 +1206,7 @@ export default function AMC() {
       {/* Page title */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
         <div>
-          <h1 style={{ fontSize: 22, fontWeight: 700, color: '#f1f5f9', margin: 0 }}>AMC Management</h1>
+          <h1 style={{ fontSize: 22, fontWeight: 700, color: '#1e293b', margin: 0 }}>AMC Management</h1>
           <p style={{ fontSize: 12, color: '#64748b', margin: 0 }}>Annual Maintenance Contract — Equipment &amp; Service Tracking</p>
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
@@ -1267,7 +1267,7 @@ export default function AMC() {
                   <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
                   <XAxis dataKey="name" tick={{ fill: '#64748b', fontSize: 10 }} angle={-30} textAnchor="end" interval={0} />
                   <YAxis tick={{ fill: '#64748b', fontSize: 10 }} />
-                  <Tooltip contentStyle={{ background: '#1e293b', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 6, color: '#e2e8f0', fontSize: 11 }} formatter={(v: number) => [`AED ${fmtCurrency(v)}`, 'Value']} />
+                  <Tooltip contentStyle={{ background: '#1e293b', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 6, color: '#374151', fontSize: 11 }} formatter={(v: number) => [`AED ${fmtCurrency(v)}`, 'Value']} />
                   <Bar dataKey="value" fill="#2563EB" radius={[3, 3, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
@@ -1281,7 +1281,7 @@ export default function AMC() {
                   <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
                   <XAxis dataKey="name" tick={{ fill: '#64748b', fontSize: 10 }} angle={-30} textAnchor="end" interval={0} />
                   <YAxis tick={{ fill: '#64748b', fontSize: 10 }} />
-                  <Tooltip contentStyle={{ background: '#1e293b', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 6, color: '#e2e8f0', fontSize: 11 }} formatter={(v: number) => [`AED ${fmtCurrency(v)}`]} />
+                  <Tooltip contentStyle={{ background: '#1e293b', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 6, color: '#374151', fontSize: 11 }} formatter={(v: number) => [`AED ${fmtCurrency(v)}`]} />
                   <Legend wrapperStyle={{ fontSize: 11, color: '#94a3b8' }} />
                   <Bar dataKey="Allocated" fill="#2563EB" radius={[3, 3, 0, 0]} />
                   <Bar dataKey="Actual"    fill="#10B981" radius={[3, 3, 0, 0]} />
@@ -1297,7 +1297,7 @@ export default function AMC() {
                   <Pie data={vendorChartData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={80} label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`} labelLine={false}>
                     {vendorChartData.map((_, i) => <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />)}
                   </Pie>
-                  <Tooltip contentStyle={{ background: '#1e293b', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 6, color: '#e2e8f0', fontSize: 11 }} formatter={(v: number) => [`AED ${fmtCurrency(v)}`]} />
+                  <Tooltip contentStyle={{ background: '#1e293b', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 6, color: '#374151', fontSize: 11 }} formatter={(v: number) => [`AED ${fmtCurrency(v)}`]} />
                   <Legend wrapperStyle={{ fontSize: 10, color: '#94a3b8' }} />
                 </PieChart>
               </ResponsiveContainer>
@@ -1314,7 +1314,7 @@ export default function AMC() {
                       return <Cell key={i} fill={colorMap[entry.name] || CHART_COLORS[i % CHART_COLORS.length]} />;
                     })}
                   </Pie>
-                  <Tooltip contentStyle={{ background: '#1e293b', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 6, color: '#e2e8f0', fontSize: 11 }} />
+                  <Tooltip contentStyle={{ background: '#1e293b', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 6, color: '#374151', fontSize: 11 }} />
                   <Legend wrapperStyle={{ fontSize: 11, color: '#94a3b8' }} />
                 </PieChart>
               </ResponsiveContainer>
@@ -1516,7 +1516,7 @@ export default function AMC() {
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
           <div style={{ background: '#0d1526', border: '1px solid rgba(59,130,246,0.3)', borderRadius: 12, width: '100%', maxWidth: 560 }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 22px', borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
-              <div style={{ fontSize: 15, fontWeight: 700, color: '#f1f5f9' }}>Edit Schedule — {editingSchedule.equipmentName} Visit #{editingSchedule.visitNumber}</div>
+              <div style={{ fontSize: 15, fontWeight: 700, color: '#1e293b' }}>Edit Schedule — {editingSchedule.equipmentName} Visit #{editingSchedule.visitNumber}</div>
               <button onClick={() => setEditingSchedule(null)} style={{ background: 'none', border: 'none', color: '#64748b', cursor: 'pointer' }}><X size={16} /></button>
             </div>
             <div style={{ padding: '18px 22px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
@@ -1590,7 +1590,7 @@ export default function AMC() {
                       <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
                       <XAxis dataKey="name" tick={{ fill: '#64748b', fontSize: 10 }} />
                       <YAxis tick={{ fill: '#64748b', fontSize: 10 }} />
-                      <Tooltip contentStyle={{ background: '#1e293b', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 6, color: '#e2e8f0', fontSize: 11 }} formatter={(v: number) => [`AED ${fmtCurrency(v)}`]} />
+                      <Tooltip contentStyle={{ background: '#1e293b', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 6, color: '#374151', fontSize: 11 }} formatter={(v: number) => [`AED ${fmtCurrency(v)}`]} />
                       <Legend wrapperStyle={{ fontSize: 11, color: '#94a3b8' }} />
                       <Bar dataKey="Allocated" fill="#2563EB" radius={[3,3,0,0]} />
                       <Bar dataKey="Actual"    fill="#10B981" radius={[3,3,0,0]} />
@@ -1705,7 +1705,7 @@ export default function AMC() {
                 onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.04)'; (e.currentTarget as HTMLElement).style.borderColor = 'rgba(255,255,255,0.08)'; }}
               >
                 <div style={{ color: r.color }}>{r.icon}</div>
-                <div style={{ fontSize: 15, fontWeight: 700, color: '#e2e8f0' }}>{r.title}</div>
+                <div style={{ fontSize: 15, fontWeight: 700, color: '#374151' }}>{r.title}</div>
                 <div style={{ fontSize: 12, color: '#64748b', lineHeight: 1.5 }}>{r.desc}</div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 'auto', color: r.color, fontSize: 12, fontWeight: 600 }}>
                   <Download size={13} /> Download PDF
@@ -1722,7 +1722,7 @@ export default function AMC() {
           <div style={{ background: '#0d1526', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 12, width: '100%', maxWidth: 900, position: 'relative' }}>
             {/* Modal header */}
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '18px 24px', borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
-              <div style={{ fontSize: 16, fontWeight: 700, color: '#f1f5f9' }}>{editRecord ? 'Edit AMC' : 'Add New AMC'}</div>
+              <div style={{ fontSize: 16, fontWeight: 700, color: '#1e293b' }}>{editRecord ? 'Edit AMC' : 'Add New AMC'}</div>
               <button onClick={() => setShowModal(false)} style={{ background: 'none', border: 'none', color: '#64748b', cursor: 'pointer', padding: 4 }}><X size={18} /></button>
             </div>
             {/* Modal body */}
@@ -1949,9 +1949,9 @@ export default function AMC() {
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
           <div style={{ background: '#0d1526', border: '1px solid rgba(239,68,68,0.3)', borderRadius: 12, padding: '28px 32px', maxWidth: 420, width: '90%', textAlign: 'center' }}>
             <div style={{ color: '#EF4444', marginBottom: 12 }}><Trash2 size={32} /></div>
-            <div style={{ fontSize: 16, fontWeight: 700, color: '#f1f5f9', marginBottom: 8 }}>Delete AMC Record?</div>
+            <div style={{ fontSize: 16, fontWeight: 700, color: '#1e293b', marginBottom: 8 }}>Delete AMC Record?</div>
             <div style={{ fontSize: 13, color: '#64748b', marginBottom: 20 }}>
-              This will permanently delete <strong style={{ color: '#e2e8f0' }}>{deleteTarget.equipmentCode || deleteTarget.equipmentName} — {deleteTarget.equipmentName}</strong> along with all associated schedules and payments.
+              This will permanently delete <strong style={{ color: '#374151' }}>{deleteTarget.equipmentCode || deleteTarget.equipmentName} — {deleteTarget.equipmentName}</strong> along with all associated schedules and payments.
             </div>
             <div style={{ display: 'flex', gap: 10, justifyContent: 'center' }}>
               <button onClick={() => setDeleteTarget(null)} style={{ ...S.btn, ...S.btnGhost, padding: '8px 24px' }}>Cancel</button>
@@ -1966,7 +1966,7 @@ export default function AMC() {
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
           <div style={{ background: '#0d1526', border: '1px solid rgba(16,185,129,0.3)', borderRadius: 12, width: '100%', maxWidth: 560 }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 22px', borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
-              <div style={{ fontSize: 15, fontWeight: 700, color: '#f1f5f9' }}>Mark Visit as Completed</div>
+              <div style={{ fontSize: 15, fontWeight: 700, color: '#1e293b' }}>Mark Visit as Completed</div>
               <button onClick={() => setShowCompleteModal(false)} style={{ background: 'none', border: 'none', color: '#64748b', cursor: 'pointer' }}><X size={16} /></button>
             </div>
             <div style={{ padding: '18px 22px', display: 'flex', flexDirection: 'column', gap: 12 }}>
@@ -2004,7 +2004,7 @@ export default function AMC() {
             {/* Header */}
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 22px', borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
               <div>
-                <div style={{ fontSize: 15, fontWeight: 700, color: '#f1f5f9' }}>Upload Preview — {uploadRows.length} record(s)</div>
+                <div style={{ fontSize: 15, fontWeight: 700, color: '#1e293b' }}>Upload Preview — {uploadRows.length} record(s)</div>
                 <div style={{ fontSize: 12, color: '#64748b', marginTop: 2 }}>Review the parsed data before saving to the database.</div>
               </div>
               <button onClick={() => { setShowUploadModal(false); setUploadRows([]); }} style={{ background: 'none', border: 'none', color: '#64748b', cursor: 'pointer' }}><X size={16} /></button>
@@ -2070,7 +2070,7 @@ export default function AMC() {
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
           <div style={{ background: '#0d1526', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 12, width: '100%', maxWidth: 480 }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 22px', borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
-              <div style={{ fontSize: 15, fontWeight: 700, color: '#f1f5f9' }}>{editBudget ? 'Edit Budget' : 'Add Budget'}</div>
+              <div style={{ fontSize: 15, fontWeight: 700, color: '#1e293b' }}>{editBudget ? 'Edit Budget' : 'Add Budget'}</div>
               <button onClick={() => setShowBudgetModal(false)} style={{ background: 'none', border: 'none', color: '#64748b', cursor: 'pointer' }}><X size={16} /></button>
             </div>
             <div style={{ padding: '18px 22px', display: 'flex', flexDirection: 'column', gap: 12 }}>
@@ -2103,7 +2103,7 @@ export default function AMC() {
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
           <div style={{ background: '#0d1526', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 12, width: '100%', maxWidth: 560 }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 22px', borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
-              <div style={{ fontSize: 15, fontWeight: 700, color: '#f1f5f9' }}>{editPayment ? 'Edit Payment' : 'Add Payment'}</div>
+              <div style={{ fontSize: 15, fontWeight: 700, color: '#1e293b' }}>{editPayment ? 'Edit Payment' : 'Add Payment'}</div>
               <button onClick={() => setShowPaymentModal(false)} style={{ background: 'none', border: 'none', color: '#64748b', cursor: 'pointer' }}><X size={16} /></button>
             </div>
             <div style={{ padding: '18px 22px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
@@ -2155,3 +2155,4 @@ export default function AMC() {
     </div>
   );
 }
+

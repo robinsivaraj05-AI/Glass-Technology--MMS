@@ -1,4 +1,4 @@
-import { useState } from 'react';
+﻿import { useState } from 'react';
 import { Plus, Search, Download, Eye, Edit, CheckCircle, Clock, AlertTriangle, Wrench } from 'lucide-react';
 import { mockWorkOrders } from '../data/mockData';
 import type { WorkOrder } from '../types';
@@ -87,7 +87,7 @@ export default function WorkOrders() {
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 6 }}>
                   <div>
                     <span style={{ fontFamily: 'monospace', fontSize: 12, color: '#60a5fa', marginRight: 8 }}>{wo.woNumber}</span>
-                    <span style={{ fontSize: 14, fontWeight: 600, color: '#f1f5f9' }}>{wo.title}</span>
+                    <span style={{ fontSize: 14, fontWeight: 600, color: '#1e293b' }}>{wo.title}</span>
                   </div>
                   <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
                     <span className={`badge ${PRIORITY_CLASS[wo.priority]}`}>{wo.priority}</span>
@@ -124,7 +124,7 @@ export default function WorkOrders() {
           <div className="modal-content" style={{ maxWidth: 650 }} onClick={e => e.stopPropagation()}>
             <div style={{ padding: '18px 24px', borderBottom: '1px solid rgba(255,255,255,0.06)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <div>
-                <div style={{ fontSize: 15, fontWeight: 700, color: '#f1f5f9' }}>{selected.woNumber} — {selected.title}</div>
+                <div style={{ fontSize: 15, fontWeight: 700, color: '#1e293b' }}>{selected.woNumber} — {selected.title}</div>
                 <div style={{ fontSize: 11, color: '#64748b', textTransform: 'capitalize' }}>{selected.type} Maintenance</div>
               </div>
               <button onClick={() => setSelected(null)} style={{ background: 'none', border: 'none', color: '#64748b', cursor: 'pointer', fontSize: 20 }}>×</button>
@@ -149,7 +149,7 @@ export default function WorkOrders() {
                 ].map(f => (
                   <div key={f.label} style={{ padding: '10px 14px', background: 'rgba(255,255,255,0.03)', borderRadius: 8 }}>
                     <div style={{ fontSize: 10, color: '#475569', textTransform: 'uppercase', letterSpacing: 0.6, marginBottom: 3 }}>{f.label}</div>
-                    <div style={{ fontSize: 13, color: '#e2e8f0', fontWeight: 500 }}>{f.value}</div>
+                    <div style={{ fontSize: 13, color: '#374151', fontWeight: 500 }}>{f.value}</div>
                   </div>
                 ))}
               </div>
@@ -168,7 +168,7 @@ export default function WorkOrders() {
         <div className="modal-overlay" onClick={() => setShowCreate(false)}>
           <div className="modal-content" style={{ maxWidth: 700 }} onClick={e => e.stopPropagation()}>
             <div style={{ padding: '18px 24px', borderBottom: '1px solid rgba(255,255,255,0.06)', display: 'flex', justifyContent: 'space-between' }}>
-              <div style={{ fontSize: 16, fontWeight: 600, color: '#f1f5f9' }}>Create Work Order</div>
+              <div style={{ fontSize: 16, fontWeight: 600, color: '#1e293b' }}>Create Work Order</div>
               <button onClick={() => setShowCreate(false)} style={{ background: 'none', border: 'none', color: '#64748b', cursor: 'pointer', fontSize: 20 }}>×</button>
             </div>
             <div style={{ padding: 24, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
@@ -208,3 +208,4 @@ export default function WorkOrders() {
     </div>
   );
 }
+

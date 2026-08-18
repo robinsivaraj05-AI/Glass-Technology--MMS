@@ -1,4 +1,4 @@
-import { useState } from 'react';
+﻿import { useState } from 'react';
 import { Shield, AlertTriangle, CheckCircle, FileText, Plus, Lock, Search } from 'lucide-react';
 
 const permits = [
@@ -42,7 +42,7 @@ export default function Safety() {
           <div key={s.label} className="glass-card" style={{ padding: '14px 18px', display: 'flex', alignItems: 'center', gap: 12 }}>
             <div style={{ color: s.color }}>{s.icon}</div>
             <div>
-              <div style={{ fontSize: 24, fontWeight: 700, color: '#f1f5f9' }}>{s.value}</div>
+              <div style={{ fontSize: 24, fontWeight: 700, color: '#1e293b' }}>{s.value}</div>
               <div style={{ fontSize: 11, color: '#64748b' }}>{s.label}</div>
             </div>
           </div>
@@ -95,7 +95,7 @@ export default function Safety() {
                   <tr key={p.id}>
                     <td style={{ fontFamily: 'monospace', color: '#60a5fa', fontSize: 12 }}>{p.permitNo}</td>
                     <td><span className="badge badge-blue" style={{ fontSize: 10 }}>{p.type}</span></td>
-                    <td style={{ color: '#e2e8f0', fontWeight: 600 }}>{p.machine}</td>
+                    <td style={{ color: '#374151', fontWeight: 600 }}>{p.machine}</td>
                     <td style={{ fontSize: 12, color: '#94a3b8' }}>{p.issuedTo}</td>
                     <td style={{ fontSize: 12, color: '#64748b' }}>{p.issuedBy}</td>
                     <td style={{ fontSize: 12, color: '#94a3b8' }}>{new Date(p.endTime).toLocaleString('en-IN', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}</td>
@@ -136,7 +136,7 @@ export default function Safety() {
                     <span className={`badge ${inc.status === 'open' ? 'badge-warning' : 'badge-success'}`} style={{ fontSize: 10 }}>{inc.status}</span>
                   </div>
                 </div>
-                <div style={{ fontSize: 13, color: '#e2e8f0', fontWeight: 500, marginBottom: 8 }}>{inc.description}</div>
+                <div style={{ fontSize: 13, color: '#374151', fontWeight: 500, marginBottom: 8 }}>{inc.description}</div>
                 <div style={{ display: 'flex', gap: 16, fontSize: 11, color: '#475569', marginBottom: 8 }}>
                   <span>Reported by: <span style={{ color: '#94a3b8' }}>{inc.reportedBy}</span></span>
                   <span>Date: <span style={{ color: '#94a3b8' }}>{new Date(inc.date).toLocaleDateString('en-IN')}</span></span>
@@ -152,7 +152,7 @@ export default function Safety() {
 
       {tab === 'loto' && (
         <div className="glass-card" style={{ padding: 24 }}>
-          <div style={{ fontSize: 14, fontWeight: 600, color: '#f1f5f9', marginBottom: 20 }}>LOTO (Lockout/Tagout) Procedure</div>
+          <div style={{ fontSize: 14, fontWeight: 600, color: '#1e293b', marginBottom: 20 }}>LOTO (Lockout/Tagout) Procedure</div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12 }}>
             {[
               { step: 1, title: 'Notify', desc: 'Inform all affected workers and supervisor', icon: '📢', color: '#3b82f6' },
@@ -167,7 +167,7 @@ export default function Safety() {
                   <span style={{ fontSize: 20 }}>{s.icon}</span>
                   <div>
                     <div style={{ fontSize: 10, color: s.color, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1 }}>Step {s.step}</div>
-                    <div style={{ fontSize: 13, fontWeight: 600, color: '#f1f5f9' }}>{s.title}</div>
+                    <div style={{ fontSize: 13, fontWeight: 600, color: '#1e293b' }}>{s.title}</div>
                   </div>
                 </div>
                 <div style={{ fontSize: 12, color: '#64748b', lineHeight: 1.5 }}>{s.desc}</div>
@@ -179,7 +179,7 @@ export default function Safety() {
 
       {tab === 'ppe' && (
         <div className="glass-card" style={{ padding: 24 }}>
-          <div style={{ fontSize: 14, fontWeight: 600, color: '#f1f5f9', marginBottom: 20 }}>PPE Checklist — Electrical Work</div>
+          <div style={{ fontSize: 14, fontWeight: 600, color: '#1e293b', marginBottom: 20 }}>PPE Checklist — Electrical Work</div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 12 }}>
             {[
               { item: 'Safety Helmet (Class E)', required: true, checked: true },
@@ -196,7 +196,7 @@ export default function Safety() {
               <div key={ppe.item} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 14px', background: 'rgba(255,255,255,0.03)', borderRadius: 8, border: `1px solid ${ppe.checked ? 'rgba(34,197,94,0.2)' : ppe.required ? 'rgba(239,68,68,0.2)' : 'rgba(255,255,255,0.06)'}` }}>
                 <input type="checkbox" checked={ppe.checked} onChange={() => {}} style={{ width: 16, height: 16, accentColor: '#22c55e' }} />
                 <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: 13, color: '#e2e8f0' }}>{ppe.item}</div>
+                  <div style={{ fontSize: 13, color: '#374151' }}>{ppe.item}</div>
                   <div style={{ fontSize: 10, color: ppe.required ? '#ef4444' : '#64748b' }}>{ppe.required ? 'Mandatory' : 'Situational'}</div>
                 </div>
                 {ppe.checked ? <CheckCircle size={16} style={{ color: '#22c55e', flexShrink: 0 }} /> : <AlertTriangle size={16} style={{ color: ppe.required ? '#ef4444' : '#64748b', flexShrink: 0 }} />}
@@ -215,7 +215,7 @@ export default function Safety() {
         <div className="modal-overlay" onClick={() => setShowCreate(false)}>
           <div className="modal-content" style={{ maxWidth: 600 }} onClick={e => e.stopPropagation()}>
             <div style={{ padding: '18px 24px', borderBottom: '1px solid rgba(255,255,255,0.06)', display: 'flex', justifyContent: 'space-between' }}>
-              <div style={{ fontSize: 16, fontWeight: 600, color: '#f1f5f9' }}>Issue Permit to Work</div>
+              <div style={{ fontSize: 16, fontWeight: 600, color: '#1e293b' }}>Issue Permit to Work</div>
               <button onClick={() => setShowCreate(false)} style={{ background: 'none', border: 'none', color: '#64748b', cursor: 'pointer', fontSize: 20 }}>×</button>
             </div>
             <div style={{ padding: 24, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
@@ -253,3 +253,4 @@ export default function Safety() {
     </div>
   );
 }
+

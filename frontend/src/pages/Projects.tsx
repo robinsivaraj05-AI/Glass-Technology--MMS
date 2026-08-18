@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+﻿import { useState, useEffect } from 'react';
 import { Plus, Search, Download, Edit, TrendingUp, Trash2, AlertTriangle } from 'lucide-react';
 import { mockProjects } from '../data/mockData';
 import type { Project } from '../types';
@@ -24,7 +24,7 @@ function ProjectCard({ p, onView, onDelete }: { p: Project; onView: (p: Project)
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           <span style={{ fontSize: 24 }}>{TYPE_ICON[p.type]}</span>
           <div>
-            <div style={{ fontSize: 13, fontWeight: 700, color: '#f1f5f9', lineHeight: 1.3 }}>{p.name}</div>
+            <div style={{ fontSize: 13, fontWeight: 700, color: '#1e293b', lineHeight: 1.3 }}>{p.name}</div>
             <div style={{ fontSize: 11, color: '#64748b', fontFamily: 'monospace', marginTop: 2 }}>{p.projectNo}</div>
           </div>
         </div>
@@ -49,7 +49,7 @@ function ProjectCard({ p, onView, onDelete }: { p: Project; onView: (p: Project)
       {/* Progress */}
       <div style={{ marginBottom: 10 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: '#64748b', marginBottom: 5 }}>
-          <span>Progress</span><span style={{ color: '#f1f5f9', fontWeight: 600 }}>{p.progress}%</span>
+          <span>Progress</span><span style={{ color: '#1e293b', fontWeight: 600 }}>{p.progress}%</span>
         </div>
         <div className="progress-bar">
           <div className="progress-fill" style={{ width: `${p.progress}%`, background: p.progress === 100 ? '#22c55e' : p.progress >= 60 ? '#3b82f6' : '#f59e0b' }} />
@@ -65,7 +65,7 @@ function ProjectCard({ p, onView, onDelete }: { p: Project; onView: (p: Project)
         </div>
       </div>
       <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: '#475569' }}>
-        <span>Budget: <span style={{ color: '#f1f5f9' }}>AED {p.budget.toLocaleString()}</span></span>
+        <span>Budget: <span style={{ color: '#1e293b' }}>AED {p.budget.toLocaleString()}</span></span>
         <span>Spent: <span style={{ color: '#f59e0b' }}>AED {p.spent.toLocaleString()}</span></span>
         <span style={{ color: daysLeft < 0 ? '#ef4444' : daysLeft <= 30 ? '#f59e0b' : '#22c55e' }}>
           {daysLeft < 0 ? `${Math.abs(daysLeft)}d over` : `${daysLeft}d left`}
@@ -262,7 +262,7 @@ ${p.teamMembers?.length ? `<div class="field"><div class="label">Team Members</d
           </div>
         </div>
         <div style={{ display: 'flex', gap: 20, fontSize: 13 }}>
-          <span>Total: <strong style={{ color: '#f1f5f9' }}>AED {totalBudget.toLocaleString()}</strong></span>
+          <span>Total: <strong style={{ color: '#1e293b' }}>AED {totalBudget.toLocaleString()}</strong></span>
           <span>Spent: <strong style={{ color: '#f59e0b' }}>AED {totalSpent.toLocaleString()}</strong></span>
           <span>Remaining: <strong style={{ color: '#22c55e' }}>AED {(totalBudget - totalSpent).toLocaleString()}</strong></span>
           <strong style={{ color: '#3b82f6' }}>{Math.round((totalSpent / totalBudget) * 100)}% used</strong>
@@ -303,7 +303,7 @@ ${p.teamMembers?.length ? `<div class="field"><div class="label">Team Members</d
 
       {/* Budget Chart */}
       <div className="glass-card" style={{ padding: 20 }}>
-        <div style={{ fontSize: 14, fontWeight: 600, color: '#f1f5f9', marginBottom: 16 }}>Project Budget vs Spent (AED)</div>
+        <div style={{ fontSize: 14, fontWeight: 600, color: '#1e293b', marginBottom: 16 }}>Project Budget vs Spent (AED)</div>
         <ResponsiveContainer width="100%" height={200}>
           <BarChart data={budgetData} margin={{ left: 0 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" />
@@ -322,7 +322,7 @@ ${p.teamMembers?.length ? `<div class="field"><div class="label">Team Members</d
           <div className="modal-content" style={{ maxWidth: 700 }} onClick={e => e.stopPropagation()}>
             <div style={{ padding: '18px 24px', borderBottom: '1px solid rgba(255,255,255,0.06)', display: 'flex', justifyContent: 'space-between' }}>
               <div>
-                <div style={{ fontSize: 15, fontWeight: 700, color: '#f1f5f9' }}>{selected.name}</div>
+                <div style={{ fontSize: 15, fontWeight: 700, color: '#1e293b' }}>{selected.name}</div>
                 <div style={{ fontSize: 11, color: '#64748b' }}>{selected.projectNo} · {selected.projectManager}</div>
               </div>
               <button onClick={() => setSelected(null)} style={{ background: 'none', border: 'none', color: '#64748b', cursor: 'pointer', fontSize: 20 }}>×</button>
@@ -342,7 +342,7 @@ ${p.teamMembers?.length ? `<div class="field"><div class="label">Team Members</d
                 ].map(f => (
                   <div key={f.label} style={{ padding: '10px 14px', background: 'rgba(255,255,255,0.03)', borderRadius: 8 }}>
                     <div style={{ fontSize: 10, color: '#475569', textTransform: 'uppercase', letterSpacing: 0.6, marginBottom: 3 }}>{f.label}</div>
-                    <div style={{ fontSize: 13, color: '#e2e8f0', fontWeight: 500 }}>{f.value}</div>
+                    <div style={{ fontSize: 13, color: '#374151', fontWeight: 500 }}>{f.value}</div>
                   </div>
                 ))}
               </div>
@@ -378,7 +378,7 @@ ${p.teamMembers?.length ? `<div class="field"><div class="label">Team Members</d
               <p style={{ fontSize: 13, color: '#94a3b8', margin: '0 0 6px' }}>
                 Are you sure you want to delete:
               </p>
-              <p style={{ fontSize: 14, fontWeight: 600, color: '#f1f5f9', margin: '0 0 4px' }}>
+              <p style={{ fontSize: 14, fontWeight: 600, color: '#1e293b', margin: '0 0 4px' }}>
                 {deleteTarget.name}
               </p>
               <p style={{ fontSize: 11, color: '#64748b', fontFamily: 'monospace', margin: '0 0 20px' }}>
@@ -421,7 +421,7 @@ ${p.teamMembers?.length ? `<div class="field"><div class="label">Team Members</d
           <div className="modal-overlay" onClick={() => setShowGantt(false)}>
             <div className="modal-content" style={{ maxWidth: 600 }} onClick={e => e.stopPropagation()}>
               <div style={{ padding: '16px 22px', borderBottom: '1px solid rgba(255,255,255,0.06)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <div style={{ fontSize: 15, fontWeight: 700, color: '#f1f5f9' }}>Timeline — {selected.name}</div>
+                <div style={{ fontSize: 15, fontWeight: 700, color: '#1e293b' }}>Timeline — {selected.name}</div>
                 <button onClick={() => setShowGantt(false)} style={{ background: 'none', border: 'none', color: '#64748b', cursor: 'pointer', fontSize: 20 }}>×</button>
               </div>
               <div style={{ padding: 24, display: 'flex', flexDirection: 'column', gap: 18 }}>
@@ -429,7 +429,7 @@ ${p.teamMembers?.length ? `<div class="field"><div class="label">Team Members</d
                 <div>
                   <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: '#64748b', marginBottom: 10 }}>
                     <span>Start: <strong style={{ color: '#94a3b8' }}>{new Date(selected.startDate).toLocaleDateString('en-IN')}</strong></span>
-                    <span style={{ color: '#f1f5f9', fontWeight: 600 }}>{totalDays} days total</span>
+                    <span style={{ color: '#1e293b', fontWeight: 600 }}>{totalDays} days total</span>
                     <span>End: <strong style={{ color: '#94a3b8' }}>{new Date(selected.endDate).toLocaleDateString('en-IN')}</strong></span>
                   </div>
                   <div style={{ position: 'relative', height: 36, background: 'rgba(255,255,255,0.05)', borderRadius: 8, overflow: 'visible', marginTop: 20 }}>
@@ -484,7 +484,7 @@ ${p.teamMembers?.length ? `<div class="field"><div class="label">Team Members</d
         <div className="modal-overlay" onClick={() => { setShowCreate(false); setForm({ ...EMPTY_FORM }); setEditingProject(null); }}>
           <div className="modal-content" style={{ maxWidth: 700 }} onClick={e => e.stopPropagation()}>
             <div style={{ padding: '18px 24px', borderBottom: '1px solid rgba(255,255,255,0.06)', display: 'flex', justifyContent: 'space-between' }}>
-              <div style={{ fontSize: 16, fontWeight: 600, color: '#f1f5f9' }}>{editingProject ? 'Edit Project' : 'Create New Project'}</div>
+              <div style={{ fontSize: 16, fontWeight: 600, color: '#1e293b' }}>{editingProject ? 'Edit Project' : 'Create New Project'}</div>
               <button onClick={() => { setShowCreate(false); setForm({ ...EMPTY_FORM }); setEditingProject(null); }} style={{ background: 'none', border: 'none', color: '#64748b', cursor: 'pointer', fontSize: 20 }}>×</button>
             </div>
             <div style={{ padding: 24, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
@@ -654,3 +654,4 @@ ${p.teamMembers?.length ? `<div class="field"><div class="label">Team Members</d
     </div>
   );
 }
+

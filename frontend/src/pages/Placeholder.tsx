@@ -1,4 +1,4 @@
-import { Construction } from 'lucide-react';
+﻿import { Construction } from 'lucide-react';
 
 export default function Placeholder({ title, description }: { title: string; description?: string }) {
   return (
@@ -12,7 +12,7 @@ export default function Placeholder({ title, description }: { title: string; des
         <Construction size={36} style={{ color: '#3b82f6' }} />
       </div>
       <div style={{ textAlign: 'center' }}>
-        <div style={{ fontSize: 18, fontWeight: 700, color: '#f1f5f9', marginBottom: 8 }}>{title}</div>
+        <div style={{ fontSize: 18, fontWeight: 700, color: '#1e293b', marginBottom: 8 }}>{title}</div>
         <div style={{ fontSize: 13, color: '#64748b', maxWidth: 400 }}>
           {description ?? 'This module is fully implemented in the backend. The UI is being finalized and will be available in the next update.'}
         </div>
@@ -25,3 +25,4 @@ export default function Placeholder({ title, description }: { title: string; des
     </div>
   );
 }
+

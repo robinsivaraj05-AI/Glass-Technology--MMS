@@ -1,4 +1,4 @@
-import { useState } from 'react';
+﻿import { useState } from 'react';
 import { Plus, Search, AlertTriangle, Clock, CheckCircle, XCircle, Eye, Edit, Download, Filter } from 'lucide-react';
 import { mockBreakdowns } from '../data/mockData';
 import type { Breakdown } from '../types';
@@ -11,7 +11,7 @@ function BreakdownRow({ b, onView }: { b: Breakdown; onView: (b: Breakdown) => v
     <tr>
       <td style={{ color: '#60a5fa', fontFamily: 'monospace', fontSize: 12 }}>{b.ticketNo}</td>
       <td>
-        <div style={{ fontSize: 13, fontWeight: 600, color: '#e2e8f0' }}>{b.machineName}</div>
+        <div style={{ fontSize: 13, fontWeight: 600, color: '#374151' }}>{b.machineName}</div>
         <div style={{ fontSize: 11, color: '#64748b' }}>{new Date(b.reportedAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}</div>
       </td>
       <td style={{ maxWidth: 200 }}>
@@ -64,7 +64,7 @@ export default function BreakdownMaintenance() {
           <div key={s.label} className="glass-card" style={{ padding: '14px 16px', display: 'flex', alignItems: 'center', gap: 12 }}>
             <div style={{ color: s.color }}>{s.icon}</div>
             <div>
-              <div style={{ fontSize: 22, fontWeight: 700, color: '#f1f5f9' }}>{s.value}</div>
+              <div style={{ fontSize: 22, fontWeight: 700, color: '#1e293b' }}>{s.value}</div>
               <div style={{ fontSize: 11, color: '#64748b' }}>{s.label}</div>
             </div>
           </div>
@@ -121,7 +121,7 @@ export default function BreakdownMaintenance() {
           <div className="modal-content" style={{ maxWidth: 700 }} onClick={e => e.stopPropagation()}>
             <div style={{ padding: '18px 24px', borderBottom: '1px solid rgba(255,255,255,0.06)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <div>
-                <div style={{ fontSize: 15, fontWeight: 700, color: '#f1f5f9' }}>{selected.ticketNo}</div>
+                <div style={{ fontSize: 15, fontWeight: 700, color: '#1e293b' }}>{selected.ticketNo}</div>
                 <div style={{ fontSize: 11, color: '#64748b' }}>{selected.machineName}</div>
               </div>
               <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
@@ -142,7 +142,7 @@ export default function BreakdownMaintenance() {
                 ].map(f => (
                   <div key={f.label} style={{ padding: '10px 14px', background: 'rgba(255,255,255,0.03)', borderRadius: 8 }}>
                     <div style={{ fontSize: 10, color: '#475569', textTransform: 'uppercase', letterSpacing: 0.6, marginBottom: 4 }}>{f.label}</div>
-                    <div style={{ fontSize: 13, color: '#e2e8f0', fontWeight: 500 }}>{f.value}</div>
+                    <div style={{ fontSize: 13, color: '#374151', fontWeight: 500 }}>{f.value}</div>
                   </div>
                 ))}
               </div>
@@ -176,7 +176,7 @@ export default function BreakdownMaintenance() {
         <div className="modal-overlay" onClick={() => setShowCreate(false)}>
           <div className="modal-content" style={{ maxWidth: 650 }} onClick={e => e.stopPropagation()}>
             <div style={{ padding: '18px 24px', borderBottom: '1px solid rgba(255,255,255,0.06)', display: 'flex', justifyContent: 'space-between' }}>
-              <div style={{ fontSize: 16, fontWeight: 600, color: '#f1f5f9' }}>Report Breakdown</div>
+              <div style={{ fontSize: 16, fontWeight: 600, color: '#1e293b' }}>Report Breakdown</div>
               <button onClick={() => setShowCreate(false)} style={{ background: 'none', border: 'none', color: '#64748b', cursor: 'pointer', fontSize: 20 }}>×</button>
             </div>
             <div style={{ padding: 24, display: 'flex', flexDirection: 'column', gap: 14 }}>
@@ -230,3 +230,4 @@ export default function BreakdownMaintenance() {
     </div>
   );
 }
+

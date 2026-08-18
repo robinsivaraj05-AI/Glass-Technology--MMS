@@ -593,7 +593,7 @@ export default function OutsourceEntry() {
               <thead>
                 <tr style={{ background: '#1e293b' }}>
                   {['Date','Contract','PO No.','Workers','Designation(s)','Work Type','Persons','Cost Type','Total Cost','Status',''].map(h => (
-                    <th key={h} style={{ padding: '11px 12px', textAlign: 'left', fontSize: 11, fontWeight: 700, color: '#f1f5f9', textTransform: 'uppercase', letterSpacing: 0.7, whiteSpace: 'nowrap' }}>{h}</th>
+                    <th key={h} style={{ padding: '11px 12px', textAlign: 'left', fontSize: 11, fontWeight: 700, color: '#1e293b', textTransform: 'uppercase', letterSpacing: 0.7, whiteSpace: 'nowrap' }}>{h}</th>
                   ))}
                 </tr>
               </thead>
@@ -1081,3 +1081,4 @@ export default function OutsourceEntry() {
     </div>
   );
 }
+

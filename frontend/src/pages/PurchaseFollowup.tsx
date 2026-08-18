@@ -1,4 +1,4 @@
-// @ts-nocheck
+﻿// @ts-nocheck
 import React, { useState, useCallback, useEffect, useMemo } from 'react';
 import { Plus, Search, Download, Edit2, Trash2, RefreshCw, X, Check, Maximize2 } from 'lucide-react';
 
@@ -462,7 +462,7 @@ export default function PurchaseFollowup() {
       {/* Page header */}
       <div className="glass-card" style={{ padding: '14px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div>
-          <div style={{ fontSize: 18, fontWeight: 700, color: '#f1f5f9' }}>PR Pending Status — E &amp; I</div>
+          <div style={{ fontSize: 18, fontWeight: 700, color: '#1e293b' }}>PR Pending Status — E &amp; I</div>
           <div style={{ fontSize: 12, color: '#64748b', marginTop: 3 }}>Purchase follow-up register · auto-syncs from RFQ &amp; PO modules</div>
         </div>
         <div style={{ fontSize: 14, fontWeight: 700, color: '#60a5fa', background: 'rgba(59,130,246,0.1)', border: '1px solid rgba(59,130,246,0.25)', borderRadius: 8, padding: '6px 16px' }}>
@@ -943,7 +943,7 @@ export default function PurchaseFollowup() {
         <div className="modal-overlay" onClick={() => setShowForm(false)}>
           <div className="modal-content" style={{ maxWidth: 680 }} onClick={e => e.stopPropagation()}>
             <div style={{ padding: '18px 24px', borderBottom: '1px solid rgba(255,255,255,0.06)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <div style={{ fontSize: 16, fontWeight: 600, color: '#f1f5f9' }}>{editId ? 'Edit Record' : 'Add PR Follow-up Item'}</div>
+              <div style={{ fontSize: 16, fontWeight: 600, color: '#1e293b' }}>{editId ? 'Edit Record' : 'Add PR Follow-up Item'}</div>
               <button onClick={() => setShowForm(false)} style={{ background: 'none', border: 'none', color: '#64748b', cursor: 'pointer' }}><X size={18} /></button>
             </div>
             <div style={{ padding: 24, maxHeight: '78vh', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 14 }}>
@@ -1020,3 +1020,4 @@ export default function PurchaseFollowup() {
     </div>
   );
 }
+

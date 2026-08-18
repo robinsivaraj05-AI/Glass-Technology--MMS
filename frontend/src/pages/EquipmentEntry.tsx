@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+﻿import { useState, useEffect, useCallback, useRef } from 'react';
 import { Plus, Edit2, Trash2, X, Save, Search, ClipboardList, Copy, FileDown, Upload } from 'lucide-react';
 import toast from 'react-hot-toast';
 import * as XLSX from 'xlsx';
@@ -335,7 +335,7 @@ export default function EquipmentEntry() {
   });
 
   const pages = Math.ceil(total / 25);
-  const thStyle: React.CSSProperties = { padding: '9px 12px', textAlign: 'left', fontSize: 10, fontWeight: 700, color: '#f1f5f9', textTransform: 'uppercase', letterSpacing: 0.5, background: '#1e293b', whiteSpace: 'nowrap' };
+  const thStyle: React.CSSProperties = { padding: '9px 12px', textAlign: 'left', fontSize: 10, fontWeight: 700, color: '#1e293b', textTransform: 'uppercase', letterSpacing: 0.5, background: '#1e293b', whiteSpace: 'nowrap' };
   const tdStyle: React.CSSProperties = { padding: '8px 12px', fontSize: 12, color: '#334155', verticalAlign: 'middle' };
 
   return (
@@ -639,3 +639,4 @@ export default function EquipmentEntry() {
     </div>
   );
 }
+

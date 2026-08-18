@@ -1,4 +1,4 @@
-// @ts-nocheck
+﻿// @ts-nocheck
 import { useState, useRef, useEffect } from 'react';
 import { Plus, Search, QrCode, Download, Edit, Activity, Upload, FileSpreadsheet, CheckCircle, XCircle, AlertTriangle } from 'lucide-react';
 import * as XLSX from 'xlsx';
@@ -203,7 +203,7 @@ function AssetCard({ asset, onView }: { asset: Asset; onView: (a: Asset) => void
             {CATEGORY_ICONS[asset.category] ?? '🔧'}
           </div>
           <div>
-            <div style={{ fontSize: 12, fontWeight: 700, color: '#f1f5f9' }}>{asset.name}</div>
+            <div style={{ fontSize: 12, fontWeight: 700, color: '#1e293b' }}>{asset.name}</div>
             <div style={{ fontSize: 10, color: '#64748b', fontFamily: 'monospace' }}>{asset.code}</div>
           </div>
         </div>
@@ -401,7 +401,7 @@ export default function AssetManagement() {
           <div className="modal-content" style={{ maxWidth: 700 }} onClick={e => e.stopPropagation()}>
             <div style={{ padding: '18px 24px', borderBottom: '1px solid rgba(255,255,255,0.06)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <div>
-                <div style={{ fontSize: 16, fontWeight: 700, color: '#f1f5f9' }}>{selected.name}</div>
+                <div style={{ fontSize: 16, fontWeight: 700, color: '#1e293b' }}>{selected.name}</div>
                 <div style={{ fontSize: 11, color: '#64748b', fontFamily: 'monospace' }}>{selected.code} · {selected.serialNumber}</div>
               </div>
               <button onClick={() => setSelected(null)} style={{ background: 'none', border: 'none', color: '#64748b', cursor: 'pointer', fontSize: 20 }}>×</button>
@@ -445,7 +445,7 @@ export default function AssetManagement() {
         <div className="modal-overlay" onClick={() => setShowCreate(false)}>
           <div className="modal-content" style={{ maxWidth: 700 }} onClick={e => e.stopPropagation()}>
             <div style={{ padding: '18px 24px', borderBottom: '1px solid rgba(255,255,255,0.06)', display: 'flex', justifyContent: 'space-between' }}>
-              <div style={{ fontSize: 16, fontWeight: 600, color: '#f1f5f9' }}>Add New Asset</div>
+              <div style={{ fontSize: 16, fontWeight: 600, color: '#1e293b' }}>Add New Asset</div>
               <button onClick={() => setShowCreate(false)} style={{ background: 'none', border: 'none', color: '#64748b', cursor: 'pointer', fontSize: 20 }}>×</button>
             </div>
             <div style={{ padding: 24, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
@@ -507,7 +507,7 @@ export default function AssetManagement() {
             {/* Header */}
             <div style={{ padding: '16px 24px', borderBottom: '1px solid rgba(255,255,255,0.06)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <div>
-                <div style={{ fontSize: 15, fontWeight: 700, color: '#f1f5f9' }}>Import Preview</div>
+                <div style={{ fontSize: 15, fontWeight: 700, color: '#1e293b' }}>Import Preview</div>
                 <div style={{ fontSize: 11, color: '#64748b', marginTop: 2 }}>
                   {importRows.length} row{importRows.length !== 1 ? 's' : ''} found ·
                   <span style={{ color: '#22c55e' }}> {addCount} to add</span> ·
@@ -556,8 +556,8 @@ export default function AssetManagement() {
                             <span style={{ color: '#ef4444', fontWeight: 600, fontSize: 11 }}>✕ Skip</span>
                           )}
                         </td>
-                        <td style={{ padding: '7px 10px', color: '#e2e8f0', fontFamily: 'monospace', fontSize: 11 }}>{r.data.code || '—'}</td>
-                        <td style={{ padding: '7px 10px', color: '#e2e8f0', maxWidth: 160, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.data.name || '—'}</td>
+                        <td style={{ padding: '7px 10px', color: '#374151', fontFamily: 'monospace', fontSize: 11 }}>{r.data.code || '—'}</td>
+                        <td style={{ padding: '7px 10px', color: '#374151', maxWidth: 160, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.data.name || '—'}</td>
                         <td style={{ padding: '7px 10px', color: '#94a3b8' }}>{r.data.category || '—'}</td>
                         <td style={{ padding: '7px 10px', color: '#94a3b8' }}>{r.data.location || '—'}</td>
                         <td style={{ padding: '7px 10px', color: STATUS_COLOR[r.data.status ?? ''] ?? '#64748b' }}>{r.data.status || '—'}</td>
@@ -589,3 +589,4 @@ export default function AssetManagement() {
     </div>
   );
 }
+

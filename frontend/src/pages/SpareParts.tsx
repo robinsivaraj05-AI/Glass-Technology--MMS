@@ -1,4 +1,4 @@
-import { useState } from 'react';
+﻿import { useState } from 'react';
 import { Plus, Search, Download, AlertTriangle, Package, TrendingDown, ArrowUpRight, ArrowDownLeft, QrCode } from 'lucide-react';
 import { mockSpares } from '../data/mockData';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
@@ -40,7 +40,7 @@ export default function SpareParts() {
           <div key={s.label} className="glass-card" style={{ padding: '14px 18px', display: 'flex', alignItems: 'center', gap: 12 }}>
             <div style={{ color: s.color }}>{s.icon}</div>
             <div>
-              <div style={{ fontSize: 22, fontWeight: 700, color: '#f1f5f9' }}>{s.value}</div>
+              <div style={{ fontSize: 22, fontWeight: 700, color: '#1e293b' }}>{s.value}</div>
               <div style={{ fontSize: 11, color: '#64748b' }}>{s.label}</div>
             </div>
           </div>
@@ -117,7 +117,7 @@ export default function SpareParts() {
                   return (
                     <tr key={s.id}>
                       <td style={{ color: '#60a5fa', fontFamily: 'monospace', fontSize: 11 }}>{s.code}</td>
-                      <td style={{ fontWeight: 600, color: '#e2e8f0' }}>{s.name}</td>
+                      <td style={{ fontWeight: 600, color: '#374151' }}>{s.name}</td>
                       <td><span className="badge badge-gray" style={{ fontSize: 10 }}>{s.category}</span></td>
                       <td style={{ color: '#94a3b8', fontSize: 12 }}>{s.unit}</td>
                       <td>
@@ -127,7 +127,7 @@ export default function SpareParts() {
                       <td style={{ fontSize: 12, color: '#64748b' }}>{s.minStock} / {s.maxStock}</td>
                       <td style={{ fontSize: 12, color: '#94a3b8' }}>{s.location}</td>
                       <td style={{ fontSize: 12, color: '#94a3b8' }}>{s.supplier}</td>
-                      <td style={{ color: '#f1f5f9', fontSize: 12 }}>₹{s.unitPrice.toLocaleString()}</td>
+                      <td style={{ color: '#1e293b', fontSize: 12 }}>₹{s.unitPrice.toLocaleString()}</td>
                       <td style={{ color: '#22c55e', fontSize: 12 }}>₹{s.totalValue.toLocaleString()}</td>
                       <td>{s.isCritical ? <span className="badge badge-danger" style={{ fontSize: 10 }}>Critical</span> : <span className="badge badge-gray" style={{ fontSize: 10 }}>Normal</span>}</td>
                       <td>
@@ -148,7 +148,7 @@ export default function SpareParts() {
       {tab === 'issue' && (
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
           <div className="glass-card" style={{ padding: 20 }}>
-            <div style={{ fontSize: 14, fontWeight: 600, color: '#f1f5f9', marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
+            <div style={{ fontSize: 14, fontWeight: 600, color: '#1e293b', marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
               <ArrowDownLeft size={16} style={{ color: '#ef4444' }} /> Issue Material
             </div>
             {[
@@ -176,7 +176,7 @@ export default function SpareParts() {
             <button className="btn-primary" style={{ width: '100%', justifyContent: 'center' }}>Issue Material</button>
           </div>
           <div className="glass-card" style={{ padding: 20 }}>
-            <div style={{ fontSize: 14, fontWeight: 600, color: '#f1f5f9', marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
+            <div style={{ fontSize: 14, fontWeight: 600, color: '#1e293b', marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
               <ArrowUpRight size={16} style={{ color: '#22c55e' }} /> Return Material
             </div>
             {[
@@ -207,7 +207,7 @@ export default function SpareParts() {
 
       {tab === 'purchase' && (
         <div className="glass-card" style={{ padding: 24 }}>
-          <div style={{ fontSize: 14, fontWeight: 600, color: '#f1f5f9', marginBottom: 20 }}>Create Purchase Request</div>
+          <div style={{ fontSize: 14, fontWeight: 600, color: '#1e293b', marginBottom: 20 }}>Create Purchase Request</div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
             {[
               { label: 'Spare Part Name', placeholder: 'Name or code of spare part' },
@@ -241,7 +241,7 @@ export default function SpareParts() {
 
       {/* Stock Value Chart */}
       <div className="glass-card" style={{ padding: 20 }}>
-        <div style={{ fontSize: 14, fontWeight: 600, color: '#f1f5f9', marginBottom: 16 }}>Stock Value by Category</div>
+        <div style={{ fontSize: 14, fontWeight: 600, color: '#1e293b', marginBottom: 16 }}>Stock Value by Category</div>
         <ResponsiveContainer width="100%" height={180}>
           <BarChart data={categoryValues}>
             <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" />
@@ -255,3 +255,4 @@ export default function SpareParts() {
     </div>
   );
 }
+

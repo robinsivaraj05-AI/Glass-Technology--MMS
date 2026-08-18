@@ -1,4 +1,4 @@
-// @ts-nocheck
+﻿// @ts-nocheck
 import { useState, useEffect, useMemo } from 'react';
 import { Download, RefreshCw, CheckCircle, AlertCircle, TrendingUp } from 'lucide-react';
 import jsPDF from 'jspdf';
@@ -303,7 +303,7 @@ export default function FinanceEIPurReport() {
       {/* Header */}
       <div className="glass-card" style={{ padding: '11px 18px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
         <div>
-          <div style={{ fontSize: 15, fontWeight: 700, color: '#f1f5f9' }}>E &amp; I Purchase Report — Finance</div>
+          <div style={{ fontSize: 15, fontWeight: 700, color: '#1e293b' }}>E &amp; I Purchase Report — Finance</div>
           <div style={{ fontSize: 11, color: '#64748b', marginTop: 2 }}>Payment history · {reportTitle}</div>
         </div>
         <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
@@ -377,7 +377,7 @@ export default function FinanceEIPurReport() {
               background: 'rgba(255,255,255,0.03)', borderBottom: expanded === g.key ? '1px solid rgba(255,255,255,0.07)' : 'none',
               transition: 'background 0.15s' }}
           >
-            <div style={{ fontSize: 14, fontWeight: 700, color: '#f1f5f9', flex: 1 }}>{g.label}</div>
+            <div style={{ fontSize: 14, fontWeight: 700, color: '#1e293b', flex: 1 }}>{g.label}</div>
 
             <div style={{ display: 'flex', gap: 20, alignItems: 'center' }}>
               {g.fullAmt > 0 && (
@@ -422,7 +422,7 @@ export default function FinanceEIPurReport() {
                   {[...g.fullEntries, ...g.partialEntries].map((e, i) => (
                     <tr key={`${e.rec.id}-${e.tx?.id ?? 'nohist'}-${i}`}>
                       <td style={{ textAlign: 'center', color: '#64748b' }}>{i + 1}</td>
-                      <td style={{ fontWeight: 500, color: '#e2e8f0' }}>{e.rec.itemDescription || '—'}</td>
+                      <td style={{ fontWeight: 500, color: '#374151' }}>{e.rec.itemDescription || '—'}</td>
                       <td style={{ color: '#60a5fa', fontFamily: 'monospace', fontSize: 11 }}>{e.rec.prNumber || '—'}</td>
                       <td style={{ color: '#94a3b8', whiteSpace: 'nowrap' }}>{e.date ? fmtDate(e.date) : '—'}</td>
                       <td style={{ textAlign: 'right', fontWeight: 800, fontSize: 13,
@@ -500,3 +500,4 @@ export default function FinanceEIPurReport() {
     </div>
   );
 }
+

@@ -1,4 +1,4 @@
-// @ts-nocheck
+﻿// @ts-nocheck
 import { useState, useEffect, useMemo, useRef } from 'react';
 import * as XLSX from 'xlsx';
 import {
@@ -127,7 +127,7 @@ const Modal = ({ title, onClose, children }: any) => (
   <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.65)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
     <div className="glass-card" style={{ width: '100%', maxWidth: 580, maxHeight: '92vh', overflowY: 'auto', padding: 24 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-        <div style={{ fontWeight: 700, fontSize: 16, color: '#f1f5f9' }}>{title}</div>
+        <div style={{ fontWeight: 700, fontSize: 16, color: '#1e293b' }}>{title}</div>
         <button onClick={onClose} style={{ background: 'none', border: 'none', color: '#64748b', cursor: 'pointer' }}><X size={18} /></button>
       </div>
       {children}
@@ -718,7 +718,7 @@ export default function JobTracker() {
       {/* Header */}
       <div className="glass-card" style={{ padding: '14px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10 }}>
         <div>
-          <div style={{ fontSize: 18, fontWeight: 700, color: '#f1f5f9' }}>Maintenance Job Tracker</div>
+          <div style={{ fontSize: 18, fontWeight: 700, color: '#1e293b' }}>Maintenance Job Tracker</div>
           <div style={{ fontSize: 12, color: '#64748b', marginTop: 2 }}>Pending jobs, follow-ups &amp; reminder center — E &amp; I Dept.</div>
         </div>
         <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
@@ -787,7 +787,7 @@ export default function JobTracker() {
                       return (
                         <tr key={j.id} style={{ background: 'rgba(239,68,68,0.04)' }}>
                           <td style={{ fontFamily: 'monospace', color: '#60a5fa', fontWeight: 700 }}>{j.jobId || '—'}</td>
-                          <td style={{ fontWeight: 500, color: '#e2e8f0' }}>{j.description}</td>
+                          <td style={{ fontWeight: 500, color: '#374151' }}>{j.description}</td>
                           <td><Badge label={j.priority} cfg={pc} /></td>
                           <td style={{ color: '#94a3b8' }}>{j.assignedTo || '—'}</td>
                           <td style={{ color: '#ef4444', fontWeight: 700 }}>{fmtDate(j.dueDate)}</td>
@@ -817,7 +817,7 @@ export default function JobTracker() {
                     <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                       <div style={{ width: 7, height: 7, borderRadius: '50%', background: fc, flexShrink: 0 }} />
                       <div>
-                        <div style={{ fontWeight: 600, color: '#e2e8f0', fontSize: 13 }}>{r.title}</div>
+                        <div style={{ fontWeight: 600, color: '#374151', fontSize: 13 }}>{r.title}</div>
                         {r.description && <div style={{ fontSize: 11, color: '#64748b' }}>{r.description}</div>}
                       </div>
                     </div>
@@ -1171,7 +1171,7 @@ export default function JobTracker() {
                         return (
                           <tr key={r.id} style={{ background: od ? 'rgba(239,68,68,0.04)' : r.dueDate === today ? 'rgba(52,211,153,0.04)' : undefined }}>
                             <td style={{ textAlign: 'center', color: '#64748b' }}>{i + 1}</td>
-                            <td style={{ fontWeight: 700, color: '#111827' }}>
+                            <td style={{ color: '#374151' }}>
                               {r.dueDate === today && <span style={{ fontSize: 9, background: 'rgba(52,211,153,0.2)', color: '#34d399', borderRadius: 4, padding: '1px 5px', marginRight: 5 }}>TODAY</span>}
                               {od && <span style={{ fontSize: 9, background: 'rgba(239,68,68,0.2)', color: '#ef4444', borderRadius: 4, padding: '1px 5px', marginRight: 5 }}>OVERDUE</span>}
                               {r.title}
@@ -1451,3 +1451,4 @@ export default function JobTracker() {
     </div>
   );
 }
+

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+﻿import { useState } from 'react';
 import { Zap, TrendingUp, TrendingDown, Activity, Gauge, Download } from 'lucide-react';
 import {
   AreaChart, Area, BarChart, Bar, LineChart, Line, PieChart, Pie, Cell,
@@ -58,7 +58,7 @@ export default function EnergyManagement() {
           <div key={s.label} className="glass-card" style={{ padding: '14px 18px', display: 'flex', alignItems: 'center', gap: 12 }}>
             <div style={{ color: s.color }}>{s.icon}</div>
             <div>
-              <div style={{ fontSize: 20, fontWeight: 700, color: '#f1f5f9' }}>{s.value}</div>
+              <div style={{ fontSize: 20, fontWeight: 700, color: '#1e293b' }}>{s.value}</div>
               <div style={{ fontSize: 10, color: '#64748b' }}>{s.label}</div>
               <div style={{ fontSize: 10, color: s.color, marginTop: 2 }}>{s.sub}</div>
             </div>
@@ -81,7 +81,7 @@ export default function EnergyManagement() {
         <div className="glass-card" style={{ padding: 20 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
             <div>
-              <div style={{ fontSize: 14, fontWeight: 600, color: '#f1f5f9' }}>
+              <div style={{ fontSize: 14, fontWeight: 600, color: '#1e293b' }}>
                 {period === 'daily' ? 'Hourly Load Profile — Today' : 'Monthly Consumption Trend — 2026'}
               </div>
               <div style={{ fontSize: 11, color: '#64748b' }}>kWh consumption</div>
@@ -123,7 +123,7 @@ export default function EnergyManagement() {
         </div>
 
         <div className="glass-card" style={{ padding: 20 }}>
-          <div style={{ fontSize: 14, fontWeight: 600, color: '#f1f5f9', marginBottom: 16 }}>Department-wise Energy</div>
+          <div style={{ fontSize: 14, fontWeight: 600, color: '#1e293b', marginBottom: 16 }}>Department-wise Energy</div>
           <ResponsiveContainer width="100%" height={160}>
             <PieChart>
               <Pie data={departmentEnergyData} cx="50%" cy="50%" innerRadius={45} outerRadius={70} dataKey="value" nameKey="name">
@@ -139,7 +139,7 @@ export default function EnergyManagement() {
                   <div style={{ width: 8, height: 8, borderRadius: 2, background: d.fill }} />
                   <span style={{ color: '#94a3b8' }}>{d.name}</span>
                 </div>
-                <span style={{ color: '#f1f5f9', fontWeight: 600 }}>{d.value}%</span>
+                <span style={{ color: '#1e293b', fontWeight: 600 }}>{d.value}%</span>
               </div>
             ))}
           </div>
@@ -149,7 +149,7 @@ export default function EnergyManagement() {
       {/* Charts Row 2 */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
         <div className="glass-card" style={{ padding: 20 }}>
-          <div style={{ fontSize: 14, fontWeight: 600, color: '#f1f5f9', marginBottom: 4 }}>Machine-wise Consumption</div>
+          <div style={{ fontSize: 14, fontWeight: 600, color: '#1e293b', marginBottom: 4 }}>Machine-wise Consumption</div>
           <div style={{ fontSize: 11, color: '#64748b', marginBottom: 16 }}>Top consumers this month</div>
           <ResponsiveContainer width="100%" height={200}>
             <BarChart data={machineEnergyData} layout="vertical">
@@ -163,7 +163,7 @@ export default function EnergyManagement() {
         </div>
 
         <div className="glass-card" style={{ padding: 20 }}>
-          <div style={{ fontSize: 14, fontWeight: 600, color: '#f1f5f9', marginBottom: 4 }}>Power Factor Trend</div>
+          <div style={{ fontSize: 14, fontWeight: 600, color: '#1e293b', marginBottom: 4 }}>Power Factor Trend</div>
           <div style={{ fontSize: 11, color: '#64748b', marginBottom: 16 }}>Monthly average power factor</div>
           <ResponsiveContainer width="100%" height={200}>
             <LineChart data={mockEnergyData}>
@@ -179,7 +179,7 @@ export default function EnergyManagement() {
 
       {/* Utility Monitoring */}
       <div className="glass-card" style={{ padding: 20 }}>
-        <div style={{ fontSize: 14, fontWeight: 600, color: '#f1f5f9', marginBottom: 16 }}>Utility Monitoring — This Month</div>
+        <div style={{ fontSize: 14, fontWeight: 600, color: '#1e293b', marginBottom: 16 }}>Utility Monitoring — This Month</div>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12 }}>
           {utilityData.map(u => (
             <div key={u.label} style={{ padding: '14px 16px', background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: 10 }}>
@@ -200,3 +200,4 @@ export default function EnergyManagement() {
     </div>
   );
 }
+

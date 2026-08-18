@@ -1,4 +1,4 @@
-import { useState } from 'react';
+﻿import { useState } from 'react';
 import { Plus, Search, Filter, CheckCircle, Clock, AlertTriangle, Calendar, Eye, Edit, Trash2, Download, Bell } from 'lucide-react';
 import { mockPMSchedules } from '../data/mockData';
 import type { PMSchedule } from '../types';
@@ -16,7 +16,7 @@ function PMCard({ pm }: { pm: PMSchedule }) {
     <div className="glass-card" style={{ padding: 16 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 10 }}>
         <div>
-          <div style={{ fontSize: 13, fontWeight: 600, color: '#f1f5f9' }}>{pm.machineName}</div>
+          <div style={{ fontSize: 13, fontWeight: 600, color: '#1e293b' }}>{pm.machineName}</div>
           <div style={{ fontSize: 11, color: '#64748b', marginTop: 2 }}>Assigned: {pm.assignedTo}</div>
         </div>
         <div style={{ display: 'flex', gap: 6, flexDirection: 'column', alignItems: 'flex-end' }}>
@@ -106,7 +106,7 @@ export default function PreventiveMaintenance() {
           <div key={s.label} className="glass-card" style={{ padding: '14px 16px', display: 'flex', alignItems: 'center', gap: 12 }}>
             <div style={{ color: s.color }}>{s.icon}</div>
             <div>
-              <div style={{ fontSize: 22, fontWeight: 700, color: '#f1f5f9' }}>{s.value}</div>
+              <div style={{ fontSize: 22, fontWeight: 700, color: '#1e293b' }}>{s.value}</div>
               <div style={{ fontSize: 11, color: '#64748b' }}>{s.label}</div>
             </div>
           </div>
@@ -165,7 +165,7 @@ export default function PreventiveMaintenance() {
         <div className="modal-overlay" onClick={() => setShowModal(false)}>
           <div className="modal-content" onClick={e => e.stopPropagation()}>
             <div style={{ padding: '20px 24px', borderBottom: '1px solid rgba(255,255,255,0.06)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <div style={{ fontSize: 16, fontWeight: 600, color: '#f1f5f9' }}>Create PM Schedule</div>
+              <div style={{ fontSize: 16, fontWeight: 600, color: '#1e293b' }}>Create PM Schedule</div>
               <button onClick={() => setShowModal(false)} style={{ background: 'none', border: 'none', color: '#64748b', cursor: 'pointer', fontSize: 20 }}>×</button>
             </div>
             <div style={{ padding: 24, display: 'flex', flexDirection: 'column', gap: 14 }}>
@@ -203,3 +203,4 @@ export default function PreventiveMaintenance() {
     </div>
   );
 }
+

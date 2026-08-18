@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback } from 'react';
+﻿import { useState, useRef, useCallback } from 'react';
 import * as XLSX from 'xlsx';
 import {
   Download, Upload, FileText, CheckCircle, XCircle, AlertTriangle,
@@ -197,7 +197,7 @@ function downloadTemplate() {
 
 // ─── Styles ───────────────────────────────────────────────────────────────────
 
-const inp: React.CSSProperties = { width: '100%', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 8, padding: '8px 12px', color: '#e2e8f0', fontSize: 13, outline: 'none', boxSizing: 'border-box', colorScheme: 'dark' };
+const inp: React.CSSProperties = { width: '100%', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 8, padding: '8px 12px', color: '#374151', fontSize: 13, outline: 'none', boxSizing: 'border-box', colorScheme: 'dark' };
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
@@ -318,7 +318,7 @@ export default function EmployeeBulkUpload({ onClose }: { onClose: () => void })
         {/* Header */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
           <div>
-            <div style={{ fontSize: 17, fontWeight: 700, color: '#f1f5f9', display: 'flex', alignItems: 'center', gap: 8 }}>
+            <div style={{ fontSize: 17, fontWeight: 700, color: '#1e293b', display: 'flex', alignItems: 'center', gap: 8 }}>
               <Users size={18} color="#3b82f6" /> Employee Master Data Upload
             </div>
             <div style={{ fontSize: 12, color: '#64748b', marginTop: 3 }}>
@@ -338,7 +338,7 @@ export default function EmployeeBulkUpload({ onClose }: { onClose: () => void })
               <div style={{ background: 'rgba(59,130,246,0.06)', border: '1px solid rgba(59,130,246,0.2)', borderRadius: 12, padding: 20 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
                   <div style={{ width: 28, height: 28, borderRadius: '50%', background: '#3b82f6', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 700, color: 'white', flexShrink: 0 }}>1</div>
-                  <div style={{ fontSize: 14, fontWeight: 600, color: '#f1f5f9' }}>Download Template</div>
+                  <div style={{ fontSize: 14, fontWeight: 600, color: '#1e293b' }}>Download Template</div>
                 </div>
                 <div style={{ fontSize: 12, color: '#94a3b8', lineHeight: 1.6, marginBottom: 16 }}>
                   Download the Excel template with all required columns and a sample row. Fill in your employee data and save the file.
@@ -355,7 +355,7 @@ export default function EmployeeBulkUpload({ onClose }: { onClose: () => void })
               <div style={{ background: 'rgba(34,197,94,0.04)', border: '1px solid rgba(34,197,94,0.2)', borderRadius: 12, padding: 20 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
                   <div style={{ width: 28, height: 28, borderRadius: '50%', background: '#22c55e', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 700, color: 'white', flexShrink: 0 }}>2</div>
-                  <div style={{ fontSize: 14, fontWeight: 600, color: '#f1f5f9' }}>Upload Filled Template</div>
+                  <div style={{ fontSize: 14, fontWeight: 600, color: '#1e293b' }}>Upload Filled Template</div>
                 </div>
                 <div
                   onDragOver={e => { e.preventDefault(); setIsDragOver(true); }}
@@ -453,7 +453,7 @@ export default function EmployeeBulkUpload({ onClose }: { onClose: () => void })
                               </td>
                             )}
                             {ei === 0 && (
-                              <td rowSpan={row.errors.length} style={{ padding: '8px 14px', fontSize: 12, color: '#e2e8f0', verticalAlign: 'top' }}>
+                              <td rowSpan={row.errors.length} style={{ padding: '8px 14px', fontSize: 12, color: '#374151', verticalAlign: 'top' }}>
                                 {(row.data.name as string) || '—'}
                               </td>
                             )}
@@ -494,7 +494,7 @@ export default function EmployeeBulkUpload({ onClose }: { onClose: () => void })
                         {parseResult.validRows.map(row => (
                           <tr key={row.rowNum} style={{ borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
                             <td style={{ padding: '8px 14px', fontSize: 12, color: '#64748b' }}>{row.rowNum}</td>
-                            <td style={{ padding: '8px 14px', fontSize: 12, color: '#e2e8f0', fontWeight: 500 }}>{row.data.name as string}</td>
+                            <td style={{ padding: '8px 14px', fontSize: 12, color: '#374151', fontWeight: 500 }}>{row.data.name as string}</td>
                             <td style={{ padding: '8px 14px', fontSize: 12, color: '#94a3b8' }}>{row.data.designation as string}</td>
                             <td style={{ padding: '8px 14px', fontSize: 12, color: '#94a3b8' }}>{row.data.department as string}</td>
                             <td style={{ padding: '8px 14px', fontSize: 12, color: '#94a3b8' }}>{row.data.uaePhone as string}</td>
@@ -549,7 +549,7 @@ export default function EmployeeBulkUpload({ onClose }: { onClose: () => void })
         {phase === 'importing' && (
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '48px 0', gap: 16 }}>
             <div style={{ width: 44, height: 44, border: '3px solid rgba(59,130,246,0.3)', borderTopColor: '#3b82f6', borderRadius: '50%', animation: 'spin 0.9s linear infinite' }}/>
-            <div style={{ fontSize: 14, fontWeight: 600, color: '#f1f5f9' }}>Importing employee records…</div>
+            <div style={{ fontSize: 14, fontWeight: 600, color: '#1e293b' }}>Importing employee records…</div>
             <div style={{ fontSize: 12, color: '#64748b' }}>Creating and updating records in the database. Please wait.</div>
           </div>
         )}
@@ -559,7 +559,7 @@ export default function EmployeeBulkUpload({ onClose }: { onClose: () => void })
           <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
             <div style={{ textAlign: 'center', paddingTop: 8 }}>
               <CheckCircle size={44} color="#22c55e" style={{ marginBottom: 12 }}/>
-              <div style={{ fontSize: 17, fontWeight: 700, color: '#f1f5f9' }}>Import Complete</div>
+              <div style={{ fontSize: 17, fontWeight: 700, color: '#1e293b' }}>Import Complete</div>
               <div style={{ fontSize: 12, color: '#64748b', marginTop: 4 }}>Employee records have been processed successfully.</div>
             </div>
 
@@ -613,3 +613,4 @@ export default function EmployeeBulkUpload({ onClose }: { onClose: () => void })
     </div>
   );
 }
+

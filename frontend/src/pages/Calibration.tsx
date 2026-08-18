@@ -1,4 +1,4 @@
-// @ts-nocheck
+﻿// @ts-nocheck
 import { useState, useRef, useEffect, useCallback } from 'react';
 import {
   FlaskConical, AlertTriangle, CheckCircle, Clock,
@@ -346,7 +346,7 @@ export default function Calibration() {
           <div key={s.label} className="glass-card" style={{ padding: '14px 18px', display: 'flex', alignItems: 'center', gap: 12 }}>
             <div style={{ color: s.color }}>{s.icon}</div>
             <div>
-              <div style={{ fontSize: 24, fontWeight: 700, color: '#f1f5f9' }}>{s.value}</div>
+              <div style={{ fontSize: 24, fontWeight: 700, color: '#1e293b' }}>{s.value}</div>
               <div style={{ fontSize: 11, color: '#64748b' }}>{s.label}</div>
             </div>
           </div>
@@ -414,7 +414,7 @@ export default function Calibration() {
               return (
                 <tr key={c.id}>
                   <td style={{ color: '#60a5fa', fontFamily: 'monospace', fontSize: 12 }}>{c.instrumentId}</td>
-                  <td style={{ fontWeight: 600, color: '#e2e8f0' }}>{c.name}</td>
+                  <td style={{ fontWeight: 600, color: '#374151' }}>{c.name}</td>
                   <td style={{ fontSize: 12, color: '#94a3b8' }}>{c.location}</td>
                   <td><span className={`badge ${c.type === 'External' ? 'badge-blue' : 'badge-purple'}`} style={{ fontSize: 10 }}>{c.type}</span></td>
                   <td style={{ fontSize: 12, color: '#94a3b8' }}>{c.vendor}</td>
@@ -452,7 +452,7 @@ export default function Calibration() {
         <div className="modal-overlay" onClick={() => setShowForm(false)}>
           <div className="modal-content" style={{ maxWidth: 680 }} onClick={e => e.stopPropagation()}>
             <div style={{ padding: '18px 24px', borderBottom: '1px solid rgba(255,255,255,0.06)', display: 'flex', justifyContent: 'space-between' }}>
-              <div style={{ fontSize: 16, fontWeight: 600, color: '#f1f5f9' }}>
+              <div style={{ fontSize: 16, fontWeight: 600, color: '#1e293b' }}>
                 {editId ? 'Edit Instrument' : 'Add Instrument to Master List'}
               </div>
               <button onClick={() => setShowForm(false)} style={{ background: 'none', border: 'none', color: '#64748b', cursor: 'pointer', fontSize: 20 }}>×</button>
@@ -501,7 +501,7 @@ export default function Calibration() {
           <div className="modal-content" style={{ maxWidth: 940, maxHeight: '90vh' }} onClick={e => e.stopPropagation()}>
             <div style={{ padding: '16px 24px', borderBottom: '1px solid rgba(255,255,255,0.06)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <div>
-                <div style={{ fontSize: 15, fontWeight: 700, color: '#f1f5f9' }}>Import Preview — Calibration Master List</div>
+                <div style={{ fontSize: 15, fontWeight: 700, color: '#1e293b' }}>Import Preview — Calibration Master List</div>
                 <div style={{ fontSize: 11, color: '#64748b', marginTop: 2 }}>
                   {importRows.length} row{importRows.length !== 1 ? 's' : ''} found ·
                   <span style={{ color: '#22c55e' }}> {addCount} new</span> ·
@@ -545,7 +545,7 @@ export default function Calibration() {
                               : <span style={{ color: '#ef4444', fontWeight: 600, fontSize: 11 }}>✕ Skip</span>}
                         </td>
                         <td style={{ padding: '7px 10px', color: '#60a5fa', fontFamily: 'monospace', fontSize: 11 }}>{r.data.instrumentId || '—'}</td>
-                        <td style={{ padding: '7px 10px', color: '#e2e8f0', maxWidth: 150, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.data.name || '—'}</td>
+                        <td style={{ padding: '7px 10px', color: '#374151', maxWidth: 150, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.data.name || '—'}</td>
                         <td style={{ padding: '7px 10px', color: '#94a3b8' }}>{r.data.location || '—'}</td>
                         <td style={{ padding: '7px 10px', color: '#94a3b8' }}>{r.data.type || '—'}</td>
                         <td style={{ padding: '7px 10px', color: '#94a3b8', maxWidth: 120, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.data.vendor || '—'}</td>
@@ -577,3 +577,4 @@ export default function Calibration() {
     </div>
   );
 }
+

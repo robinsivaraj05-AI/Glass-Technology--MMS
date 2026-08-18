@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+﻿import { useState, useEffect, useCallback } from 'react';
 import { Plus, Edit2, Trash2, X, Save, Search, Fuel, ChevronDown, ChevronRight } from 'lucide-react';
 import toast from 'react-hot-toast';
 
@@ -205,7 +205,7 @@ export default function AccessoriesEntry() {
   });
 
   const pages = Math.ceil(total / 25);
-  const thStyle: React.CSSProperties = { padding: '9px 12px', textAlign: 'left', fontSize: 10, fontWeight: 700, color: '#f1f5f9', textTransform: 'uppercase', letterSpacing: 0.5, background: '#1e293b', whiteSpace: 'nowrap' };
+  const thStyle: React.CSSProperties = { padding: '9px 12px', textAlign: 'left', fontSize: 10, fontWeight: 700, color: '#1e293b', textTransform: 'uppercase', letterSpacing: 0.5, background: '#1e293b', whiteSpace: 'nowrap' };
   const tdStyle: React.CSSProperties = { padding: '8px 12px', fontSize: 12, color: '#334155', verticalAlign: 'middle' };
   const itemThStyle: React.CSSProperties = { padding: '5px 8px', fontSize: 10, fontWeight: 700, color: '#fff', background: '#334155', textTransform: 'uppercase', letterSpacing: 0.4 };
 
@@ -260,7 +260,7 @@ export default function AccessoriesEntry() {
           <div style={{ padding: 60, textAlign: 'center' }}>
             <Fuel size={40} color="#e2e8f0" style={{ marginBottom: 12 }}/>
             <div style={{ fontSize: 15, fontWeight: 600, color: '#94a3b8' }}>No consumables entries yet</div>
-            <div style={{ fontSize: 12, color: '#cbd5e1', marginTop: 4 }}>Click "New Entry" to log diesel, oil or other accessories</div>
+            <div style={{ fontSize: 12, color: '#64748b', marginTop: 4 }}>Click "New Entry" to log diesel, oil or other accessories</div>
           </div>
         ) : (
           <>
@@ -433,7 +433,7 @@ export default function AccessoriesEntry() {
                     <thead>
                       <tr>
                         {['Item Name','Category','Unit','Quantity','Unit Rate (AED)','Total Cost (AED)',''].map(h => (
-                          <th key={h} style={{ padding: '8px 10px', textAlign: h === 'Total Cost (AED)' ? 'right' : 'left', fontSize: 10, fontWeight: 700, color: '#f1f5f9', textTransform: 'uppercase', letterSpacing: 0.5, background: '#1e293b', whiteSpace: 'nowrap' }}>{h}</th>
+                          <th key={h} style={{ padding: '8px 10px', textAlign: h === 'Total Cost (AED)' ? 'right' : 'left', fontSize: 10, fontWeight: 700, color: '#1e293b', textTransform: 'uppercase', letterSpacing: 0.5, background: '#1e293b', whiteSpace: 'nowrap' }}>{h}</th>
                         ))}
                       </tr>
                     </thead>
@@ -537,3 +537,4 @@ export default function AccessoriesEntry() {
     </div>
   );
 }
+

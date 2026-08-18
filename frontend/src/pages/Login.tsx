@@ -1,4 +1,4 @@
-import { useState } from 'react';
+﻿import { useState } from 'react';
 import { useNavigate, Navigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { Eye, EyeOff, Zap, Shield, Lock, Mail, AlertCircle } from 'lucide-react';
@@ -72,13 +72,13 @@ export default function Login() {
               fontSize: 26, boxShadow: '0 8px 32px rgba(59,130,246,0.4)',
             }}>⚡</div>
             <div>
-              <div style={{ fontSize: 20, fontWeight: 700, color: '#f1f5f9', letterSpacing: -0.5 }}>E&I MMS</div>
+              <div style={{ fontSize: 20, fontWeight: 700, color: '#f8fafc', letterSpacing: -0.5 }}>E&I MMS</div>
               <div style={{ fontSize: 12, color: '#64748b' }}>Maintenance Management System</div>
             </div>
           </div>
 
           <div style={{ marginBottom: 8 }}>
-            <h1 style={{ fontSize: 26, fontWeight: 700, color: '#f1f5f9', margin: 0 }}>Welcome Back</h1>
+            <h1 style={{ fontSize: 26, fontWeight: 700, color: '#f8fafc', margin: 0 }}>Welcome Back</h1>
             <p style={{ color: '#64748b', fontSize: 13, marginTop: 6 }}>Sign in to continue to the E&I MMS portal</p>
           </div>
 
@@ -173,7 +173,7 @@ export default function Login() {
                   {acc.label === 'Manager' ? '👔' : acc.label === 'Deputy Manager' ? '👨‍💼' : acc.label === 'Shift Engineer' ? '👷' : '👁️'}
                 </div>
                 <div>
-                  <div style={{ fontSize: 13, fontWeight: 600, color: '#e2e8f0' }}>{acc.label}</div>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: '#f1f5f9' }}>{acc.label}</div>
                   <div style={{ fontSize: 11, color: acc.color }}>{acc.role}</div>
                   <div style={{ fontSize: 10, color: '#475569', marginTop: 2 }}>{acc.email}</div>
                 </div>
@@ -195,3 +195,4 @@ export default function Login() {
     </div>
   );
 }
+

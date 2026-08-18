@@ -1,4 +1,4 @@
-// @ts-nocheck
+﻿// @ts-nocheck
 import { useState, useEffect, useMemo } from 'react';
 import { RefreshCw, CheckCircle2, Truck, TrendingUp, Package, FileDown } from 'lucide-react';
 import jsPDF from 'jspdf';
@@ -263,7 +263,7 @@ export default function PurchaseCosting() {
           {items.map((r, i) => (
             <tr key={r.id || r._id}>
               <td style={{ textAlign: 'center', color: '#64748b' }}>{i + 1}</td>
-              <td style={{ fontWeight: 500, color: '#e2e8f0' }}>{r.itemDescription || '—'}</td>
+              <td style={{ fontWeight: 500, color: '#374151' }}>{r.itemDescription || '—'}</td>
               <td style={{ fontFamily: 'monospace', fontSize: 11, color: '#60a5fa', fontWeight: 700 }}>{r.prNumber || '—'}</td>
               <td style={{ color: '#94a3b8', whiteSpace: 'nowrap' }}>{fmtDate(r.requestDate)}</td>
               <td>
@@ -283,7 +283,7 @@ export default function PurchaseCosting() {
           ))}
           {items.length > 0 && (
             <tr style={{ background: 'rgba(255,255,255,0.04)' }}>
-              <td colSpan={5} style={{ textAlign: 'right', fontWeight: 700, color: '#e2e8f0', fontSize: 12 }}>Sub-total:</td>
+              <td colSpan={5} style={{ textAlign: 'right', fontWeight: 700, color: '#374151', fontSize: 12 }}>Sub-total:</td>
               <td style={{ textAlign: 'right', fontWeight: 900, fontSize: 14, color: received ? '#22c55e' : '#3b82f6' }}>
                 AED {fmtAED(items.reduce((s, r) => s + (r.budget || 0), 0))}
               </td>
@@ -307,7 +307,7 @@ export default function PurchaseCosting() {
       {/* Header */}
       <div className="glass-card" style={{ padding: '16px 22px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
         <div>
-          <div style={{ fontSize: 18, fontWeight: 700, color: '#f1f5f9' }}>E &amp; I Material Cost Report</div>
+          <div style={{ fontSize: 18, fontWeight: 700, color: '#1e293b' }}>E &amp; I Material Cost Report</div>
           <div style={{ fontSize: 12, color: '#64748b', marginTop: 3 }}>Cost of materials received &amp; POs raised — {monthLabel}</div>
         </div>
         <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
@@ -479,7 +479,7 @@ export default function PurchaseCosting() {
               </tbody>
               <tfoot>
                 <tr style={{ background: 'rgba(255,255,255,0.04)' }}>
-                  <td colSpan={2} style={{ textAlign: 'right', fontWeight: 700, color: '#e2e8f0', fontSize: 12, padding: '10px 14px' }}>
+                  <td colSpan={2} style={{ textAlign: 'right', fontWeight: 700, color: '#374151', fontSize: 12, padding: '10px 14px' }}>
                     Year Total {selYear}:
                   </td>
                   <td style={{ textAlign: 'center', fontWeight: 800, color: '#fbbf24' }}>
@@ -582,3 +582,4 @@ export default function PurchaseCosting() {
     </div>
   );
 }
+

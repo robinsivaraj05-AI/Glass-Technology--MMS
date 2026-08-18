@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+﻿import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
 import { AuthProvider } from './context/AuthContext';
 import { EmployeeProvider } from './context/EmployeeContext';
@@ -50,7 +50,7 @@ export default function App() {
         <Toaster
           position="top-right"
           toastOptions={{
-            style: { background: '#0d0d1a', border: '1px solid rgba(59,130,246,0.3)', color: '#f1f5f9', fontSize: 13 },
+            style: { background: '#0d0d1a', border: '1px solid rgba(59,130,246,0.3)', color: '#1e293b', fontSize: 13 },
             success: { iconTheme: { primary: '#22c55e', secondary: '#0d0d1a' } },
             error: { iconTheme: { primary: '#ef4444', secondary: '#0d0d1a' } },
           }}
@@ -128,3 +128,4 @@ export default function App() {
     </AuthProvider>
   );
 }
+

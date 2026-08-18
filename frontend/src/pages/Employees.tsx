@@ -1,4 +1,4 @@
-import { useState } from 'react';
+﻿import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import {
@@ -76,7 +76,7 @@ function totalExp(prevYears: number, joinDate: string, endDate?: string): string
 }
 
 const lbl: React.CSSProperties = { fontSize: 11, color: '#64748b', display: 'block', marginBottom: 4 };
-const inp: React.CSSProperties = { width: '100%', padding: '8px 10px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 7, color: '#f1f5f9', fontSize: 12, outline: 'none', boxSizing: 'border-box', colorScheme: 'dark' };
+const inp: React.CSSProperties = { width: '100%', padding: '8px 10px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 7, color: '#1e293b', fontSize: 12, outline: 'none', boxSizing: 'border-box', colorScheme: 'dark' };
 
 function FRow({ label, field, form, setFn, type = 'text', options }: {
   label: string; field: string; form: Record<string, any>;
@@ -324,7 +324,7 @@ export default function Employees() {
     <div className="glass-card" style={{ padding: '16px 20px', display: 'flex', alignItems: 'center', gap: 14 }}>
       <div style={{ color, fontSize: 20 }}>{icon}</div>
       <div>
-        <div style={{ fontSize: 28, fontWeight: 800, color: '#f1f5f9' }}>{value}</div>
+        <div style={{ fontSize: 28, fontWeight: 800, color: '#1e293b' }}>{value}</div>
         <div style={{ fontSize: 11, color: '#64748b' }}>{label}</div>
       </div>
     </div>
@@ -334,7 +334,7 @@ export default function Employees() {
     <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 12px', background: color + '10', borderRadius: 8, border: `1px solid ${color}30`, marginBottom: 6 }}>
       <AlertTriangle size={13} color={color} />
       <div style={{ flex: 1 }}>
-        <span style={{ fontSize: 12, color: '#e2e8f0', fontWeight: 500 }}>{name}</span>
+        <span style={{ fontSize: 12, color: '#374151', fontWeight: 500 }}>{name}</span>
         <span style={{ fontSize: 11, color: '#64748b' }}> — {sub}</span>
       </div>
       <span style={{ fontSize: 11, fontWeight: 600, color, background: color + '20', padding: '2px 8px', borderRadius: 20 }}>
@@ -419,7 +419,7 @@ export default function Employees() {
                             {e.name.split(' ').map((n: string) => n[0]).join('').slice(0, 2)}
                           </div>
                         )}
-                        <span style={{ fontWeight: 700, color: '#111827', fontSize: 13 }}>{e.name}</span>
+                        <span style={{ color: '#374151', fontSize: 13 }}>{e.name}</span>
                       </div>
                     </td>
                     <td style={{ fontSize: 11, color: '#94a3b8' }}>{e.department}</td>
@@ -495,7 +495,7 @@ export default function Employees() {
                   return (
                     <tr key={e.id} style={{ cursor: 'pointer' }} onClick={() => setSelectedResignedId(e.id)}>
                       <td style={{ fontFamily: 'monospace', color: '#60a5fa', fontSize: 11 }}>{e.empId}</td>
-                      <td style={{ fontWeight: 600, color: '#e2e8f0' }}>{e.name}</td>
+                      <td style={{ fontWeight: 600, color: '#374151' }}>{e.name}</td>
                       <td style={{ fontSize: 11, color: '#94a3b8' }}>{e.department}</td>
                       <td><span className="badge badge-gray" style={{ fontSize: 10 }}>{e.designation}</span></td>
                       <td style={{ fontSize: 11, color: '#64748b' }}>{e.joiningDate}</td>
@@ -557,7 +557,7 @@ export default function Employees() {
                       {selectedResigned.name.split(' ').map(n => n[0]).join('')}
                     </div>
                     <div style={{ flex: 1 }}>
-                      <div style={{ fontSize: 16, fontWeight: 700, color: '#f1f5f9' }}>{selectedResigned.name}</div>
+                      <div style={{ fontSize: 16, fontWeight: 700, color: '#1e293b' }}>{selectedResigned.name}</div>
                       <div style={{ fontSize: 12, color: '#64748b' }}>{selectedResigned.designation} · {selectedResigned.empId}</div>
                     </div>
                     <button
@@ -584,7 +584,7 @@ export default function Employees() {
                     ].map(([l, v]) => (
                       <div key={l} style={{ background: 'rgba(255,255,255,0.03)', borderRadius: 8, padding: '10px 14px' }}>
                         <div style={{ fontSize: 10, color: '#64748b', marginBottom: 2 }}>{l}</div>
-                        <div style={{ fontSize: 13, color: '#e2e8f0', fontWeight: 500 }}>{v || '—'}</div>
+                        <div style={{ fontSize: 13, color: '#374151', fontWeight: 500 }}>{v || '—'}</div>
                       </div>
                     ))}
                   </div>
@@ -631,7 +631,7 @@ export default function Employees() {
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.85)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: 20 }}>
           <div className="glass-card" style={{ width: '100%', maxWidth: 760, maxHeight: '94vh', overflowY: 'auto', padding: 28, position: 'relative' }}>
             <button onClick={() => setShowAddEmp(false)} style={{ position: 'absolute', top: 16, right: 16, background: 'none', border: 'none', color: '#64748b', cursor: 'pointer' }}><X size={18} /></button>
-            <div style={{ fontSize: 15, fontWeight: 700, color: '#f1f5f9', marginBottom: 20 }}>Add New Employee</div>
+            <div style={{ fontSize: 15, fontWeight: 700, color: '#1e293b', marginBottom: 20 }}>Add New Employee</div>
 
             {/* Basic Info */}
             <div style={{ fontSize: 11, color: '#3b82f6', fontWeight: 600, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 10 }}>Basic Information</div>
@@ -692,7 +692,7 @@ export default function Employees() {
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.85)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: 20 }}>
           <div className="glass-card" style={{ width: '100%', maxWidth: 640, maxHeight: '92vh', overflowY: 'auto', padding: 28, position: 'relative' }}>
             <button onClick={() => setShowAddResign(false)} style={{ position: 'absolute', top: 16, right: 16, background: 'none', border: 'none', color: '#64748b', cursor: 'pointer' }}><X size={18} /></button>
-            <div style={{ fontSize: 15, fontWeight: 700, color: '#f1f5f9', marginBottom: 20, display: 'flex', alignItems: 'center', gap: 8 }}>
+            <div style={{ fontSize: 15, fontWeight: 700, color: '#1e293b', marginBottom: 20, display: 'flex', alignItems: 'center', gap: 8 }}>
               <UserX size={16} color="#ef4444" /> Add Resignation Record
             </div>
 
@@ -759,3 +759,4 @@ export default function Employees() {
     </div>
   );
 }
+

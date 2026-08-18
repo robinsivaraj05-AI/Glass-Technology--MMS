@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+﻿import { useState, useEffect, useCallback } from 'react';
 import { Plus, Edit2, Trash2, X, Save, Search, Wrench, ChevronDown } from 'lucide-react';
 import toast from 'react-hot-toast';
 
@@ -107,7 +107,7 @@ export default function EquipmentMaster() {
     return matchSearch && matchStatus && matchType;
   });
 
-  const thStyle: React.CSSProperties = { padding: '9px 12px', textAlign: 'left', fontSize: 10, fontWeight: 700, color: '#f1f5f9', textTransform: 'uppercase', letterSpacing: 0.5, background: '#1e293b', whiteSpace: 'nowrap' };
+  const thStyle: React.CSSProperties = { padding: '9px 12px', textAlign: 'left', fontSize: 10, fontWeight: 700, color: '#1e293b', textTransform: 'uppercase', letterSpacing: 0.5, background: '#1e293b', whiteSpace: 'nowrap' };
   const tdStyle: React.CSSProperties = { padding: '9px 12px', fontSize: 12, color: '#334155', verticalAlign: 'middle' };
 
   return (
@@ -159,7 +159,7 @@ export default function EquipmentMaster() {
           <div style={{ padding: 60, textAlign: 'center' }}>
             <Wrench size={40} color="#e2e8f0" style={{ marginBottom: 12 }}/>
             <div style={{ fontSize: 15, fontWeight: 600, color: '#94a3b8' }}>No equipment registered yet</div>
-            <div style={{ fontSize: 12, color: '#cbd5e1', marginTop: 4 }}>Click "Add Equipment" to register your first rental equipment</div>
+            <div style={{ fontSize: 12, color: '#64748b', marginTop: 4 }}>Click "Add Equipment" to register your first rental equipment</div>
           </div>
         ) : (
           <div style={{ overflowX: 'auto' }}>
@@ -303,3 +303,4 @@ export default function EquipmentMaster() {
     </div>
   );
 }
+

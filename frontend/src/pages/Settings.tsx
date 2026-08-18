@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+﻿import { useState, useEffect } from 'react';
 import { User, Bell, Shield, Database, Globe, Save, Check } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useEmployees } from '../context/EmployeeContext';
@@ -122,7 +122,7 @@ export default function Settings() {
               </div>
             )}
             <div style={{ textAlign: 'center' }}>
-              <div style={{ fontSize: 14, fontWeight: 600, color: '#f1f5f9' }}>{form.name || user?.name || '—'}</div>
+              <div style={{ fontSize: 14, fontWeight: 600, color: '#1e293b' }}>{form.name || user?.name || '—'}</div>
               <div style={{ fontSize: 11, color: '#60a5fa', textTransform: 'capitalize', marginTop: 2 }}>
                 {linkedEmployee?.designation || user?.role.replace(/_/g, ' ')}
               </div>
@@ -137,7 +137,7 @@ export default function Settings() {
 
           {/* Form */}
           <div className="glass-card" style={{ padding: 24 }}>
-            <div style={{ fontSize: 14, fontWeight: 600, color: '#f1f5f9', marginBottom: 16 }}>Profile Information</div>
+            <div style={{ fontSize: 14, fontWeight: 600, color: '#1e293b', marginBottom: 16 }}>Profile Information</div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
               <div>
                 <label style={{ fontSize: 12, color: '#94a3b8', display: 'block', marginBottom: 5 }}>Full Name</label>
@@ -231,7 +231,7 @@ export default function Settings() {
 
       {tab === 'notifications' && (
         <div className="glass-card" style={{ padding: 24, maxWidth: 600 }}>
-          <div style={{ fontSize: 14, fontWeight: 600, color: '#f1f5f9', marginBottom: 20 }}>Notification Preferences</div>
+          <div style={{ fontSize: 14, fontWeight: 600, color: '#1e293b', marginBottom: 20 }}>Notification Preferences</div>
           {[
             { label: 'Email Notifications', desc: 'Receive alerts and reports via email', value: notifEmail, set: setNotifEmail },
             { label: 'SMS Notifications', desc: 'Receive critical alerts via SMS', value: notifSMS, set: setNotifSMS },
@@ -239,7 +239,7 @@ export default function Settings() {
           ].map(n => (
             <div key={n.label} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '14px 0', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
               <div>
-                <div style={{ fontSize: 13, color: '#e2e8f0', fontWeight: 500 }}>{n.label}</div>
+                <div style={{ fontSize: 13, color: '#374151', fontWeight: 500 }}>{n.label}</div>
                 <div style={{ fontSize: 11, color: '#475569' }}>{n.desc}</div>
               </div>
               <button
@@ -276,7 +276,7 @@ export default function Settings() {
       {tab === 'security' && (
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
           <div className="glass-card" style={{ padding: 24 }}>
-            <div style={{ fontSize: 14, fontWeight: 600, color: '#f1f5f9', marginBottom: 16 }}>Change Password</div>
+            <div style={{ fontSize: 14, fontWeight: 600, color: '#1e293b', marginBottom: 16 }}>Change Password</div>
             {['Current Password', 'New Password', 'Confirm New Password'].map(f => (
               <div key={f} style={{ marginBottom: 12 }}>
                 <label style={{ fontSize: 12, color: '#94a3b8', display: 'block', marginBottom: 5 }}>{f}</label>
@@ -286,14 +286,14 @@ export default function Settings() {
             <button className="btn-primary" style={{ fontSize: 12 }}>Update Password</button>
           </div>
           <div className="glass-card" style={{ padding: 24 }}>
-            <div style={{ fontSize: 14, fontWeight: 600, color: '#f1f5f9', marginBottom: 16 }}>Active Sessions</div>
+            <div style={{ fontSize: 14, fontWeight: 600, color: '#1e293b', marginBottom: 16 }}>Active Sessions</div>
             {[
               { device: 'Windows PC — Chrome', location: 'Chennai, IN', time: 'Now (current)', active: true },
               { device: 'Android Phone', location: 'Chennai, IN', time: '2 hours ago', active: false },
             ].map(s => (
               <div key={s.device} style={{ padding: '12px 0', borderBottom: '1px solid rgba(255,255,255,0.04)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <div>
-                  <div style={{ fontSize: 12, color: '#e2e8f0', fontWeight: 500 }}>{s.device}</div>
+                  <div style={{ fontSize: 12, color: '#374151', fontWeight: 500 }}>{s.device}</div>
                   <div style={{ fontSize: 11, color: '#475569' }}>{s.location} · {s.time}</div>
                 </div>
                 {s.active ? <span className="badge badge-success">Current</span> : <button className="btn-danger" style={{ padding: '3px 10px', fontSize: 11 }}>Revoke</button>}
@@ -306,7 +306,7 @@ export default function Settings() {
       {tab === 'system' && (
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
           <div className="glass-card" style={{ padding: 24 }}>
-            <div style={{ fontSize: 14, fontWeight: 600, color: '#f1f5f9', marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}><Globe size={16} /> Preferences</div>
+            <div style={{ fontSize: 14, fontWeight: 600, color: '#1e293b', marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}><Globe size={16} /> Preferences</div>
             <div style={{ marginBottom: 14 }}>
               <label style={{ fontSize: 12, color: '#94a3b8', display: 'block', marginBottom: 5 }}>Language</label>
               <select value={lang} onChange={e => setLang(e.target.value)} className="input-dark">
@@ -330,7 +330,7 @@ export default function Settings() {
             <button className="btn-primary" style={{ fontSize: 12, display: 'flex', alignItems: 'center', gap: 6 }}><Save size={13} /> Apply Settings</button>
           </div>
           <div className="glass-card" style={{ padding: 24 }}>
-            <div style={{ fontSize: 14, fontWeight: 600, color: '#f1f5f9', marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}><Database size={16} /> System Info</div>
+            <div style={{ fontSize: 14, fontWeight: 600, color: '#1e293b', marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}><Database size={16} /> System Info</div>
             {[
               { label: 'Application Version', value: 'MMS v2.0.0' },
               { label: 'Database', value: 'MongoDB Atlas' },
@@ -341,7 +341,7 @@ export default function Settings() {
             ].map(s => (
               <div key={s.label} style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid rgba(255,255,255,0.04)', fontSize: 12 }}>
                 <span style={{ color: '#64748b' }}>{s.label}</span>
-                <span style={{ color: '#e2e8f0', fontWeight: 500 }}>{s.value}</span>
+                <span style={{ color: '#374151', fontWeight: 500 }}>{s.value}</span>
               </div>
             ))}
             <div style={{ marginTop: 16, display: 'flex', gap: 8 }}>
@@ -354,3 +354,4 @@ export default function Settings() {
     </div>
   );
 }
+

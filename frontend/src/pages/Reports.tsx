@@ -1,4 +1,4 @@
-import { useState } from 'react';
+﻿import { useState } from 'react';
 import { Download, BarChart3, FileText, TrendingUp, Calendar } from 'lucide-react';
 import { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts';
 import { monthlyBreakdowns, pmComplianceData, mockKPIs, departmentEnergyData } from '../data/mockData';
@@ -50,7 +50,7 @@ export default function Reports() {
       {/* Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div>
-          <div style={{ fontSize: 16, fontWeight: 700, color: '#f1f5f9' }}>Reports & Analytics</div>
+          <div style={{ fontSize: 16, fontWeight: 700, color: '#1e293b' }}>Reports & Analytics</div>
           <div style={{ fontSize: 12, color: '#64748b' }}>Generate, download and share maintenance reports</div>
         </div>
       </div>
@@ -80,7 +80,7 @@ export default function Reports() {
       {/* Charts Row */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 16 }}>
         <div className="glass-card" style={{ padding: 16 }}>
-          <div style={{ fontSize: 13, fontWeight: 600, color: '#f1f5f9', marginBottom: 12 }}>Breakdowns MTD</div>
+          <div style={{ fontSize: 13, fontWeight: 600, color: '#1e293b', marginBottom: 12 }}>Breakdowns MTD</div>
           <ResponsiveContainer width="100%" height={150}>
             <BarChart data={monthlyBreakdowns}>
               <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" />
@@ -92,7 +92,7 @@ export default function Reports() {
           </ResponsiveContainer>
         </div>
         <div className="glass-card" style={{ padding: 16 }}>
-          <div style={{ fontSize: 13, fontWeight: 600, color: '#f1f5f9', marginBottom: 12 }}>PM Compliance Trend</div>
+          <div style={{ fontSize: 13, fontWeight: 600, color: '#1e293b', marginBottom: 12 }}>PM Compliance Trend</div>
           <ResponsiveContainer width="100%" height={150}>
             <LineChart data={pmComplianceData}>
               <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" />
@@ -104,7 +104,7 @@ export default function Reports() {
           </ResponsiveContainer>
         </div>
         <div className="glass-card" style={{ padding: 16 }}>
-          <div style={{ fontSize: 13, fontWeight: 600, color: '#f1f5f9', marginBottom: 12 }}>Dept Energy Split</div>
+          <div style={{ fontSize: 13, fontWeight: 600, color: '#1e293b', marginBottom: 12 }}>Dept Energy Split</div>
           <ResponsiveContainer width="100%" height={130}>
             <PieChart>
               <Pie data={departmentEnergyData} cx="50%" cy="50%" innerRadius={35} outerRadius={55} dataKey="value" nameKey="name">
@@ -118,7 +118,7 @@ export default function Reports() {
 
       {/* Generate Report */}
       <div className="glass-card" style={{ padding: 20 }}>
-        <div style={{ fontSize: 14, fontWeight: 600, color: '#f1f5f9', marginBottom: 16 }}>Generate Report</div>
+        <div style={{ fontSize: 14, fontWeight: 600, color: '#1e293b', marginBottom: 16 }}>Generate Report</div>
         <div style={{ display: 'flex', gap: 12, marginBottom: 16, flexWrap: 'wrap' }}>
           <div>
             <label style={{ fontSize: 11, color: '#64748b', display: 'block', marginBottom: 4 }}>From Date</label>
@@ -156,7 +156,7 @@ export default function Reports() {
               <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
                 <span style={{ fontSize: 20 }}>{r.icon}</span>
                 <div>
-                  <div style={{ fontSize: 12, fontWeight: 600, color: '#e2e8f0' }}>{r.label}</div>
+                  <div style={{ fontSize: 12, fontWeight: 600, color: '#374151' }}>{r.label}</div>
                   <div style={{ fontSize: 10, color: '#475569' }}>{r.desc}</div>
                 </div>
               </div>
@@ -177,3 +177,4 @@ export default function Reports() {
     </div>
   );
 }
+
