@@ -99,6 +99,19 @@ const StatusSelect = ({ value, options, cfg, onChange }: any) => (
   </select>
 );
 
+// Inline employee dropdown for table cells
+const InlineEmpSelect = ({ value, employees, onChange }: any) => (
+  <select value={value || ''} onChange={e => onChange(e.target.value)}
+    style={{ padding: '4px 8px', borderRadius: 7, fontSize: 11, fontWeight: 500,
+      background: '#F8FAFC', color: value ? '#1E293B' : '#9CA3AF',
+      border: '1px solid #E5E7EB', cursor: 'pointer', width: '100%', minWidth: 120 }}>
+    <option value="">— Select —</option>
+    {employees.map((e: any) => (
+      <option key={e.id} value={e.name}>{e.name}</option>
+    ))}
+  </select>
+);
+
 const Modal = ({ title, onClose, children }: any) => (
   <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.65)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
     <div className="glass-card" style={{ width: '100%', maxWidth: 580, maxHeight: '92vh', overflowY: 'auto', padding: 24 }}>
@@ -315,6 +328,14 @@ export default function JobTracker() {
       } else if (newStatus === 'Completed') {
         setTab('completed');
       }
+    } catch (e: any) { alert(e.message); }
+  };
+
+  // ── Inline "Doing / Completed By" update ──
+  const updateDoingBy = async (j: PendingJob, empName: string) => {
+    try {
+      const up = await apiFetch(`/api/pending-jobs/${j.id}`, { method: 'PUT', body: JSON.stringify({ completedBy: empName }) });
+      setPendingJobs(p => p.map(x => x.id === j.id ? up : x));
     } catch (e: any) { alert(e.message); }
   };
 
@@ -708,8 +729,8 @@ export default function JobTracker() {
                         <td style={{ textAlign: 'center' }}>
                           <StatusSelect value={j.status} options={JOB_STATUSES} cfg={sc} onChange={v => updateStatus(j, v)} />
                         </td>
-                        <td style={{ color: '#374151' }}>
-                          {j.completedBy ? <span style={{ display: 'flex', alignItems: 'center', gap: 5 }}><User size={11} />{j.completedBy}</span> : '—'}
+                        <td>
+                          <InlineEmpSelect value={j.completedBy} employees={employees} onChange={(v: string) => updateDoingBy(j, v)} />
                         </td>
                         <td style={{ color: '#6b7280', fontSize: 11 }}>{j.remarks || '—'}</td>
                         <td style={{ textAlign: 'center' }}>
@@ -784,11 +805,7 @@ export default function JobTracker() {
                         </td>
                         <td style={{ textAlign: 'center' }}><Badge label={j.status} cfg={sc} /></td>
                         <td>
-                          {j.completedBy
-                            ? <span style={{ display: 'flex', alignItems: 'center', gap: 6, color: '#22c55e', fontWeight: 700 }}>
-                                <CheckCircle2 size={12} />{j.completedBy}
-                              </span>
-                            : <span style={{ color: '#475569', fontStyle: 'italic', fontSize: 11 }}>—</span>}
+                          <InlineEmpSelect value={j.completedBy} employees={employees} onChange={(v: string) => updateDoingBy(j, v)} />
                         </td>
                         <td style={{ color: '#6b7280', fontSize: 11 }}>{j.remarks || '—'}</td>
                         <td style={{ textAlign: 'center' }}>
@@ -874,8 +891,13 @@ export default function JobTracker() {
                         <td style={{ color: '#374151' }}>
                           {f.responsiblePerson ? <span style={{ display: 'flex', alignItems: 'center', gap: 5 }}><User size={11} />{f.responsiblePerson}</span> : '—'}
                         </td>
-                        <td style={{ color: '#374151' }}>
-                          {f.responsiblePerson ? <span style={{ display: 'flex', alignItems: 'center', gap: 5 }}><User size={11} />{f.responsiblePerson}</span> : '—'}
+                        <td>
+                          <InlineEmpSelect value={f.responsiblePerson} employees={employees} onChange={async (v: string) => {
+                            try {
+                              const up = await apiFetch(`/api/followup-jobs/${f.id}`, { method: 'PUT', body: JSON.stringify({ responsiblePerson: v }) });
+                              setFollowupJobs(p => p.map(x => x.id === f.id ? up : x));
+                            } catch {}
+                          }} />
                         </td>
                         <td style={{ color: '#6b7280', fontSize: 11 }}>{f.comments || '—'}</td>
                         <td style={{ textAlign: 'center' }}>
