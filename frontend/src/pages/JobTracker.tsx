@@ -4,7 +4,7 @@ import * as XLSX from 'xlsx';
 import {
   ClipboardList, Bell, RefreshCw, Plus, Edit2, Trash2, CheckCircle2,
   AlertTriangle, Clock, Search, Download, FileDown, Upload, FileSpreadsheet,
-  LayoutDashboard, AlarmClock, Repeat, X, User, CalendarDays,
+  LayoutDashboard, AlarmClock, Repeat, X, User, CalendarDays, Zap,
 } from 'lucide-react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -245,6 +245,10 @@ export default function JobTracker() {
   const [editRemId,   setEditRemId]   = useState<string|null>(null);
   const [remForm,     setRemForm]     = useState<any>(BLANK_REM());
 
+  // Quick Edit
+  const [quickJob,  setQuickJob]  = useState<PendingJob|null>(null);
+  const [quickForm, setQuickForm] = useState<any>({});
+
   // ── Fetch ──
   const fetchAll = async () => {
     setLoading(true);
@@ -336,6 +340,29 @@ export default function JobTracker() {
     try {
       const up = await apiFetch(`/api/pending-jobs/${j.id}`, { method: 'PUT', body: JSON.stringify({ completedBy: empName }) });
       setPendingJobs(p => p.map(x => x.id === j.id ? up : x));
+    } catch (e: any) { alert(e.message); }
+  };
+
+  const openQuickEdit = (j: PendingJob) => {
+    setQuickJob(j);
+    setQuickForm({ status: j.status, assignedTo: j.assignedTo, completedBy: j.completedBy, remarks: j.remarks, dueDate: j.dueDate });
+  };
+  const saveQuick = async () => {
+    if (!quickJob) return;
+    try {
+      const patch: any = { ...quickForm };
+      if ((patch.status === 'Completed' || patch.status === 'Partially Done') && !quickJob.completedDate) patch.completedDate = today;
+      const up = await apiFetch(`/api/pending-jobs/${quickJob.id}`, { method: 'PUT', body: JSON.stringify(patch) });
+      setPendingJobs(p => p.map(x => x.id === quickJob.id ? up : x));
+      if (patch.status === 'Follow Up') {
+        const flwPayload = { followupId: autoId('FLW', followupJobs), relatedJobId: quickJob.jobId, description: quickJob.description, nextFollowupDate: '', status: 'Pending', responsiblePerson: patch.assignedTo || '', comments: '' };
+        const newFlw = await apiFetch('/api/followup-jobs', { method: 'POST', body: JSON.stringify(flwPayload) });
+        setFollowupJobs(p => [newFlw, ...p]);
+        setTab('followup');
+      } else if (patch.status === 'Completed') {
+        setTab('completed');
+      }
+      setQuickJob(null);
     } catch (e: any) { alert(e.message); }
   };
 
@@ -734,12 +761,15 @@ export default function JobTracker() {
                         </td>
                         <td style={{ color: '#6b7280', fontSize: 11 }}>{j.remarks || '—'}</td>
                         <td style={{ textAlign: 'center' }}>
-                          <div style={{ display: 'flex', gap: 5, justifyContent: 'center' }}>
-                            <button onClick={() => openJobForm(j)} style={{ width: 27, height: 25, borderRadius: 5, background: 'rgba(59,130,246,0.15)', border: '1px solid rgba(59,130,246,0.4)', color: '#60a5fa', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                              <Edit2 size={11} />
+                          <div style={{ display: 'flex', gap: 4, justifyContent: 'center' }}>
+                            <button title="Quick Edit" onClick={() => openQuickEdit(j)} style={{ display:'flex',alignItems:'center',gap:3,padding:'4px 7px',borderRadius:6,background:'rgba(16,185,129,0.12)',border:'1px solid rgba(16,185,129,0.4)',color:'#10b981',cursor:'pointer',fontSize:10,fontWeight:700 }}>
+                              <Zap size={10}/> Quick
                             </button>
-                            <button onClick={() => deleteJob(j.id)} style={{ width: 27, height: 25, borderRadius: 5, background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', color: '#ef4444', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                              <Trash2 size={11} />
+                            <button title="Edit" onClick={() => openJobForm(j)} style={{ width:27,height:25,borderRadius:5,background:'rgba(59,130,246,0.15)',border:'1px solid rgba(59,130,246,0.4)',color:'#60a5fa',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center' }}>
+                              <Edit2 size={11}/>
+                            </button>
+                            <button title="Delete" onClick={() => deleteJob(j.id)} style={{ width:27,height:25,borderRadius:5,background:'rgba(239,68,68,0.1)',border:'1px solid rgba(239,68,68,0.3)',color:'#ef4444',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center' }}>
+                              <Trash2 size={11}/>
                             </button>
                           </div>
                         </td>
@@ -809,9 +839,17 @@ export default function JobTracker() {
                         </td>
                         <td style={{ color: '#6b7280', fontSize: 11 }}>{j.remarks || '—'}</td>
                         <td style={{ textAlign: 'center' }}>
-                          <button onClick={() => openJobForm(j)} style={{ width: 27, height: 25, borderRadius: 5, background: 'rgba(59,130,246,0.15)', border: '1px solid rgba(59,130,246,0.4)', color: '#60a5fa', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: 'auto' }}>
-                            <Edit2 size={11} />
-                          </button>
+                          <div style={{ display:'flex',gap:4,justifyContent:'center' }}>
+                            <button title="Quick Edit" onClick={() => openQuickEdit(j)} style={{ display:'flex',alignItems:'center',gap:3,padding:'4px 7px',borderRadius:6,background:'rgba(16,185,129,0.12)',border:'1px solid rgba(16,185,129,0.4)',color:'#10b981',cursor:'pointer',fontSize:10,fontWeight:700 }}>
+                              <Zap size={10}/> Quick
+                            </button>
+                            <button title="Edit" onClick={() => openJobForm(j)} style={{ width:27,height:25,borderRadius:5,background:'rgba(59,130,246,0.15)',border:'1px solid rgba(59,130,246,0.4)',color:'#60a5fa',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center' }}>
+                              <Edit2 size={11}/>
+                            </button>
+                            <button title="Delete" onClick={() => deleteJob(j.id)} style={{ width:27,height:25,borderRadius:5,background:'rgba(239,68,68,0.1)',border:'1px solid rgba(239,68,68,0.3)',color:'#ef4444',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center' }}>
+                              <Trash2 size={11}/>
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     );
@@ -1004,6 +1042,55 @@ export default function JobTracker() {
               No reminders. Click "+ Add Reminder" to create one.
             </div>
           )}
+        </div>
+      )}
+
+      {/* ── QUICK EDIT MODAL ── */}
+      {quickJob && (
+        <div style={{ position:'fixed',inset:0,background:'rgba(0,0,0,0.45)',zIndex:1000,display:'flex',alignItems:'center',justifyContent:'center',padding:16 }}>
+          <div className="glass-card" style={{ width:'100%',maxWidth:460,padding:22 }}>
+            <div style={{ display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:16 }}>
+              <div style={{ display:'flex',alignItems:'center',gap:8 }}>
+                <Zap size={16} color="#10b981"/>
+                <span style={{ fontWeight:800,fontSize:15,color:'#1e293b' }}>Quick Edit</span>
+                <span style={{ fontFamily:'monospace',fontSize:11,color:'#60a5fa',marginLeft:4 }}>{quickJob.jobId}</span>
+              </div>
+              <button onClick={() => setQuickJob(null)} style={{ background:'none',border:'none',cursor:'pointer',color:'#64748b' }}><X size={16}/></button>
+            </div>
+            <div style={{ fontSize:12,color:'#6b7280',marginBottom:14,padding:'8px 10px',background:'#F8FAFC',borderRadius:8,border:'1px solid #E5E7EB' }}>
+              {quickJob.description}
+            </div>
+            <div style={{ display:'grid',gridTemplateColumns:'1fr 1fr',gap:12 }}>
+              <Field label="Status">
+                <select value={quickForm.status} onChange={e => setQuickForm((f:any) => ({...f, status:e.target.value}))} className="input-dark" style={{ width:'100%',padding:'8px 10px',fontSize:13 }}>
+                  {JOB_STATUSES.map(s => <option key={s} value={s}>{s}</option>)}
+                </select>
+              </Field>
+              <Field label="Priority">
+                <select value={quickJob.priority} disabled className="input-dark" style={{ width:'100%',padding:'8px 10px',fontSize:13,opacity:0.6 }}>
+                  {PRIORITIES.map(p => <option key={p} value={p}>{p}</option>)}
+                </select>
+              </Field>
+              <Field label="Responsible">
+                <EmpSelect value={quickForm.assignedTo} onChange={(v:string) => setQuickForm((f:any) => ({...f, assignedTo:v}))} employees={employees} placeholder="Select employee"/>
+              </Field>
+              <Field label="Doing / Completed By">
+                <EmpSelect value={quickForm.completedBy} onChange={(v:string) => setQuickForm((f:any) => ({...f, completedBy:v}))} employees={employees} placeholder="Select employee"/>
+              </Field>
+              <Field label="Due Date">
+                <Input type="date" value={quickForm.dueDate} onChange={(e:any) => setQuickForm((f:any) => ({...f, dueDate:e.target.value}))}/>
+              </Field>
+              <Field label="Remarks">
+                <Input value={quickForm.remarks} onChange={(e:any) => setQuickForm((f:any) => ({...f, remarks:e.target.value}))} placeholder="Optional remarks"/>
+              </Field>
+            </div>
+            <div style={{ display:'flex',gap:10,marginTop:14 }}>
+              <button onClick={saveQuick} style={{ flex:1,display:'flex',alignItems:'center',justifyContent:'center',gap:6,padding:'9px 0',borderRadius:8,background:'linear-gradient(135deg,#10b981,#059669)',color:'#fff',border:'none',fontWeight:700,fontSize:13,cursor:'pointer' }}>
+                <Zap size={13}/> Save Changes
+              </button>
+              <button onClick={() => setQuickJob(null)} className="btn-secondary" style={{ fontSize:13 }}>Cancel</button>
+            </div>
+          </div>
         </div>
       )}
 
