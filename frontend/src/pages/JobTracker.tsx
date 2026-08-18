@@ -602,7 +602,8 @@ export default function JobTracker() {
         columnStyles: { 3: { cellWidth: 55 }, 7: { cellWidth: 32 }, 8: { cellWidth: 30 } },
       });
     }
-    doc.save(`Job_Tracker_${today}.pdf`);
+    const fileLabel = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }).replace(/ /g, '_');
+    doc.save(`E&I_Job_Tracker_${fileLabel}.pdf`);
   };
 
   // ── Excel export ──
@@ -640,7 +641,8 @@ export default function JobTracker() {
       'Next Date': f.nextFollowupDate, 'Status': f.status, 'Responsible': f.responsiblePerson, 'Comments': f.comments,
     })));
     XLSX.utils.book_append_sheet(wb, flwSheet, 'Follow-up Jobs');
-    XLSX.writeFile(wb, `Job_Tracker_${today}.xlsx`);
+    const fileLabel = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }).replace(/ /g, '_');
+    XLSX.writeFile(wb, `E&I_Job_Tracker_${fileLabel}.xlsx`);
   };
 
   // ── Tabs config ──
