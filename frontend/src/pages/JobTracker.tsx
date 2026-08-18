@@ -61,7 +61,7 @@ const JOB_STATUSES     = ['Open', 'Completed', 'Partially Done', 'Follow Up'];
 const FLW_STATUSES     = ['Pending', 'In Progress', 'Completed', 'Cancelled'];
 const PRIORITIES       = ['Low', 'Medium', 'High', 'Critical'];
 const RESPONSIBLE_LIST = ['GT-E&I', 'EBC', 'Creative', 'GT-PUR', 'GT-IT', 'Contractor', 'GT-M&U', 'GT-PRD', 'OEM', 'Others'];
-const AREA_LIST        = ['Batch Plant', 'Furnace', 'Rolling Machine', 'Lehr', 'Cutting Line', 'Cullet Return', 'Solar Line', 'Green House', 'Utility', 'Diesel Engine', 'UPS', 'Electrical Panel', 'Raw Material', 'General', 'Power Plant', 'IT'];
+const AREA_LIST        = ['Batch Plant', 'Furnace', 'Rolling Machine', 'Lehr', 'Cutting Line', 'Cullet Return', 'Solar Line', 'Green House', 'Utility', 'Diesel Engine', 'UPS', 'Electrical Panel', 'Raw Material', 'General', 'Power Plant', 'IT', 'Project'];
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 const today = new Date().toISOString().slice(0, 10);
