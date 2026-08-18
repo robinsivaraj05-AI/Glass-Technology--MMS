@@ -1,4 +1,5 @@
 // @ts-nocheck
+import { useState, useEffect } from 'react';
 import {
   AreaChart, Area, BarChart, Bar, LineChart, Line, PieChart, Pie, Cell,
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
@@ -64,14 +65,7 @@ const STATUS_CARDS = [
   { label:'Open Work Orders',  value:12,      icon:<ClipboardList size={24}/>, color:'#3B82F6', bg:'#EFF6FF', border:'#BFDBFE', sub:'5 High Priority',                   borderLeft:'#3B82F6' },
 ];
 
-// ─── Staffing ─────────────────────────────────────────────────────────────────
-const STAFFING = [
-  { label:'Total Positions', value:28, color:'#3B82F6', icon:<Users size={14}/> },
-  { label:'Joined',          value:22, color:'#22C55E', icon:<CheckCircle size={14}/> },
-  { label:'Ready to Join',   value:2,  color:'#F59E0B', icon:<Clock size={14}/> },
-  { label:'HR Process',      value:3,  color:'#8B5CF6', icon:<FileText size={14}/> },
-  { label:'Pending',         value:1,  color:'#EF4444', icon:<AlertTriangle size={14}/> },
-];
+// ─── Staffing (computed dynamically from /api/employees) ──────────────────────
 
 // ─── Maintenance progress ─────────────────────────────────────────────────────
 const MAINT = [
@@ -192,6 +186,29 @@ function SectionTitle({ icon, label, action }: { icon:React.ReactNode; label:str
 // ─── Dashboard ────────────────────────────────────────────────────────────────
 export default function Dashboard() {
   const { user } = useAuth();
+  const [employees, setEmployees] = useState<any[]>([]);
+
+  useEffect(() => {
+    fetch('/api/employees')
+      .then(r => r.json())
+      .then(d => setEmployees(Array.isArray(d) ? d : []))
+      .catch(() => {});
+  }, []);
+
+  const activeCount  = employees.filter(e => e.status === 'active').length;
+  const onLeave      = employees.filter(e => e.status === 'on_leave').length;
+  const suspended    = employees.filter(e => e.status === 'suspended').length;
+  const resigned     = employees.filter(e => e.status === 'resigned').length;
+  const total        = employees.length;
+  const fillPct      = total > 0 ? +((activeCount / total) * 100).toFixed(1) : 0;
+
+  const STAFFING = [
+    { label:'Total Positions', value: total,      color:'#3B82F6', icon:<Users size={14}/> },
+    { label:'Joined',          value: activeCount, color:'#22C55E', icon:<CheckCircle size={14}/> },
+    { label:'On Leave',        value: onLeave,     color:'#F59E0B', icon:<Clock size={14}/> },
+    { label:'Suspended',       value: suspended,   color:'#8B5CF6', icon:<FileText size={14}/> },
+    { label:'Resigned',        value: resigned,    color:'#EF4444', icon:<AlertTriangle size={14}/> },
+  ];
 
   return (
     <div style={{ background:PAGE_BG, margin:'-20px -24px', padding:'24px 28px', minHeight:'calc(100vh - 60px)', fontFamily:"'Inter','Segoe UI',system-ui,sans-serif", color:'#111827' }}>
@@ -315,7 +332,7 @@ export default function Dashboard() {
             </div>
             <div>
               <div style={{ fontSize:9, color:'rgba(255,255,255,0.7)', fontWeight:700, textTransform:'uppercase', letterSpacing:0.8 }}>E &amp; I Team</div>
-              <div style={{ fontSize:22, fontWeight:900, color:'#fff' }}>22 <span style={{ fontSize:13, fontWeight:500, opacity:0.8 }}>/ 28</span></div>
+              <div style={{ fontSize:22, fontWeight:900, color:'#fff' }}>{activeCount} <span style={{ fontSize:13, fontWeight:500, opacity:0.8 }}>/ {total}</span></div>
               <div style={{ fontSize:9, color:'rgba(255,255,255,0.7)' }}>Positions Filled</div>
             </div>
           </div>
@@ -323,10 +340,10 @@ export default function Dashboard() {
           <div style={{ marginBottom:14 }}>
             <div style={{ display:'flex', justifyContent:'space-between', fontSize:10, color:'#6B7280', marginBottom:4 }}>
               <span style={{ fontWeight:600 }}>Workforce Filled</span>
-              <span style={{ fontWeight:800, color:'#22C55E' }}>78.6%</span>
+              <span style={{ fontWeight:800, color:'#22C55E' }}>{fillPct}%</span>
             </div>
             <div style={{ height:7, background:'#F3F4F6', borderRadius:99, overflow:'hidden' }}>
-              <div style={{ height:'100%', width:'78.6%', background:'linear-gradient(90deg,#22C55E,#16A34A)', borderRadius:99 }}/>
+              <div style={{ height:'100%', width:`${fillPct}%`, background:'linear-gradient(90deg,#22C55E,#16A34A)', borderRadius:99 }}/>
             </div>
           </div>
           {STAFFING.map((s,i) => (
