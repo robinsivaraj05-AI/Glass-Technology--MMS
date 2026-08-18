@@ -457,15 +457,25 @@ export default function PurchaseFollowup() {
   );
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+    <div style={{ position: 'relative', minHeight: '100vh', background: 'linear-gradient(135deg, #F8FAFC 0%, #EEF4FF 55%, #E7F2FF 100%)', padding: '0 0 32px', margin: '-24px', overflow: 'hidden' }}>
+
+      {/* Decorative blobs */}
+      <div style={{ position:'absolute', top:-80, left:-80, width:340, height:340, borderRadius:'50%', background:'radial-gradient(circle, #DCEEFF 0%, transparent 70%)', opacity:0.55, pointerEvents:'none', filter:'blur(40px)' }}/>
+      <div style={{ position:'absolute', top:60, right:-60, width:260, height:260, borderRadius:'50%', background:'radial-gradient(circle, #F2EEFF 0%, transparent 70%)', opacity:0.50, pointerEvents:'none', filter:'blur(35px)' }}/>
+      <div style={{ position:'absolute', bottom:0, left:'35%', width:300, height:300, borderRadius:'50%', background:'radial-gradient(circle, #E6FBFF 0%, transparent 70%)', opacity:0.40, pointerEvents:'none', filter:'blur(50px)' }}/>
+
+      <div style={{ position:'relative', zIndex:1, display:'flex', flexDirection:'column', gap:16, padding:'24px' }}>
 
       {/* Page header */}
-      <div className="glass-card" style={{ padding: '14px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+      <div style={{ background:'#FFFFFF', borderRadius:16, padding:'16px 22px', display:'flex', justifyContent:'space-between', alignItems:'center', boxShadow:'0 1px 4px rgba(15,23,42,0.07)', border:'1px solid rgba(0,0,0,0.05)' }}>
         <div>
-          <div style={{ fontSize: 18, fontWeight: 700, color: '#1e293b' }}>PR Pending Status — E &amp; I</div>
-          <div style={{ fontSize: 12, color: '#64748b', marginTop: 3 }}>Purchase follow-up register · auto-syncs from RFQ &amp; PO modules</div>
+          <div style={{ fontSize:18, fontWeight:700, color:'#1e293b', display:'flex', alignItems:'center', gap:8 }}>
+            <span style={{ display:'inline-flex', alignItems:'center', justifyContent:'center', width:32, height:32, borderRadius:8, background:'linear-gradient(135deg,#2563EB,#7C3AED)', color:'#fff', fontSize:14 }}>🛒</span>
+            PR Pending Status — E &amp; I
+          </div>
+          <div style={{ fontSize:12, color:'#64748b', marginTop:3, marginLeft:40 }}>Purchase follow-up register · auto-syncs from RFQ &amp; PO modules</div>
         </div>
-        <div style={{ fontSize: 14, fontWeight: 700, color: '#60a5fa', background: 'rgba(59,130,246,0.1)', border: '1px solid rgba(59,130,246,0.25)', borderRadius: 8, padding: '6px 16px' }}>
+        <div style={{ fontSize:13, fontWeight:700, color:'#2563EB', background:'#EEF4FF', border:'1px solid #BFDBFE', borderRadius:10, padding:'7px 18px' }}>
           {todayStr}
         </div>
       </div>
@@ -473,16 +483,16 @@ export default function PurchaseFollowup() {
       {/* Stats */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6,1fr)', gap: 10 }}>
         {([
-          { label: 'Total Items',           value: stats.total,           color: '#3b82f6' },
-          { label: 'RFQ / Under Review',    value: stats.rfqOrReview,     color: '#f97316' },
-          { label: 'Not Delivered',         value: stats.notDelivered,    color: '#ef4444' },
-          { label: 'Quotation / PO done',   value: stats.quotation,       color: '#f59e0b' },
-          { label: 'Material Received',     value: stats.received,        color: '#22c55e' },
-          { label: 'New / No Status',       value: stats.blank,           color: '#64748b' },
-        ] as { label:string; value:number; color:string }[]).map(s => (
-          <div key={s.label} className="glass-card" style={{ padding: '12px 14px' }}>
-            <div style={{ fontSize: 22, fontWeight: 700, color: s.color }}>{s.value}</div>
-            <div style={{ fontSize: 10, color: '#64748b', marginTop: 3 }}>{s.label}</div>
+          { label: 'Total Items',           value: stats.total,        color: '#2563EB', bg:'#EEF4FF', border:'#BFDBFE' },
+          { label: 'RFQ / Under Review',    value: stats.rfqOrReview,  color: '#F97316', bg:'#FFF7ED', border:'#FED7AA' },
+          { label: 'Not Delivered',         value: stats.notDelivered, color: '#EF4444', bg:'#FEF2F2', border:'#FECACA' },
+          { label: 'Quotation / PO done',   value: stats.quotation,    color: '#D97706', bg:'#FFFBEB', border:'#FDE68A' },
+          { label: 'Material Received',     value: stats.received,     color: '#16A34A', bg:'#F0FDF4', border:'#BBF7D0' },
+          { label: 'New / No Status',       value: stats.blank,        color: '#64748b', bg:'#F8FAFC', border:'#E2E8F0' },
+        ] as any[]).map(s => (
+          <div key={s.label} style={{ background:s.bg, borderRadius:14, padding:'14px 16px', border:`1px solid ${s.border}`, boxShadow:'0 1px 3px rgba(15,23,42,0.06)' }}>
+            <div style={{ fontSize:24, fontWeight:800, color:s.color, lineHeight:1 }}>{s.value}</div>
+            <div style={{ fontSize:10, color:'#64748b', marginTop:5, fontWeight:500 }}>{s.label}</div>
           </div>
         ))}
       </div>
@@ -505,7 +515,7 @@ export default function PurchaseFollowup() {
       </div>
 
       {/* 3-tab navigation */}
-      <div style={{ display: 'flex', gap: 0, borderBottom: '2px solid rgba(255,255,255,0.07)', alignItems: 'center' }}>
+      <div style={{ display:'flex', gap:0, borderBottom:'2px solid #E2E8F0', alignItems:'center', background:'#FFFFFF', borderRadius:'14px 14px 0 0', padding:'0 16px', boxShadow:'0 1px 3px rgba(15,23,42,0.05)', border:'1px solid rgba(0,0,0,0.05)', borderBottomLeftRadius:0, borderBottomRightRadius:0 }}>
         {([
           { key: 'pending',   label: 'Pending Purchase',   count: records.filter(inPending).length,   color: '#f59e0b' },
           { key: 'payment',   label: 'Payment History',    count: records.filter(inPayment).length,   color: '#60a5fa' },
@@ -550,7 +560,7 @@ export default function PurchaseFollowup() {
 
       {/* ── PENDING PURCHASE TABLE ─────────────────────────────────────────── */}
       {listTab === 'pending' && (
-      <div className="glass-card" style={{ overflow: 'auto' }}>
+      <div style={{ background:'#FFFFFF', borderRadius:'0 0 18px 18px', border:'1px solid rgba(0,0,0,0.05)', borderTop:'none', boxShadow:'0 20px 60px rgba(15,23,42,0.08)', overflow:'auto' }}>
         <table className="data-table" style={{ minWidth: 1160, tableLayout: 'fixed', width: '100%' }}>
           <colgroup>
             <col style={{ width: 40 }} /><col style={{ width: 195 }} /><col style={{ width: 90 }} />
@@ -559,20 +569,20 @@ export default function PurchaseFollowup() {
             <col style={{ width: 115 }} /><col style={{ width: 80 }} /><col style={{ width: 46 }} />
           </colgroup>
           <thead><tr>
-            <th style={{ textAlign:'center', position:'sticky', left:0, zIndex:3, background:'#0b0b18', boxShadow:'2px 0 6px rgba(0,0,0,0.4)' }}>Sl.</th>
+            <th style={{ textAlign:'center', position:'sticky', left:0, zIndex:3, background:'#FFFFFF', boxShadow:'1px 0 0 #E5E7EB' }}>Sl.</th>
             <th>Item Description</th><th style={{ whiteSpace:'nowrap' }}>Request Date</th>
             <th style={{ textAlign:'center' }}>Days</th><th>Required Timeline</th>
             <th>Current Status</th><th>PR Number</th>
             <th style={{ whiteSpace:'nowrap' }}>Req. Date</th>
             <th style={{ textAlign:'right', whiteSpace:'nowrap' }}>Budget</th>
             <th style={{ whiteSpace:'nowrap' }}>Lead Time</th><th style={{ whiteSpace:'nowrap' }}>Working Time</th>
-            <th style={{ position:'sticky', right:0, zIndex:3, background:'#0b0b18', boxShadow:'-3px 0 8px rgba(0,0,0,0.5)', whiteSpace:'nowrap' }}>Actions</th>
+            <th style={{ position:'sticky', right:0, zIndex:3, background:'#FFFFFF', boxShadow:'-1px 0 0 #E5E7EB', whiteSpace:'nowrap' }}>Actions</th>
           </tr></thead>
           <tbody>
             {tableRows.length === 0 && <tr><td colSpan={12} style={{ textAlign:'center', padding:32, color:'#475569' }}>No pending purchase items found.</td></tr>}
             {tableRows.map((row, i) => {
               if (row.type === 'section') return (
-                <tr key={`sec-${i}`}><td colSpan={12} style={{ padding:'9px 14px', textAlign:'center', fontWeight:700, fontSize:13, background:'rgba(200,0,0,0.18)', color:'#fca5a5', borderTop:'2px solid rgba(200,0,0,0.35)', letterSpacing:0.4 }}>{row.label}</td></tr>
+                <tr key={`sec-${i}`}><td colSpan={12} style={{ padding:'9px 14px', textAlign:'center', fontWeight:700, fontSize:13, background:'#FFF1F2', color:'#DC2626', borderTop:'2px solid #FECACA', borderBottom:'1px solid #FECACA', letterSpacing:0.4 }}>{row.label}</td></tr>
               );
               const { record: r, sl } = row;
               const isEditing = inlineId === r.id && inlineRow !== null;
@@ -580,7 +590,7 @@ export default function PurchaseFollowup() {
               const iInp: React.CSSProperties = { fontSize:11, padding:'3px 6px', width:'100%' };
               if (isEditing && inlineRow) return (
                 <tr key={r.id} style={{ background:'rgba(59,130,246,0.07)', outline:'1px solid rgba(59,130,246,0.25)', outlineOffset:-1 }}>
-                  <td style={{ textAlign:'center', color:'#60a5fa', fontSize:12, fontWeight:700, position:'sticky', left:0, background:'#0d1520', zIndex:1, boxShadow:'2px 0 6px rgba(0,0,0,0.3)' }}>{sl}</td>
+                  <td style={{ textAlign:'center', color:'#60a5fa', fontSize:12, fontWeight:700, position:'sticky', left:0, background:'#F0F4FF', zIndex:1, boxShadow:'1px 0 0 #E5E7EB' }}>{sl}</td>
                   <td><input className="input-dark" style={iInp} value={inlineRow.itemDescription} onChange={e=>setIR('itemDescription',e.target.value)}/></td>
                   <td><input type="date" className="input-dark" style={{ fontSize:11, padding:'3px 5px' }} value={inlineRow.requestDate} onChange={e=>setIR('requestDate',e.target.value)}/></td>
                   <td style={{ textAlign:'center', color:'#64748b', fontSize:12 }}>{inlineRow.requestDate ? daysSince(inlineRow.requestDate) : '—'}</td>
@@ -591,7 +601,7 @@ export default function PurchaseFollowup() {
                   <td><input type="number" className="input-dark" style={{ fontSize:11, padding:'3px 6px', width:80, textAlign:'right' }} value={inlineRow.budget||''} onChange={e=>setIR('budget',Number(e.target.value))} min={0}/></td>
                   <td><input className="input-dark" style={iInp} value={inlineRow.leadTime} onChange={e=>setIR('leadTime',e.target.value)} placeholder="Lead time"/></td>
                   <td><input className="input-dark" style={iInp} value={inlineRow.workingTime} onChange={e=>setIR('workingTime',e.target.value)} placeholder="Working time"/></td>
-                  <td style={{ position:'sticky', right:0, background:'#0d1520', zIndex:1, boxShadow:'-3px 0 8px rgba(0,0,0,0.4)', padding:'4px', textAlign:'center' }}>
+                  <td style={{ position:'sticky', right:0, background:'#F0F4FF', zIndex:1, boxShadow:'-1px 0 0 #E5E7EB', padding:'4px', textAlign:'center' }}>
                     <div style={{ display:'flex', flexDirection:'column', gap:3, alignItems:'center' }}>
                       <button onClick={saveInline} style={{ width:30, height:24, background:'rgba(34,197,94,0.15)', border:'1px solid rgba(34,197,94,0.45)', borderRadius:5, color:'#22c55e', cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center' }} title="Save"><Check size={11}/></button>
                       <button onClick={cancelInline} style={{ width:30, height:24, background:'rgba(239,68,68,0.1)', border:'1px solid rgba(239,68,68,0.3)', borderRadius:5, color:'#ef4444', cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center' }} title="Cancel"><X size={11}/></button>
@@ -604,14 +614,14 @@ export default function PurchaseFollowup() {
               const sc = STATUS_WEB[r.currentStatus]; const tlc = TL_COLOR[r.requiredTimeline];
               return (
                 <tr key={r.id}>
-                  <td style={{ textAlign:'center', color:'#64748b', fontSize:12, position:'sticky', left:0, background:'#0b0b18', zIndex:1, boxShadow:'2px 0 6px rgba(0,0,0,0.3)' }}>{sl}</td>
-                  <td style={{ fontSize:13, fontWeight:500, color:'#e2e8f0', wordBreak:'break-word', overflow:'hidden' }}>{r.itemDescription}</td>
+                  <td style={{ textAlign:'center', color:'#64748b', fontSize:12, position:'sticky', left:0, background:'#FFFFFF', zIndex:1, boxShadow:'1px 0 0 #E5E7EB' }}>{sl}</td>
+                  <td style={{ fontSize:13, fontWeight:500, color:'#1e293b', wordBreak:'break-word', overflow:'hidden' }}>{r.itemDescription}</td>
                   <td style={{ fontSize:11, color:'#94a3b8', whiteSpace:'nowrap' }}>{r.requestDate ? fmtDate(r.requestDate) : '—'}</td>
                   <td style={{ textAlign:'center', fontWeight:700, fontSize:13, color: days && days>90 ? '#ef4444' : days && days>30 ? '#f59e0b' : '#e2e8f0' }}>{days !== null && days > 0 ? days : '—'}</td>
                   <td style={{ fontWeight:600, fontSize:12, color: tlc||'#e2e8f0' }}>{r.requiredTimeline||'—'}</td>
                   <td>
-                    <select value={r.currentStatus} onChange={e=>updateStatusDirect(r.id,e.target.value)} style={{ width:'100%', padding:'4px 8px', borderRadius:7, fontSize:11, fontWeight:700, cursor:'pointer', outline:'none', background:sc?.bg||'rgba(255,255,255,0.06)', border:`1px solid ${sc?sc.tc+'55':'rgba(255,255,255,0.15)'}`, color:sc?.tc||'#e2e8f0' }}>
-                      {STATUSES.map(s=><option key={s} value={s} style={{ background:'#0b0b18', color:STATUS_WEB[s]?.tc||'#e2e8f0' }}>{s||'— Not set —'}</option>)}
+                    <select value={r.currentStatus} onChange={e=>updateStatusDirect(r.id,e.target.value)} style={{ width:'100%', padding:'4px 8px', borderRadius:7, fontSize:11, fontWeight:700, cursor:'pointer', outline:'none', background:sc?.bg||'rgba(255,255,255,0.06)', border:`1px solid ${sc?sc.tc+'55':'rgba(255,255,255,0.15)'}`, color:sc?.tc||'#374151' }}>
+                      {STATUSES.map(s=><option key={s} value={s} style={{ background:'#FFFFFF', color:STATUS_WEB[s]?.tc||'#e2e8f0' }}>{s||'— Not set —'}</option>)}
                     </select>
                   </td>
                   <td style={{ fontSize:12, color:'#60a5fa', fontFamily:'monospace' }}>{r.prNumber||'—'}</td>
@@ -619,8 +629,8 @@ export default function PurchaseFollowup() {
                   <td style={{ textAlign:'right', fontSize:12, color:'#22c55e', fontWeight:600 }}>{r.budget ? r.budget.toLocaleString() : '—'}</td>
                   <td style={{ fontSize:12, color:'#94a3b8', whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis', textAlign:'center' }} title={r.leadTime}>{r.leadTime||'—'}</td>
                   <td style={{ fontSize:12, color:'#94a3b8', whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis', textAlign:'center' }} title={r.workingTime}>{r.workingTime||'—'}</td>
-                  <td style={{ position:'sticky', right:0, background:'#0b0b18', zIndex:2, boxShadow:'-3px 0 8px rgba(0,0,0,0.5)', padding:'4px', textAlign:'center' }}>
-                    <button onClick={e=>openMenu(e,r)} style={{ width:30, height:28, borderRadius:6, background:'rgba(255,255,255,0.07)', border:'1px solid rgba(255,255,255,0.13)', color:'#94a3b8', cursor:'pointer', fontSize:16, lineHeight:1, display:'flex', alignItems:'center', justifyContent:'center' }} title="Actions">⋮</button>
+                  <td style={{ position:'sticky', right:0, background:'#FFFFFF', zIndex:2, boxShadow:'-1px 0 0 #E5E7EB', padding:'4px', textAlign:'center' }}>
+                    <button onClick={e=>openMenu(e,r)} style={{ width:30, height:28, borderRadius:6, background:'#F8FAFC', border:'1px solid #E5E7EB', color:'#94a3b8', cursor:'pointer', fontSize:16, lineHeight:1, display:'flex', alignItems:'center', justifyContent:'center' }} title="Actions">⋮</button>
                   </td>
                 </tr>
               );
@@ -635,7 +645,7 @@ export default function PurchaseFollowup() {
         const payRecs = filtered;
         const iSel: React.CSSProperties = { fontSize:11, padding:'3px 5px', width:'100%' };
         return (
-          <div className="glass-card" style={{ overflow:'auto' }}>
+          <div style={{ background:'#FFFFFF', borderRadius:'0 0 18px 18px', border:'1px solid rgba(0,0,0,0.05)', borderTop:'none', boxShadow:'0 20px 60px rgba(15,23,42,0.08)', overflow:'auto' }}>
             <table className="data-table" style={{ minWidth:1100, tableLayout:'fixed', width:'100%' }}>
               <colgroup>
                 <col style={{ width:38 }}/><col style={{ width:210 }}/><col style={{ width:110 }}/>
@@ -653,7 +663,7 @@ export default function PurchaseFollowup() {
                 <th style={{ textAlign:'right', whiteSpace:'nowrap' }}>Total Paid</th>
                 <th style={{ textAlign:'right', whiteSpace:'nowrap' }}>Remaining</th>
                 <th>Payment Status</th>
-                <th style={{ position:'sticky', right:0, zIndex:3, background:'#0b0b18', boxShadow:'-3px 0 8px rgba(0,0,0,0.5)', textAlign:'center' }}>Actions</th>
+                <th style={{ position:'sticky', right:0, zIndex:3, background:'#FFFFFF', boxShadow:'-1px 0 0 #E5E7EB', textAlign:'center' }}>Actions</th>
               </tr></thead>
               <tbody>
                 {payRecs.length === 0 && <tr><td colSpan={10} style={{ textAlign:'center', padding:32, color:'#475569' }}>No items in Payment History — set Current Status to "Material Received".</td></tr>}
@@ -680,7 +690,7 @@ export default function PurchaseFollowup() {
                           {PAYMENT_STATUSES.map(s=><option key={s} value={s}>{s||'— Not set —'}</option>)}
                         </select>
                       </td>
-                      <td style={{ position:'sticky', right:0, background:'#0d1520', zIndex:1, boxShadow:'-3px 0 8px rgba(0,0,0,0.4)', padding:'4px', textAlign:'center' }}>
+                      <td style={{ position:'sticky', right:0, background:'#F0F4FF', zIndex:1, boxShadow:'-1px 0 0 #E5E7EB', padding:'4px', textAlign:'center' }}>
                         <div style={{ display:'flex', flexDirection:'column', gap:3, alignItems:'center' }}>
                           <button onClick={saveInline} style={{ width:30, height:24, background:'rgba(34,197,94,0.15)', border:'1px solid rgba(34,197,94,0.45)', borderRadius:5, color:'#22c55e', cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center' }} title="Save"><Check size={11}/></button>
                           <button onClick={cancelInline} style={{ width:30, height:24, background:'rgba(239,68,68,0.1)', border:'1px solid rgba(239,68,68,0.3)', borderRadius:5, color:'#ef4444', cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center' }} title="Cancel"><X size={11}/></button>
@@ -714,16 +724,16 @@ export default function PurchaseFollowup() {
                         </td>
                         <td>
                           <select value={r.paymentStatus} onChange={e=>updatePaymentDirect(r.id,e.target.value)}
-                            style={{ width:'100%', padding:'4px 8px', borderRadius:7, fontSize:11, fontWeight:700, cursor:'pointer', outline:'none', background:pc?.bg||'rgba(255,255,255,0.06)', border:`1px solid ${pc?pc.tc+'55':'rgba(255,255,255,0.15)'}`, color:pc?.tc||'#94a3b8' }}>
-                            {PAYMENT_STATUSES.map(s=><option key={s} value={s} style={{ background:'#0b0b18' }}>{s||'— Not set —'}</option>)}
+                            style={{ width:'100%', padding:'4px 8px', borderRadius:7, fontSize:11, fontWeight:700, cursor:'pointer', outline:'none', background:pc?.bg||'rgba(255,255,255,0.06)', border:`1px solid ${pc?pc.tc+'55':'rgba(255,255,255,0.15)'}`, color:pc?.tc||'#374151' }}>
+                            {PAYMENT_STATUSES.map(s=><option key={s} value={s} style={{ background:'#FFFFFF' }}>{s||'— Not set —'}</option>)}
                           </select>
                         </td>
-                        <td style={{ position:'sticky', right:0, background:'#0b0b18', zIndex:2, boxShadow:'-3px 0 8px rgba(0,0,0,0.5)', padding:'4px', textAlign:'center' }}>
+                        <td style={{ position:'sticky', right:0, background:'#FFFFFF', zIndex:2, boxShadow:'-1px 0 0 #E5E7EB', padding:'4px', textAlign:'center' }}>
                           <div style={{ display:'flex', flexDirection:'column', gap:3, alignItems:'center' }}>
                             <button onClick={()=>openPayModal(r)}
                               style={{ width:30, height:26, borderRadius:5, background:'rgba(34,197,94,0.15)', border:'1px solid rgba(34,197,94,0.5)', color:'#22c55e', cursor:'pointer', fontSize:16, display:'flex', alignItems:'center', justifyContent:'center', fontWeight:700 }}
                               title="Add Payment">+</button>
-                            <button onClick={e=>openMenu(e,r)} style={{ width:30, height:26, borderRadius:5, background:'rgba(255,255,255,0.07)', border:'1px solid rgba(255,255,255,0.13)', color:'#94a3b8', cursor:'pointer', fontSize:15, display:'flex', alignItems:'center', justifyContent:'center' }} title="More">⋮</button>
+                            <button onClick={e=>openMenu(e,r)} style={{ width:30, height:26, borderRadius:5, background:'#F8FAFC', border:'1px solid #E5E7EB', color:'#94a3b8', cursor:'pointer', fontSize:15, display:'flex', alignItems:'center', justifyContent:'center' }} title="More">⋮</button>
                           </div>
                         </td>
                       </tr>
@@ -744,7 +754,7 @@ export default function PurchaseFollowup() {
                               {remAfter > 0 ? `AED ${remAfter.toLocaleString()} left` : '✓ Cleared'}
                             </td>
                             <td></td>
-                            <td style={{ position:'sticky', right:0, background:'#0b0b18', zIndex:2, boxShadow:'-3px 0 8px rgba(0,0,0,0.5)', padding:'4px', textAlign:'center' }}>
+                            <td style={{ position:'sticky', right:0, background:'#FFFFFF', zIndex:2, boxShadow:'-1px 0 0 #E5E7EB', padding:'4px', textAlign:'center' }}>
                               <button onClick={async ()=>{ const rec2=records.find(rr=>rr.id===r.id); if(!rec2) return; const hist=(rec2.paymentHistory||[]).filter(p=>p._id!==px._id&&p.id!==px.id); const paid=hist.reduce((s,p)=>s+p.amount,0); const ps=paid>=(rec2.budget||0)&&paid>0?'Payment Done':hist.length>0?'Partial Payment Done':rec2.paymentStatus; try{ const u=await apiFetch(`/api/purchase-followup/${r.id}`,{method:'PUT',body:JSON.stringify({paymentHistory:hist,paymentStatus:ps})}); setRecords(rs=>rs.map(rr=>rr.id===r.id?u:rr)); }catch(e:any){alert(e.message);} }}
                                 style={{ width:26, height:22, borderRadius:4, background:'rgba(239,68,68,0.1)', border:'1px solid rgba(239,68,68,0.3)', color:'#ef4444', cursor:'pointer', fontSize:10, display:'flex', alignItems:'center', justifyContent:'center' }} title="Remove payment">
                                 <Trash2 size={10}/>
@@ -782,7 +792,7 @@ export default function PurchaseFollowup() {
         });
 
         return (
-          <div className="glass-card" style={{ overflow:'auto' }}>
+          <div style={{ background:'#FFFFFF', borderRadius:'0 0 18px 18px', border:'1px solid rgba(0,0,0,0.05)', borderTop:'none', boxShadow:'0 20px 60px rgba(15,23,42,0.08)', overflow:'auto' }}>
             <table className="data-table" style={{ minWidth:1100, tableLayout:'fixed', width:'100%' }}>
               <colgroup>
                 <col style={{ width:42 }}/><col style={{ width:215 }}/><col style={{ width:110 }}/>
@@ -798,7 +808,7 @@ export default function PurchaseFollowup() {
                 <th style={{ textAlign:'right', whiteSpace:'nowrap' }}>Paid (This)</th>
                 <th style={{ textAlign:'right', whiteSpace:'nowrap' }}>Remaining</th>
                 <th>Status / Remarks</th>
-                <th style={{ position:'sticky', right:0, zIndex:3, background:'#0b0b18', boxShadow:'-3px 0 8px rgba(0,0,0,0.5)' }}>Act.</th>
+                <th style={{ position:'sticky', right:0, zIndex:3, background:'#FFFFFF', boxShadow:'-1px 0 0 #E5E7EB' }}>Act.</th>
               </tr></thead>
               <tbody>
                 {rows.length === 0 && <tr><td colSpan={9} style={{ textAlign:'center', padding:32, color:'#475569' }}>No completed payments yet — add payments via Payment History tab.</td></tr>}
@@ -813,8 +823,8 @@ export default function PurchaseFollowup() {
                       <td style={{ textAlign:'right', fontSize:12, color:'#64748b' }}>—</td>
                       <td>—</td>
                       <td><span style={{ padding:'2px 10px', borderRadius:20, fontSize:11, fontWeight:700, background:'rgba(71,85,105,0.3)', color:'#94a3b8', border:'1px solid rgba(71,85,105,0.5)' }}>Rejected</span></td>
-                      <td style={{ position:'sticky', right:0, background:'#0b0b18', zIndex:2, boxShadow:'-3px 0 8px rgba(0,0,0,0.5)', padding:'4px', textAlign:'center' }}>
-                        <button onClick={e=>openMenu(e,row.rec)} style={{ width:30, height:28, borderRadius:6, background:'rgba(255,255,255,0.07)', border:'1px solid rgba(255,255,255,0.13)', color:'#94a3b8', cursor:'pointer', fontSize:16, display:'flex', alignItems:'center', justifyContent:'center' }}>⋮</button>
+                      <td style={{ position:'sticky', right:0, background:'#FFFFFF', zIndex:2, boxShadow:'-1px 0 0 #E5E7EB', padding:'4px', textAlign:'center' }}>
+                        <button onClick={e=>openMenu(e,row.rec)} style={{ width:30, height:28, borderRadius:6, background:'#F8FAFC', border:'1px solid #E5E7EB', color:'#94a3b8', cursor:'pointer', fontSize:16, display:'flex', alignItems:'center', justifyContent:'center' }}>⋮</button>
                       </td>
                     </tr>
                   );
@@ -834,8 +844,8 @@ export default function PurchaseFollowup() {
                             {full ? '✓ Payment Done' : `◑ ${(row.rec.paymentHistory||[]).length} payment${(row.rec.paymentHistory||[]).length!==1?'s':''} made`}
                           </span>
                         </td>
-                        <td style={{ position:'sticky', right:0, background:'#0b0b18', zIndex:2, boxShadow:'-3px 0 8px rgba(0,0,0,0.5)', padding:'4px', textAlign:'center' }}>
-                          <button onClick={e=>openMenu(e,row.rec)} style={{ width:30, height:28, borderRadius:6, background:'rgba(255,255,255,0.07)', border:'1px solid rgba(255,255,255,0.13)', color:'#94a3b8', cursor:'pointer', fontSize:16, display:'flex', alignItems:'center', justifyContent:'center' }}>⋮</button>
+                        <td style={{ position:'sticky', right:0, background:'#FFFFFF', zIndex:2, boxShadow:'-1px 0 0 #E5E7EB', padding:'4px', textAlign:'center' }}>
+                          <button onClick={e=>openMenu(e,row.rec)} style={{ width:30, height:28, borderRadius:6, background:'#F8FAFC', border:'1px solid #E5E7EB', color:'#94a3b8', cursor:'pointer', fontSize:16, display:'flex', alignItems:'center', justifyContent:'center' }}>⋮</button>
                         </td>
                       </tr>
                     );
@@ -855,7 +865,7 @@ export default function PurchaseFollowup() {
                       <td style={{ textAlign:'right', fontSize:13, fontWeight:800, color:isLast?'#22c55e':'#a855f7' }}>AED {tx.amount.toLocaleString()}</td>
                       <td style={{ textAlign:'right', fontSize:12, fontWeight:700, color:remaining>0?'#f59e0b':'#22c55e' }}>{remaining>0 ? `AED ${remaining.toLocaleString()}` : '✓ Cleared'}</td>
                       <td style={{ fontSize:11, color:'#64748b' }}>{tx.remarks||'—'}</td>
-                      <td style={{ position:'sticky', right:0, background:'#0b0b18', zIndex:2, boxShadow:'-3px 0 8px rgba(0,0,0,0.5)', padding:'4px', textAlign:'center' }}></td>
+                      <td style={{ position:'sticky', right:0, background:'#FFFFFF', zIndex:2, boxShadow:'-1px 0 0 #E5E7EB', padding:'4px', textAlign:'center' }}></td>
                     </tr>
                   );
                 })}
@@ -931,7 +941,7 @@ export default function PurchaseFollowup() {
           <button onClick={()=>{openEdit(menuRec!);setOpenMenuId(null);setMenuRec(null);}} style={{ padding:'8px 14px', background:'none', border:'none', color:'#60a5fa', cursor:'pointer', textAlign:'left', fontSize:12, display:'flex', alignItems:'center', gap:8 }}>
             <Maximize2 size={12}/> Full Edit
           </button>
-          <div style={{ height:1, background:'rgba(255,255,255,0.07)', margin:'3px 0' }}/>
+          <div style={{ height:1, background:'#F8FAFC', margin:'3px 0' }}/>
           <button onClick={()=>{del(menuRec!.id);setOpenMenuId(null);setMenuRec(null);}} style={{ padding:'8px 14px', background:'none', border:'none', color:'#ef4444', cursor:'pointer', textAlign:'left', fontSize:12, display:'flex', alignItems:'center', gap:8 }}>
             <Trash2 size={12}/> Delete
           </button>
@@ -1017,7 +1027,10 @@ export default function PurchaseFollowup() {
           </div>
         </div>
       )}
-    </div>
+
+      </div>{/* inner flex column */}
+    </div>{/* gradient wrapper */}
   );
 }
+
 
