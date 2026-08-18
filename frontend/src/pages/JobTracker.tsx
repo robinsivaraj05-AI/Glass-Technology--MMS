@@ -1153,8 +1153,8 @@ export default function JobTracker() {
                     <thead>
                       <tr>
                         <th style={{ width: 36, textAlign: 'center' }}>Sl.</th>
-                        <th>Title</th>
-                        <th style={{ width: 180 }}>Description</th>
+                        <th style={{ width: 160 }}>Title</th>
+                        <th style={{ minWidth: 280 }}>Description</th>
                         <th style={{ width: 110, textAlign: 'center' }}>Due Date</th>
                         <th style={{ width: 90, textAlign: 'center' }}>Priority</th>
                         <th style={{ width: 130 }}>Assigned To</th>
@@ -1171,12 +1171,12 @@ export default function JobTracker() {
                         return (
                           <tr key={r.id} style={{ background: od ? 'rgba(239,68,68,0.04)' : r.dueDate === today ? 'rgba(52,211,153,0.04)' : undefined }}>
                             <td style={{ textAlign: 'center', color: '#64748b' }}>{i + 1}</td>
-                            <td style={{ fontWeight: 600, color: '#e2e8f0' }}>
+                            <td style={{ fontWeight: 700, color: '#111827' }}>
                               {r.dueDate === today && <span style={{ fontSize: 9, background: 'rgba(52,211,153,0.2)', color: '#34d399', borderRadius: 4, padding: '1px 5px', marginRight: 5 }}>TODAY</span>}
                               {od && <span style={{ fontSize: 9, background: 'rgba(239,68,68,0.2)', color: '#ef4444', borderRadius: 4, padding: '1px 5px', marginRight: 5 }}>OVERDUE</span>}
                               {r.title}
                             </td>
-                            <td style={{ color: '#64748b', fontSize: 11 }}>{r.description || '—'}</td>
+                            <td style={{ color: '#374151', fontSize: 11, whiteSpace: 'normal', lineHeight: 1.5 }}>{r.description || '—'}</td>
                             <td style={{ textAlign: 'center', color: od ? '#ef4444' : '#94a3b8', fontWeight: od ? 700 : 400 }}>
                               {fmtDate(r.dueDate)}
                               {!od && du !== null && du <= 3 && du >= 0 && <div style={{ fontSize: 9, color: '#f59e0b' }}>in {du}d</div>}
