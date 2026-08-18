@@ -12,6 +12,7 @@ import {
   ClipboardList, ArrowUpRight, ArrowDownRight, Thermometer, Star,
   UserCheck, HardDrive, Settings, Search, MapPin,
 } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -186,6 +187,7 @@ function SectionTitle({ icon, label, action }: { icon:React.ReactNode; label:str
 // ─── Dashboard ────────────────────────────────────────────────────────────────
 export default function Dashboard() {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [employees, setEmployees] = useState<any[]>([]);
 
   useEffect(() => {
@@ -201,13 +203,14 @@ export default function Dashboard() {
   const resigned     = employees.filter(e => e.status === 'resigned').length;
   const total        = employees.length;
   const fillPct      = total > 0 ? +((activeCount / total) * 100).toFixed(1) : 0;
+  const pct = (n: number) => total > 0 ? Math.round((n / total) * 100) : 0;
 
   const STAFFING = [
-    { label:'Total Positions', value: total,      color:'#3B82F6', icon:<Users size={14}/> },
-    { label:'Joined',          value: activeCount, color:'#22C55E', icon:<CheckCircle size={14}/> },
-    { label:'On Leave',        value: onLeave,     color:'#F59E0B', icon:<Clock size={14}/> },
-    { label:'Suspended',       value: suspended,   color:'#8B5CF6', icon:<FileText size={14}/> },
-    { label:'Resigned',        value: resigned,    color:'#EF4444', icon:<AlertTriangle size={14}/> },
+    { label:'Total Positions', value: total,      pct: 100,           color:'#3B82F6', bg:'#EFF6FF', border:'#BFDBFE', icon:<Users size={20}/> },
+    { label:'Joined',          value: activeCount, pct: pct(activeCount), color:'#22C55E', bg:'#F0FDF4', border:'#BBF7D0', icon:<CheckCircle size={20}/> },
+    { label:'Ready to Join',   value: onLeave,     pct: pct(onLeave),  color:'#06B6D4', bg:'#ECFEFF', border:'#A5F3FC', icon:<Clock size={20}/> },
+    { label:'HR Process',      value: suspended,   pct: pct(suspended),color:'#8B5CF6', bg:'#F5F3FF', border:'#DDD6FE', icon:<FileText size={20}/> },
+    { label:'Pending',         value: resigned,    pct: pct(resigned), color:'#EF4444', bg:'#FEF2F2', border:'#FECACA', icon:<AlertTriangle size={20}/> },
   ];
 
   return (
@@ -319,42 +322,34 @@ export default function Dashboard() {
         ))}
       </div>
 
-      {/* ══ MIDDLE ROW ══════════════════════════════════════════════════════════ */}
-      <div style={{ display:'grid', gridTemplateColumns:'220px 1fr 220px 240px', gap:10, marginBottom:16, alignItems:'start' }}>
+      {/* ══ STAFFING STRIP ══════════════════════════════════════════════════════ */}
+      <div style={{ display:'grid', gridTemplateColumns:'repeat(5,1fr)', gap:10, marginBottom:16 }}>
+        {STAFFING.map((s,i) => (
+          <div key={i}
+            onClick={() => navigate('/org-chart/summary')}
+            style={{ ...CARD, padding:'16px 20px', border:`1px solid ${s.border}`, background:s.bg,
+              cursor:'pointer', transition:'all 0.18s', display:'flex', alignItems:'center', gap:14,
+              borderLeft:`4px solid ${s.color}` }}
+            onMouseOver={e => { e.currentTarget.style.boxShadow='0 4px 16px rgba(0,0,0,0.10)'; e.currentTarget.style.transform='translateY(-2px)'; }}
+            onMouseOut={e => { e.currentTarget.style.boxShadow=''; e.currentTarget.style.transform=''; }}
+          >
+            {/* Icon badge */}
+            <div style={{ width:46, height:46, borderRadius:13, background:`${s.color}20`, display:'flex', alignItems:'center', justifyContent:'center', color:s.color, flexShrink:0 }}>
+              {s.icon}
+            </div>
+            <div style={{ flex:1, minWidth:0 }}>
+              <div style={{ fontSize:28, fontWeight:900, color:s.color, lineHeight:1, letterSpacing:-1 }}>{s.value}</div>
+              <div style={{ fontSize:12, fontWeight:700, color:'#374151', marginTop:3 }}>{s.label}</div>
+              {i > 0 && (
+                <div style={{ fontSize:11, color:s.color, fontWeight:700, marginTop:2 }}>{s.pct}%</div>
+              )}
+            </div>
+          </div>
+        ))}
+      </div>
 
-        {/* Staffing Overview */}
-        <div style={{ ...CARD, padding:'16px' }}>
-          <SectionTitle icon={<Users size={15}/>} label="Staffing" />
-          {/* Engineer banner */}
-          <div style={{ borderRadius:14, background:'linear-gradient(135deg,#1E40AF 0%,#3B82F6 60%,#06B6D4 100%)', padding:'14px 16px', marginBottom:16, display:'flex', alignItems:'center', gap:12 }}>
-            <div style={{ width:48, height:48, borderRadius:'50%', background:'rgba(255,255,255,0.2)', display:'flex', alignItems:'center', justifyContent:'center', border:'2px solid rgba(255,255,255,0.4)', flexShrink:0 }}>
-              <UserCheck size={24} color="white"/>
-            </div>
-            <div>
-              <div style={{ fontSize:9, color:'rgba(255,255,255,0.7)', fontWeight:700, textTransform:'uppercase', letterSpacing:0.8 }}>E &amp; I Team</div>
-              <div style={{ fontSize:22, fontWeight:900, color:'#fff' }}>{activeCount} <span style={{ fontSize:13, fontWeight:500, opacity:0.8 }}>/ {total}</span></div>
-              <div style={{ fontSize:9, color:'rgba(255,255,255,0.7)' }}>Positions Filled</div>
-            </div>
-          </div>
-          {/* Filled bar */}
-          <div style={{ marginBottom:14 }}>
-            <div style={{ display:'flex', justifyContent:'space-between', fontSize:10, color:'#6B7280', marginBottom:4 }}>
-              <span style={{ fontWeight:600 }}>Workforce Filled</span>
-              <span style={{ fontWeight:800, color:'#22C55E' }}>{fillPct}%</span>
-            </div>
-            <div style={{ height:7, background:'#F3F4F6', borderRadius:99, overflow:'hidden' }}>
-              <div style={{ height:'100%', width:`${fillPct}%`, background:'linear-gradient(90deg,#22C55E,#16A34A)', borderRadius:99 }}/>
-            </div>
-          </div>
-          {STAFFING.map((s,i) => (
-            <div key={i} style={{ display:'flex', justifyContent:'space-between', alignItems:'center', padding:'7px 0', borderBottom:i<STAFFING.length-1?'1px solid #F8FAFC':'none' }}>
-              <div style={{ display:'flex', alignItems:'center', gap:7, fontSize:12, color:'#374151' }}>
-                <span style={{ color:s.color }}>{s.icon}</span>{s.label}
-              </div>
-              <span style={{ fontSize:15, fontWeight:900, color:s.color }}>{s.value}</span>
-            </div>
-          ))}
-        </div>
+      {/* ══ MIDDLE ROW ══════════════════════════════════════════════════════════ */}
+      <div style={{ display:'grid', gridTemplateColumns:'1fr 220px 240px', gap:10, marginBottom:16, alignItems:'start' }}>
 
         {/* Project Financials */}
         <div style={{ ...CARD, padding:'16px' }}>
