@@ -105,11 +105,7 @@ const bkdData = [
 ];
 const eqHealth  = [{name:'Good',v:68,c:'#22C55E'},{name:'Fair',v:22,c:'#F59E0B'},{name:'Critical',v:10,c:'#EF4444'}];
 const woStatus  = [{name:'Completed',v:73,c:'#22C55E'},{name:'In Progress',v:15,c:'#3B82F6'},{name:'On Hold',v:8,c:'#F59E0B'},{name:'Cancelled',v:4,c:'#EF4444'}];
-const costData  = [
-  {m:'Jan',el:42,ins:28,ci:8},{m:'Feb',el:38,ins:32,ci:6},{m:'Mar',el:55,ins:30,ci:10},
-  {m:'Apr',el:48,ins:35,ci:5},{m:'May',el:52,ins:29,ci:7},{m:'Jun',el:46,ins:31,ci:9},
-  {m:'Jul',el:58,ins:33,ci:11},{m:'Aug',el:43,ins:27,ci:6},
-];
+// costData replaced by liveCostData fetched from finance APIs
 const energyD   = [{m:'Jan',k:128},{m:'Feb',k:119},{m:'Mar',k:132},{m:'Apr',k:125},{m:'May',k:138},{m:'Jun',k:142},{m:'Jul',k:136},{m:'Aug',k:131}];
 const mtbfD     = [{m:'Jan',v:290},{m:'Feb',v:305},{m:'Mar',v:298},{m:'Apr',v:312},{m:'May',v:320},{m:'Jun',v:330},{m:'Jul',v:338},{m:'Aug',v:342}];
 const mttrD     = [{m:'Jan',v:3.2},{m:'Feb',v:3.0},{m:'Mar',v:2.9},{m:'Apr',v:2.8},{m:'May',v:2.7},{m:'Jun',v:2.5},{m:'Jul',v:2.4},{m:'Aug',v:2.3}];
@@ -174,9 +170,10 @@ function SectionTitle({ icon, label, action }: { icon:React.ReactNode; label:str
 export default function Dashboard() {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const [orgPositions, setOrgPositions] = useState<any[]>([]);
-  const [dashJobs,     setDashJobs]     = useState<any[]>([]);
-  const [dashFollowups,setDashFollowups]= useState<any[]>([]);
+  const [orgPositions,  setOrgPositions]  = useState<any[]>([]);
+  const [dashJobs,      setDashJobs]      = useState<any[]>([]);
+  const [dashFollowups, setDashFollowups] = useState<any[]>([]);
+  const [liveCostData,  setLiveCostData]  = useState<any[]>([]);
 
   useEffect(() => {
     fetch('/api/org-positions').then(r => r.json()).then(d => setOrgPositions(Array.isArray(d) ? d : [])).catch(() => {});
@@ -193,6 +190,63 @@ export default function Dashboard() {
     fetch('/api/followup-jobs').then(r => r.json()).then(d => {
       if (Array.isArray(d)) setDashFollowups(d.filter((f: any) => f.status !== 'Completed' && f.status !== 'Cancelled').slice(0, 5));
     }).catch(() => {});
+
+    // ── Finance cost data (E&I Costing + Purchase) ──────────────────────────
+    const yr   = new Date().getFullYear();
+    const from = `${yr}-01-01`;
+    const to   = `${yr}-12-31`;
+    const MON  = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    Promise.all([
+      fetch('/api/outsource/dashboard').then(r => r.json()).catch(() => ({})),
+      fetch(`/api/equipment-entries?from=${from}&to=${to}&limit=2000`).then(r => r.json()).catch(() => ({ entries: [] })),
+      fetch(`/api/accessories?from=${from}&to=${to}&limit=2000`).then(r => r.json()).catch(() => ({ entries: [] })),
+      fetch('/api/purchase-followup').then(r => r.json()).catch(() => []),
+    ]).then(([outDash, eqData, accData, purData]) => {
+      const map: Record<string, { m:string; outsource:number; rental:number; purchase:number }> = {};
+      const slot = (monthNum: number, year: number) => {
+        const key = `${year}-${String(monthNum).padStart(2,'0')}`;
+        if (!map[key]) map[key] = { m: MON[monthNum - 1], outsource: 0, rental: 0, purchase: 0 };
+        return map[key];
+      };
+      (outDash.monthlyCostTrend || []).forEach((e: any) => {
+        slot(e._id.month, e._id.year).outsource += e.totalCost || 0;
+      });
+      (eqData.entries || []).forEach((e: any) => {
+        if (!e.workDate) return;
+        const d = new Date(e.workDate);
+        slot(d.getMonth() + 1, d.getFullYear()).rental += e.totalCost || 0;
+      });
+      (accData.entries || []).forEach((e: any) => {
+        if (!e.entryDate) return;
+        const d = new Date(e.entryDate);
+        slot(d.getMonth() + 1, d.getFullYear()).rental += e.totalCost || 0;
+      });
+      (Array.isArray(purData) ? purData : []).forEach((rec: any) => {
+        if (!['Payment Done','Partial Payment Done'].includes(rec.paymentStatus)) return;
+        const hist = rec.paymentHistory || [];
+        if (hist.length > 0) {
+          hist.forEach((tx: any) => {
+            if (!tx.date) return;
+            const d = new Date(tx.date);
+            if (d.getFullYear() === yr) slot(d.getMonth() + 1, yr).purchase += tx.amount || 0;
+          });
+        } else {
+          const ds = rec.receivedDate || rec.requestDate || '';
+          if (!ds) return;
+          const d = new Date(ds);
+          if (d.getFullYear() === yr) slot(d.getMonth() + 1, yr).purchase += rec.budget || 0;
+        }
+      });
+      const result = Object.entries(map)
+        .sort(([a], [b]) => a.localeCompare(b))
+        .map(([, v]) => ({
+          m:        v.m,
+          outsource: Math.round(v.outsource / 1000),
+          rental:    Math.round(v.rental    / 1000),
+          purchase:  Math.round(v.purchase  / 1000),
+        }));
+      if (result.length > 0) setLiveCostData(result);
+    });
   }, []);
 
   // Mirror exact logic from OrgChartSummary
@@ -390,19 +444,19 @@ export default function Dashboard() {
           {/* Stacked bar chart */}
           <div style={{ height:140 }}>
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={costData} barSize={20} barGap={2}>
+              <BarChart data={liveCostData} barSize={20} barGap={2}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#F3F4F6" vertical={false}/>
                 <XAxis dataKey="m" tick={{fill:'#9CA3AF',fontSize:10}} axisLine={false} tickLine={false}/>
                 <YAxis tick={{fill:'#9CA3AF',fontSize:10}} axisLine={false} tickLine={false} tickFormatter={v=>`${v}K`}/>
                 <Tooltip content={<Tip/>} formatter={(v:any)=>`AED ${v}K`}/>
-                <Bar dataKey="el"  name="Electrical"      stackId="a" fill="#3B82F6"/>
-                <Bar dataKey="ins" name="Instrumentation" stackId="a" fill="#8B5CF6"/>
-                <Bar dataKey="ci"  name="Civil"           stackId="a" fill="#22C55E" radius={[4,4,0,0]}/>
+                <Bar dataKey="outsource" name="Outsource" stackId="a" fill="#3B82F6"/>
+                <Bar dataKey="rental"    name="Rental"    stackId="a" fill="#8B5CF6"/>
+                <Bar dataKey="purchase"  name="Purchase"  stackId="a" fill="#22C55E" radius={[4,4,0,0]}/>
               </BarChart>
             </ResponsiveContainer>
           </div>
           <div style={{ display:'flex', gap:16, marginTop:8, justifyContent:'center' }}>
-            {[{c:'#3B82F6',l:'Electrical'},{c:'#8B5CF6',l:'Instrumentation'},{c:'#22C55E',l:'Civil'}].map((x,i)=>(
+            {[{c:'#3B82F6',l:'Outsource'},{c:'#8B5CF6',l:'Rental'},{c:'#22C55E',l:'Purchase'}].map((x,i)=>(
               <div key={i} style={{ display:'flex', alignItems:'center', gap:5 }}>
                 <div style={{ width:10,height:4,borderRadius:2,background:x.c }}/>
                 <span style={{ fontSize:10,color:'#6B7280' }}>{x.l}</span>
@@ -670,27 +724,33 @@ export default function Dashboard() {
         {/* Monthly Maintenance Cost */}
         <div style={{ ...CARD, padding:'16px' }}>
           <SectionTitle icon={<DollarSign size={15}/>} label="Monthly Maintenance Cost (AED '000)"/>
-          <div style={{ height:200 }}>
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={costData} barGap={1} barSize={16}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#F3F4F6" vertical={false}/>
-                <XAxis dataKey="m" tick={{fill:'#9CA3AF',fontSize:10}} axisLine={false} tickLine={false}/>
-                <YAxis tick={{fill:'#9CA3AF',fontSize:10}} axisLine={false} tickLine={false} tickFormatter={v=>`${v}K`}/>
-                <Tooltip content={<Tip/>} formatter={(v:any)=>`AED ${v}K`}/>
-                <Bar dataKey="el"  name="Electrical"      stackId="a" fill="#3B82F6"/>
-                <Bar dataKey="ins" name="Instrumentation" stackId="a" fill="#8B5CF6"/>
-                <Bar dataKey="ci"  name="Civil"           stackId="a" fill="#22C55E" radius={[4,4,0,0]}/>
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-          <div style={{ display:'flex', gap:16, marginTop:8, justifyContent:'center' }}>
-            {[{c:'#3B82F6',l:'Electrical'},{c:'#8B5CF6',l:'Instrumentation'},{c:'#22C55E',l:'Civil'}].map((x,i)=>(
-              <div key={i} style={{ display:'flex', alignItems:'center', gap:5 }}>
-                <div style={{ width:12,height:4,borderRadius:2,background:x.c }}/>
-                <span style={{ fontSize:10,color:'#6B7280' }}>{x.l}</span>
+          {liveCostData.length === 0 ? (
+            <div style={{ height:200, display:'flex', alignItems:'center', justifyContent:'center', color:'#9CA3AF', fontSize:12 }}>Loading cost data…</div>
+          ) : (
+            <>
+              <div style={{ height:200 }}>
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={liveCostData} barGap={1} barSize={16}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#F3F4F6" vertical={false}/>
+                    <XAxis dataKey="m" tick={{fill:'#9CA3AF',fontSize:10}} axisLine={false} tickLine={false}/>
+                    <YAxis tick={{fill:'#9CA3AF',fontSize:10}} axisLine={false} tickLine={false} tickFormatter={v=>`${v}K`}/>
+                    <Tooltip content={<Tip/>} formatter={(v:any)=>`AED ${v}K`}/>
+                    <Bar dataKey="outsource" name="Outsource" stackId="a" fill="#3B82F6"/>
+                    <Bar dataKey="rental"    name="Rental"    stackId="a" fill="#8B5CF6"/>
+                    <Bar dataKey="purchase"  name="Purchase"  stackId="a" fill="#22C55E" radius={[4,4,0,0]}/>
+                  </BarChart>
+                </ResponsiveContainer>
               </div>
-            ))}
-          </div>
+              <div style={{ display:'flex', gap:16, marginTop:8, justifyContent:'center' }}>
+                {[{c:'#3B82F6',l:'Outsource'},{c:'#8B5CF6',l:'Rental'},{c:'#22C55E',l:'Purchase'}].map((x,i)=>(
+                  <div key={i} style={{ display:'flex', alignItems:'center', gap:5 }}>
+                    <div style={{ width:12,height:4,borderRadius:2,background:x.c }}/>
+                    <span style={{ fontSize:10,color:'#6B7280' }}>{x.l}</span>
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
         </div>
 
         {/* Energy Consumption */}
