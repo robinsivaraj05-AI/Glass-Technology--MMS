@@ -492,25 +492,46 @@ export default function JobTracker() {
     try {
       const rows = await parseUploadedFile(file, employees);
       if (rows.length === 0) { alert('No valid rows found. Make sure "Description" column is filled.'); return; }
-      let added = 0, updated = 0;
+      let added = 0, updated = 0, followupCreated = 0;
       const snapshot = [...pendingJobs];
+      let flwSnapshot = [...followupJobs];
+
+      const createFollowup = async (jobId: string, description: string, assignedTo: string) => {
+        const existingFlw = flwSnapshot.find(f => f.relatedJobId === jobId);
+        if (existingFlw) return;
+        const flwPayload = { followupId: autoId('FLW', flwSnapshot), relatedJobId: jobId, description, nextFollowupDate: '', status: 'Pending', responsiblePerson: assignedTo || '', comments: '' };
+        const newFlw = await apiFetch('/api/followup-jobs', { method: 'POST', body: JSON.stringify(flwPayload) });
+        flwSnapshot = [...flwSnapshot, newFlw];
+        setFollowupJobs(p => [newFlw, ...p]);
+        followupCreated++;
+      };
+
       for (const row of rows) {
         const existing = snapshot.find(j => j.description.trim().toLowerCase() === row.description.trim().toLowerCase());
         if (existing) {
-          // UPDATE — exact description match → patch the existing job
-          const patch = { asset: row.asset, priority: row.priority, assignedTo: row.assignedTo, createdDate: row.createdDate, status: row.status, completedBy: row.completedBy, remarks: row.remarks };
+          // UPDATE — exact description match
+          const patch: any = { asset: row.asset, priority: row.priority, assignedTo: row.assignedTo, createdDate: row.createdDate, status: row.status, completedBy: row.completedBy, remarks: row.remarks };
+          if (row.status === 'Completed' || row.status === 'Partially Done') patch.completedDate = patch.completedDate || today;
           const up = await apiFetch(`/api/pending-jobs/${existing.id}`, { method: 'PUT', body: JSON.stringify(patch) });
           setPendingJobs(p => p.map(x => x.id === existing.id ? up : x));
+          if (row.status === 'Follow Up') await createFollowup(existing.jobId, existing.description, row.assignedTo);
           updated++;
         } else {
           // ADD — no match → create new job
           row.jobId = autoId('JOB', [...snapshot, ...Array(added).fill(null)]);
+          if (row.status === 'Completed' || row.status === 'Partially Done') row.completedDate = row.completedDate || today;
           const cr = await apiFetch('/api/pending-jobs', { method: 'POST', body: JSON.stringify(row) });
           setPendingJobs(p => [cr, ...p]);
+          if (row.status === 'Follow Up') await createFollowup(cr.jobId, cr.description, cr.assignedTo);
           added++;
         }
       }
-      alert(`Done! ${added} job${added !== 1 ? 's' : ''} added, ${updated} updated (matched by description).`);
+
+      const parts = [];
+      if (added)           parts.push(`${added} added`);
+      if (updated)         parts.push(`${updated} updated`);
+      if (followupCreated) parts.push(`${followupCreated} follow-up${followupCreated !== 1 ? 's' : ''} created`);
+      alert(`Upload complete — ${parts.join(', ')}.`);
     } catch (err: any) { alert('Failed to parse file: ' + err.message); }
     finally { setUploading(false); if (uploadRef.current) uploadRef.current.value = ''; }
   };
