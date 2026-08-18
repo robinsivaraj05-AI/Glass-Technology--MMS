@@ -57,9 +57,10 @@ const FREQ_COLORS: Record<string, string> = {
   Daily: '#60a5fa', Weekly: '#34d399', Monthly: '#a78bfa', Quarterly: '#f59e0b', Yearly: '#f472b6',
 };
 const FREQUENCIES  = ['Daily', 'Weekly', 'Monthly', 'Quarterly', 'Yearly'];
-const JOB_STATUSES = ['Open', 'Completed', 'Partially Done', 'Follow Up'];
-const FLW_STATUSES = ['Pending', 'In Progress', 'Completed', 'Cancelled'];
-const PRIORITIES   = ['Low', 'Medium', 'High', 'Critical'];
+const JOB_STATUSES    = ['Open', 'Completed', 'Partially Done', 'Follow Up'];
+const FLW_STATUSES    = ['Pending', 'In Progress', 'Completed', 'Cancelled'];
+const PRIORITIES      = ['Low', 'Medium', 'High', 'Critical'];
+const RESPONSIBLE_LIST = ['GT-E&I', 'EBC', 'Creative', 'GT-PUR', 'GT-IT', 'Contractor', 'GT-M&U', 'GT-PRD', 'OEM', 'Others'];
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 const today = new Date().toISOString().slice(0, 10);
@@ -339,6 +340,13 @@ export default function JobTracker() {
   const updateDoingBy = async (j: PendingJob, empName: string) => {
     try {
       const up = await apiFetch(`/api/pending-jobs/${j.id}`, { method: 'PUT', body: JSON.stringify({ completedBy: empName }) });
+      setPendingJobs(p => p.map(x => x.id === j.id ? up : x));
+    } catch (e: any) { alert(e.message); }
+  };
+
+  const updateResponsible = async (j: PendingJob, dept: string) => {
+    try {
+      const up = await apiFetch(`/api/pending-jobs/${j.id}`, { method: 'PUT', body: JSON.stringify({ assignedTo: dept }) });
       setPendingJobs(p => p.map(x => x.id === j.id ? up : x));
     } catch (e: any) { alert(e.message); }
   };
@@ -751,7 +759,11 @@ export default function JobTracker() {
                         <td style={{ fontWeight: 500, color: '#1e293b' }}>{j.description}</td>
                         <td style={{ textAlign: 'center' }}><Badge label={j.priority} cfg={pc} /></td>
                         <td style={{ color: '#374151' }}>
-                          {j.assignedTo ? <span style={{ display: 'flex', alignItems: 'center', gap: 5 }}><User size={11} />{j.assignedTo}</span> : '—'}
+                          <select value={j.assignedTo || ''} onChange={e => updateResponsible(j, e.target.value)}
+                            style={{ padding:'4px 8px', borderRadius:7, fontSize:11, fontWeight:600, background:'#F8FAFC', color: j.assignedTo ? '#1E293B' : '#9CA3AF', border:'1px solid #E5E7EB', cursor:'pointer', width:'100%', minWidth:100 }}>
+                            <option value="">— Select —</option>
+                            {RESPONSIBLE_LIST.map(r => <option key={r} value={r}>{r}</option>)}
+                          </select>
                         </td>
                         <td style={{ textAlign: 'center' }}>
                           <StatusSelect value={j.status} options={JOB_STATUSES} cfg={sc} onChange={v => updateStatus(j, v)} />
@@ -831,7 +843,11 @@ export default function JobTracker() {
                         <td style={{ fontWeight: 500, color: '#1e293b' }}>{j.description}</td>
                         <td style={{ textAlign: 'center' }}><Badge label={j.priority} cfg={pc} /></td>
                         <td style={{ color: '#374151' }}>
-                          {j.assignedTo ? <span style={{ display: 'flex', alignItems: 'center', gap: 5 }}><User size={11} />{j.assignedTo}</span> : '—'}
+                          <select value={j.assignedTo || ''} onChange={e => updateResponsible(j, e.target.value)}
+                            style={{ padding:'4px 8px', borderRadius:7, fontSize:11, fontWeight:600, background:'#F8FAFC', color: j.assignedTo ? '#1E293B' : '#9CA3AF', border:'1px solid #E5E7EB', cursor:'pointer', width:'100%', minWidth:100 }}>
+                            <option value="">— Select —</option>
+                            {RESPONSIBLE_LIST.map(r => <option key={r} value={r}>{r}</option>)}
+                          </select>
                         </td>
                         <td style={{ textAlign: 'center' }}><Badge label={j.status} cfg={sc} /></td>
                         <td>
@@ -1072,7 +1088,10 @@ export default function JobTracker() {
                 </select>
               </Field>
               <Field label="Responsible">
-                <EmpSelect value={quickForm.assignedTo} onChange={(v:string) => setQuickForm((f:any) => ({...f, assignedTo:v}))} employees={employees} placeholder="Select employee"/>
+                <select value={quickForm.assignedTo || ''} onChange={e => setQuickForm((f:any) => ({...f, assignedTo: e.target.value}))} className="input-dark" style={{ width:'100%', padding:'8px 10px', fontSize:13 }}>
+                  <option value="">— Select —</option>
+                  {RESPONSIBLE_LIST.map(r => <option key={r} value={r}>{r}</option>)}
+                </select>
               </Field>
               <Field label="Doing / Completed By">
                 <EmpSelect value={quickForm.completedBy} onChange={(v:string) => setQuickForm((f:any) => ({...f, completedBy:v}))} employees={employees} placeholder="Select employee"/>
@@ -1112,7 +1131,10 @@ export default function JobTracker() {
           </Field>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
             <Field label="Responsible">
-              <EmpSelect value={jobForm.assignedTo} onChange={v => setJobForm(f => ({ ...f, assignedTo: v }))} employees={employees} placeholder="Select employee" />
+              <select value={jobForm.assignedTo || ''} onChange={e => setJobForm(f => ({ ...f, assignedTo: e.target.value }))} className="input-dark" style={{ width:'100%', padding:'8px 10px', fontSize:13 }}>
+                <option value="">— Select —</option>
+                {RESPONSIBLE_LIST.map(r => <option key={r} value={r}>{r}</option>)}
+              </select>
             </Field>
             <Field label="Status">
               <select value={jobForm.status} onChange={e => setJobForm(f => ({ ...f, status: e.target.value }))} className="input-dark" style={{ width: '100%', padding: '8px 10px', fontSize: 13 }}>
