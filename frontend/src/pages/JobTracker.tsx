@@ -4,7 +4,7 @@ import * as XLSX from 'xlsx';
 import {
   ClipboardList, Bell, RefreshCw, Plus, Edit2, Trash2, CheckCircle2,
   AlertTriangle, Clock, Search, Download, FileDown, Upload, FileSpreadsheet,
-  LayoutDashboard, AlarmClock, Repeat, X, User, CalendarDays, Zap,
+  LayoutDashboard, AlarmClock, Repeat, X, User, Users, CalendarDays, Zap,
 } from 'lucide-react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -260,6 +260,13 @@ export default function JobTracker() {
   const [quickJob,  setQuickJob]  = useState<PendingJob|null>(null);
   const [quickForm, setQuickForm] = useState<any>({});
 
+  // Area In-Charge mapping (area → employee name), persisted to localStorage
+  const [areaIncharge,      setAreaIncharge]      = useState<Record<string,string>>(() => { try { return JSON.parse(localStorage.getItem('mms_area_incharge') || '{}'); } catch { return {}; } });
+  const [showInchargeModal, setShowInchargeModal] = useState(false);
+  const [inchargeEdit,      setInchargeEdit]      = useState<Record<string,string>>({});
+  const openInchargeModal = () => { setInchargeEdit({ ...areaIncharge }); setShowInchargeModal(true); };
+  const saveIncharge = () => { setAreaIncharge(inchargeEdit); localStorage.setItem('mms_area_incharge', JSON.stringify(inchargeEdit)); setShowInchargeModal(false); };
+
   // ── Fetch ──
   const fetchAll = async () => {
     setLoading(true);
@@ -363,7 +370,9 @@ export default function JobTracker() {
 
   const updateArea = async (j: PendingJob, area: string) => {
     try {
-      const up = await apiFetch(`/api/pending-jobs/${j.id}`, { method: 'PUT', body: JSON.stringify({ asset: area }) });
+      const patch: any = { asset: area };
+      if (!j.completedBy && areaIncharge[area]) patch.completedBy = areaIncharge[area];
+      const up = await apiFetch(`/api/pending-jobs/${j.id}`, { method: 'PUT', body: JSON.stringify(patch) });
       setPendingJobs(p => p.map(x => x.id === j.id ? up : x));
     } catch (e: any) { alert(e.message); }
   };
@@ -592,6 +601,9 @@ export default function JobTracker() {
         <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
           <button onClick={fetchAll} className="btn-secondary" style={{ fontSize: 12, display: 'flex', alignItems: 'center', gap: 5 }}>
             <RefreshCw size={13} /> Refresh
+          </button>
+          <button onClick={openInchargeModal} style={{ fontSize: 12, display: 'flex', alignItems: 'center', gap: 5, padding: '7px 13px', borderRadius: 8, background: 'rgba(168,85,247,0.15)', border: '1px solid rgba(168,85,247,0.4)', color: '#a855f7', cursor: 'pointer', fontWeight: 700 }}>
+            <Users size={13} /> Area In-Charge
           </button>
           <button onClick={downloadPDF} className="btn-secondary" style={{ fontSize: 12, display: 'flex', alignItems: 'center', gap: 5 }}>
             <FileDown size={13} /> PDF
@@ -1163,7 +1175,10 @@ export default function JobTracker() {
         <Modal title={editJobId ? 'Edit Job' : 'Add Pending Job'} onClose={() => setShowJobForm(false)}>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
             <Field label="Area / Location">
-              <select value={jobForm.asset || ''} onChange={e => setJobForm(f => ({ ...f, asset: e.target.value }))} className="input-dark" style={{ width:'100%', padding:'8px 10px', fontSize:13 }}>
+              <select value={jobForm.asset || ''} onChange={e => {
+                const area = e.target.value;
+                setJobForm(f => ({ ...f, asset: area, completedBy: (!f.completedBy && areaIncharge[area]) ? areaIncharge[area] : f.completedBy }));
+              }} className="input-dark" style={{ width:'100%', padding:'8px 10px', fontSize:13 }}>
                 <option value="">— Select Area —</option>
                 {AREA_LIST.map(a => <option key={a} value={a}>{a}</option>)}
               </select>
@@ -1250,6 +1265,46 @@ export default function JobTracker() {
             <button onClick={() => setShowFlwForm(false)} className="btn-secondary">Cancel</button>
           </div>
         </Modal>
+      )}
+
+      {/* ── AREA IN-CHARGE MODAL ── */}
+      {showInchargeModal && (
+        <div style={{ position:'fixed',inset:0,background:'rgba(0,0,0,0.55)',zIndex:1000,display:'flex',alignItems:'center',justifyContent:'center',padding:16 }}>
+          <div className="glass-card" style={{ width:'100%',maxWidth:520,maxHeight:'88vh',overflowY:'auto',padding:24 }}>
+            <div style={{ display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:6 }}>
+              <div style={{ display:'flex',alignItems:'center',gap:8 }}>
+                <Users size={17} color="#a855f7"/>
+                <span style={{ fontWeight:800,fontSize:15,color:'#1e293b' }}>Area In-Charge Assignment</span>
+              </div>
+              <button onClick={() => setShowInchargeModal(false)} style={{ background:'none',border:'none',cursor:'pointer',color:'#64748b' }}><X size={16}/></button>
+            </div>
+            <div style={{ fontSize:12,color:'#64748b',marginBottom:16 }}>
+              Assign an engineer to each area. When a job's area is selected, the engineer's name will auto-fill in "Doing / Completed By".
+            </div>
+            <div style={{ display:'flex',flexDirection:'column',gap:8 }}>
+              {AREA_LIST.map(area => (
+                <div key={area} style={{ display:'grid',gridTemplateColumns:'1fr 1fr',gap:12,alignItems:'center',padding:'8px 12px',borderRadius:8,background:'#F8FAFC',border:'1px solid #E5E7EB' }}>
+                  <div style={{ fontSize:13,fontWeight:600,color:'#1E293B' }}>{area}</div>
+                  <select
+                    value={inchargeEdit[area] || ''}
+                    onChange={e => setInchargeEdit(p => ({ ...p, [area]: e.target.value }))}
+                    className="input-dark"
+                    style={{ padding:'6px 10px',fontSize:12,width:'100%' }}
+                  >
+                    <option value="">— Not Assigned —</option>
+                    {employees.map((e: any) => <option key={e.id} value={e.name}>{e.name}</option>)}
+                  </select>
+                </div>
+              ))}
+            </div>
+            <div style={{ display:'flex',gap:10,marginTop:18 }}>
+              <button onClick={saveIncharge} style={{ flex:1,display:'flex',alignItems:'center',justifyContent:'center',gap:6,padding:'9px 0',borderRadius:8,background:'linear-gradient(135deg,#a855f7,#7c3aed)',color:'#fff',border:'none',fontWeight:700,fontSize:13,cursor:'pointer' }}>
+                <Users size={13}/> Save Assignments
+              </button>
+              <button onClick={() => setShowInchargeModal(false)} className="btn-secondary" style={{ fontSize:13 }}>Cancel</button>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* ── REMINDER FORM MODAL ── */}
