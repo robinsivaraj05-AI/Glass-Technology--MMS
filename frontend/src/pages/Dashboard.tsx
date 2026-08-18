@@ -188,29 +188,32 @@ function SectionTitle({ icon, label, action }: { icon:React.ReactNode; label:str
 export default function Dashboard() {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const [employees, setEmployees] = useState<any[]>([]);
+  const [orgPositions, setOrgPositions] = useState<any[]>([]);
 
   useEffect(() => {
-    fetch('/api/employees')
+    fetch('/api/org-positions')
       .then(r => r.json())
-      .then(d => setEmployees(Array.isArray(d) ? d : []))
+      .then(d => setOrgPositions(Array.isArray(d) ? d : []))
       .catch(() => {});
   }, []);
 
-  const activeCount  = employees.filter(e => e.status === 'active').length;
-  const onLeave      = employees.filter(e => e.status === 'on_leave').length;
-  const suspended    = employees.filter(e => e.status === 'suspended').length;
-  const resigned     = employees.filter(e => e.status === 'resigned').length;
-  const total        = employees.length;
-  const fillPct      = total > 0 ? +((activeCount / total) * 100).toFixed(1) : 0;
+  // Mirror exact logic from OrgChartSummary
+  const getRS = (p: any) => p.recruitmentStatus || (p.personName?.trim() ? 'joined' : 'pending');
+  const total       = orgPositions.length;
+  const joinedCount = orgPositions.filter(p => getRS(p) === 'joined').length;
+  const readyCount  = orgPositions.filter(p => getRS(p) === 'ready_to_join').length;
+  const hrCount     = orgPositions.filter(p => getRS(p) === 'hr_process').length;
+  const pendingCount= orgPositions.filter(p => getRS(p) === 'pending').length;
+  const fillPct     = total > 0 ? +((joinedCount / total) * 100).toFixed(1) : 0;
+  const activeCount = joinedCount; // kept for banner compatibility
   const pct = (n: number) => total > 0 ? Math.round((n / total) * 100) : 0;
 
   const STAFFING = [
-    { label:'Total Positions', value: total,      pct: 100,           color:'#3B82F6', bg:'#EFF6FF', border:'#BFDBFE', icon:<Users size={20}/> },
-    { label:'Joined',          value: activeCount, pct: pct(activeCount), color:'#22C55E', bg:'#F0FDF4', border:'#BBF7D0', icon:<CheckCircle size={20}/> },
-    { label:'Ready to Join',   value: onLeave,     pct: pct(onLeave),  color:'#06B6D4', bg:'#ECFEFF', border:'#A5F3FC', icon:<Clock size={20}/> },
-    { label:'HR Process',      value: suspended,   pct: pct(suspended),color:'#8B5CF6', bg:'#F5F3FF', border:'#DDD6FE', icon:<FileText size={20}/> },
-    { label:'Pending',         value: resigned,    pct: pct(resigned), color:'#EF4444', bg:'#FEF2F2', border:'#FECACA', icon:<AlertTriangle size={20}/> },
+    { label:'Total Positions', value: total,        pct: 100,            color:'#3B82F6', bg:'#EFF6FF', border:'#BFDBFE', icon:<Users size={20}/> },
+    { label:'Joined',          value: joinedCount,  pct: pct(joinedCount), color:'#22C55E', bg:'#F0FDF4', border:'#BBF7D0', icon:<CheckCircle size={20}/> },
+    { label:'Ready to Join',   value: readyCount,   pct: pct(readyCount),  color:'#06B6D4', bg:'#ECFEFF', border:'#A5F3FC', icon:<Clock size={20}/> },
+    { label:'HR Process',      value: hrCount,      pct: pct(hrCount),     color:'#8B5CF6', bg:'#F5F3FF', border:'#DDD6FE', icon:<FileText size={20}/> },
+    { label:'Pending',         value: pendingCount, pct: pct(pendingCount),color:'#EF4444', bg:'#FEF2F2', border:'#FECACA', icon:<AlertTriangle size={20}/> },
   ];
 
   return (
