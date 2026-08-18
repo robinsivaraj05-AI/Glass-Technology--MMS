@@ -194,7 +194,7 @@ export default function Dashboard() {
   const { user } = useAuth();
 
   return (
-    <div style={{ background:PAGE_BG, margin:'-20px -24px', padding:'24px 28px', minHeight:'100vh', fontFamily:"'Inter','Segoe UI',system-ui,sans-serif", color:'#111827' }}>
+    <div style={{ background:PAGE_BG, margin:'-20px -24px', padding:'24px 28px', minHeight:'calc(100vh - 60px)', fontFamily:"'Inter','Segoe UI',system-ui,sans-serif", color:'#111827' }}>
 
       {/* ══ HEADER ══════════════════════════════════════════════════════════════ */}
       <div style={{ ...CARD, marginBottom:22, overflow:'hidden', background:'#fff' }}>

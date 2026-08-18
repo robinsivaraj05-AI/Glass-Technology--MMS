@@ -10,15 +10,16 @@ export default function Layout() {
 
   if (loading) {
     return (
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh', background: '#050507' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh', background: '#F0F4F8' }}>
         <div style={{ textAlign: 'center' }}>
           <div style={{
-            width: 48, height: 48, borderRadius: 12,
-            background: 'linear-gradient(135deg, #3b82f6, #6366f1)',
+            width: 52, height: 52, borderRadius: 14,
+            background: 'linear-gradient(135deg, #1E40AF, #3B82F6)',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontSize: 24, margin: '0 auto 16px',
+            fontSize: 26, margin: '0 auto 16px',
+            boxShadow: '0 8px 24px rgba(59,130,246,0.3)',
           }}>⚡</div>
-          <div style={{ color: '#94a3b8', fontSize: 14 }}>Loading MMS...</div>
+          <div style={{ color: '#6B7280', fontSize: 14, fontWeight: 500 }}>Loading MMS...</div>
         </div>
       </div>
     );
@@ -27,7 +28,7 @@ export default function Layout() {
   if (!isAuthenticated) return <Navigate to="/login" replace />;
 
   return (
-    <div style={{ display: 'flex', height: '100vh', overflow: 'hidden', background: '#050507' }}>
+    <div style={{ display: 'flex', height: '100vh', overflow: 'hidden', background: '#F0F4F8' }}>
       <Sidebar collapsed={sidebarCollapsed} onToggle={() => setSidebarCollapsed(p => !p)} />
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
         <Header />
@@ -35,7 +36,7 @@ export default function Layout() {
           flex: 1,
           overflowY: 'auto',
           padding: '20px 24px',
-          background: '#050507',
+          background: '#F0F4F8',
         }}>
           <Outlet />
         </main>
