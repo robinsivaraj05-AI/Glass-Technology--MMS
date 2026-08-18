@@ -756,10 +756,9 @@ export default function JobTracker() {
                 <thead>
                   <tr>
                     <th style={{ width: 36, textAlign: 'center' }}>Sl.</th>
-                    <th style={{ width: 100 }}>Job ID</th>
-                    <th style={{ width: 100, textAlign: 'center' }}>Created Date</th>
-                    <th style={{ width: 130 }}>Area / Location</th>
-                    <th>Description</th>
+                    <th style={{ width: 110, textAlign: 'center' }}>Created Date</th>
+                    <th style={{ width: 140 }}>Area / Location</th>
+                    <th style={{ minWidth: 260 }}>Description</th>
                     <th style={{ width: 88, textAlign: 'center' }}>Priority</th>
                     <th style={{ width: 130 }}>Responsible</th>
                     <th style={{ width: 130, textAlign: 'center' }}>Status</th>
@@ -770,7 +769,7 @@ export default function JobTracker() {
                 </thead>
                 <tbody>
                   {filteredJobs.length === 0 && (
-                    <tr><td colSpan={11} style={{ textAlign: 'center', padding: 32, color: '#475569', fontStyle: 'italic' }}>No active jobs. Add one or upload an Excel file.</td></tr>
+                    <tr><td colSpan={10} style={{ textAlign: 'center', padding: 32, color: '#475569', fontStyle: 'italic' }}>No active jobs. Add one or upload an Excel file.</td></tr>
                   )}
                   {filteredJobs.map((j, i) => {
                     const pc = PRIORITY_CFG[j.priority] || PRIORITY_CFG.Medium;
@@ -778,7 +777,6 @@ export default function JobTracker() {
                     return (
                       <tr key={j.id}>
                         <td style={{ textAlign: 'center', color: '#64748b' }}>{i + 1}</td>
-                        <td style={{ fontFamily: 'monospace', color: '#60a5fa', fontWeight: 700, fontSize: 11 }}>{j.jobId || '—'}</td>
                         <td style={{ textAlign: 'center' }}>
                           <input type="date" value={toIsoDate(j.createdDate)} onChange={e => updateCreatedDate(j, e.target.value)}
                             style={{ border:'1px solid #E5E7EB', borderRadius:6, padding:'3px 6px', fontSize:11, color:'#374151', background:'#F8FAFC', cursor:'pointer', width:'100%' }}/>
@@ -849,10 +847,9 @@ export default function JobTracker() {
                 <thead>
                   <tr>
                     <th style={{ width: 36, textAlign: 'center' }}>Sl.</th>
-                    <th style={{ width: 100 }}>Job ID</th>
-                    <th style={{ width: 100, textAlign: 'center' }}>Created Date</th>
-                    <th style={{ width: 130 }}>Area / Location</th>
-                    <th>Description</th>
+                    <th style={{ width: 110, textAlign: 'center' }}>Created Date</th>
+                    <th style={{ width: 140 }}>Area / Location</th>
+                    <th style={{ minWidth: 260 }}>Description</th>
                     <th style={{ width: 88, textAlign: 'center' }}>Priority</th>
                     <th style={{ width: 130 }}>Responsible</th>
                     <th style={{ width: 120, textAlign: 'center' }}>Status</th>
@@ -863,7 +860,7 @@ export default function JobTracker() {
                 </thead>
                 <tbody>
                   {filteredCompleted.length === 0 && (
-                    <tr><td colSpan={11} style={{ textAlign: 'center', padding: 32, color: '#475569', fontStyle: 'italic' }}>No completed jobs yet.</td></tr>
+                    <tr><td colSpan={10} style={{ textAlign: 'center', padding: 32, color: '#475569', fontStyle: 'italic' }}>No completed jobs yet.</td></tr>
                   )}
                   {filteredCompleted.map((j, i) => {
                     const pc = PRIORITY_CFG[j.priority] || PRIORITY_CFG.Medium;
@@ -871,7 +868,6 @@ export default function JobTracker() {
                     return (
                       <tr key={j.id}>
                         <td style={{ textAlign: 'center', color: '#64748b' }}>{i + 1}</td>
-                        <td style={{ fontFamily: 'monospace', color: '#60a5fa', fontWeight: 700, fontSize: 11 }}>{j.jobId || '—'}</td>
                         <td style={{ textAlign: 'center' }}>
                           <input type="date" value={toIsoDate(j.createdDate)} onChange={e => updateCreatedDate(j, e.target.value)}
                             style={{ border:'1px solid #E5E7EB', borderRadius:6, padding:'3px 6px', fontSize:11, color:'#374151', background:'#F8FAFC', cursor:'pointer', width:'100%' }}/>
