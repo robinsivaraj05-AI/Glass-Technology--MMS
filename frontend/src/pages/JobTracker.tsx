@@ -595,6 +595,12 @@ export default function JobTracker() {
   const downloadPDF = () => {
     const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
     const pw = doc.internal.pageSize.getWidth();
+    const byArea = (a: any, b: any) => {
+      const ai = AREA_LIST.indexOf(a.asset || ''); const bi = AREA_LIST.indexOf(b.asset || '');
+      return (ai === -1 ? 999 : ai) - (bi === -1 ? 999 : bi);
+    };
+    const sortedActive    = [...activeJobs].sort(byArea);
+    const sortedCompleted = [...completedJobs].sort(byArea);
     doc.setFillColor(15, 23, 42); doc.rect(0, 0, pw, 28, 'F');
     doc.setFontSize(15); doc.setFont('helvetica', 'bold'); doc.setTextColor(241, 245, 249);
     doc.text('Maintenance Job Tracker Report', pw / 2, 11, { align: 'center' });
@@ -605,22 +611,22 @@ export default function JobTracker() {
     autoTable(doc, {
       startY: 33, margin: { left: 10, right: 10 },
       head: [['#', 'Created Date', 'Area / Location', 'Description', 'Priority', 'Responsible', 'Status', 'Doing / Completed By', 'Remarks']],
-      body: activeJobs.map((j, i) => [i + 1, fmtDate(j.createdDate), j.asset||'—', j.description, j.priority, j.assignedTo||'—', j.status, j.completedBy||'—', j.remarks||'—']),
+      body: sortedActive.map((j, i) => [i + 1, fmtDate(j.createdDate), j.asset||'—', j.description, j.priority, j.assignedTo||'—', j.status, j.completedBy||'—', j.remarks||'—']),
       headStyles: { fillColor: [30, 64, 175], textColor: 255, fontStyle: 'bold', fontSize: 7 },
       bodyStyles: { fontSize: 7 },
       columnStyles: { 3: { cellWidth: 55 }, 7: { cellWidth: 32 }, 8: { cellWidth: 30 } },
     });
-    if (completedJobs.length > 0) {
+    if (sortedCompleted.length > 0) {
       const y2 = (doc as any).lastAutoTable.finalY + 8;
       doc.setFontSize(10); doc.setFont('helvetica', 'bold'); doc.setTextColor(34, 197, 94);
       doc.text('Completed Jobs', 10, y2 + 4);
       autoTable(doc, {
         startY: y2 + 8, margin: { left: 10, right: 10 },
-        head: [['#', 'Created Date', 'Area / Location', 'Description', 'Priority', 'Responsible', 'Status', 'Doing / Completed By', 'Remarks']],
-        body: completedJobs.map((j, i) => [i + 1, fmtDate(j.createdDate), j.asset||'—', j.description, j.priority, j.assignedTo||'—', j.status, j.completedBy||'—', j.remarks||'—']),
+        head: [['#', 'Created Date', 'Area / Location', 'Description', 'Priority', 'Responsible', 'Status', 'Doing / Completed By', 'Remarks', 'Completion Date']],
+        body: sortedCompleted.map((j, i) => [i + 1, fmtDate(j.createdDate), j.asset||'—', j.description, j.priority, j.assignedTo||'—', j.status, j.completedBy||'—', j.remarks||'—', fmtDate(j.completedDate)||'—']),
         headStyles: { fillColor: [20, 83, 45], textColor: 255, fontStyle: 'bold', fontSize: 7 },
         bodyStyles: { fontSize: 7 },
-        columnStyles: { 3: { cellWidth: 55 }, 7: { cellWidth: 32 }, 8: { cellWidth: 30 } },
+        columnStyles: { 3: { cellWidth: 50 }, 7: { cellWidth: 28 }, 8: { cellWidth: 26 } },
       });
     }
     const fileLabel = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }).replace(/ /g, '_');
@@ -631,7 +637,20 @@ export default function JobTracker() {
   const downloadXLS = () => {
     const wb = XLSX.utils.book_new();
     const cols = [14, 18, 52, 12, 16, 16, 26, 30].map(w => ({ wch: w }));
-    const activeSheet = XLSX.utils.json_to_sheet(activeJobs.map((j, i) => ({
+    const byArea = (a: any, b: any) => {
+      const ai = AREA_LIST.indexOf(a.asset || ''); const bi = AREA_LIST.indexOf(b.asset || '');
+      return (ai === -1 ? 999 : ai) - (bi === -1 ? 999 : bi);
+    };
+    const sortedActive    = [...activeJobs].sort(byArea);
+    const sortedCompleted = [...completedJobs].sort(byArea);
+    const sortedFlw       = [...followupJobs].sort((a, b) => {
+      const aArea = pendingByJobId[a.relatedJobId]?.asset || '';
+      const bArea = pendingByJobId[b.relatedJobId]?.asset || '';
+      const ai = AREA_LIST.indexOf(aArea); const bi = AREA_LIST.indexOf(bArea);
+      return (ai === -1 ? 999 : ai) - (bi === -1 ? 999 : bi);
+    });
+
+    const activeSheet = XLSX.utils.json_to_sheet(sortedActive.map((j, i) => ({
       '#': i + 1,
       'Created Date': fmtDate(j.createdDate),
       'Area / Location': j.asset || '',
@@ -644,7 +663,8 @@ export default function JobTracker() {
     })));
     activeSheet['!cols'] = [{ wch: 5 }, ...cols];
     XLSX.utils.book_append_sheet(wb, activeSheet, 'Pending Jobs');
-    const completedSheet = XLSX.utils.json_to_sheet(completedJobs.map((j, i) => ({
+
+    const completedSheet = XLSX.utils.json_to_sheet(sortedCompleted.map((j, i) => ({
       '#': i + 1,
       'Created Date': fmtDate(j.createdDate),
       'Area / Location': j.asset || '',
@@ -654,13 +674,23 @@ export default function JobTracker() {
       'Status': j.status,
       'Doing / Completed By': j.completedBy || '',
       'Remarks': j.remarks || '',
+      'Completion Date': fmtDate(j.completedDate) || '',
     })));
-    completedSheet['!cols'] = [{ wch: 5 }, ...cols];
+    completedSheet['!cols'] = [{ wch: 5 }, ...cols, { wch: 16 }];
     XLSX.utils.book_append_sheet(wb, completedSheet, 'Completed Jobs');
-    const flwSheet = XLSX.utils.json_to_sheet(followupJobs.map(f => ({
-      'Followup ID': f.followupId, 'Related Job': f.relatedJobId, 'Description': f.description,
-      'Next Date': f.nextFollowupDate, 'Status': f.status, 'Responsible': f.responsiblePerson, 'Comments': f.comments,
+
+    const flwSheet = XLSX.utils.json_to_sheet(sortedFlw.map((f, i) => ({
+      '#': i + 1,
+      'Follow-up Date': fmtDate(f.nextFollowupDate) || '',
+      'Area / Location': pendingByJobId[f.relatedJobId]?.asset || '',
+      'Description': f.description,
+      'Priority': pendingByJobId[f.relatedJobId]?.priority || '',
+      'Responsible': f.responsiblePerson || '',
+      'Status': f.status,
+      'Doing / Completed By': f.responsiblePerson || '',
+      'Remarks': f.comments || '',
     })));
+    flwSheet['!cols'] = [{ wch: 5 }, ...cols];
     XLSX.utils.book_append_sheet(wb, flwSheet, 'Follow-up Jobs');
     const fileLabel = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }).replace(/ /g, '_');
     XLSX.writeFile(wb, `E&I_Job_Tracker_${fileLabel}.xlsx`);
