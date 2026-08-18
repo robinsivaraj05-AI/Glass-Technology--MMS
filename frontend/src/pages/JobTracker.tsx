@@ -320,6 +320,7 @@ export default function JobTracker() {
   // ── Filtered ──
   const activeJobs    = useMemo(() => pendingJobs.filter(j => j.status !== 'Completed'), [pendingJobs]);
   const completedJobs = useMemo(() => pendingJobs.filter(j => j.status === 'Completed'), [pendingJobs]);
+  const pendingByJobId = useMemo(() => Object.fromEntries(pendingJobs.map(j => [j.jobId, j])), [pendingJobs]);
 
   const filteredJobs = useMemo(() => {
     const list = activeJobs.filter(j => {
@@ -334,11 +335,19 @@ export default function JobTracker() {
     });
   }, [activeJobs, jpSearch, jpStatus, jpPriority]);
 
-  const filteredFlw = useMemo(() => followupJobs.filter(f => {
-    if (flStatus !== 'All' && f.status !== flStatus) return false;
-    if (flSearch && !`${f.followupId} ${f.relatedJobId} ${f.description} ${f.responsiblePerson}`.toLowerCase().includes(flSearch.toLowerCase())) return false;
-    return true;
-  }), [followupJobs, flSearch, flStatus]);
+  const filteredFlw = useMemo(() => {
+    const list = followupJobs.filter(f => {
+      if (flStatus !== 'All' && f.status !== flStatus) return false;
+      if (flSearch && !`${f.followupId} ${f.relatedJobId} ${f.description} ${f.responsiblePerson}`.toLowerCase().includes(flSearch.toLowerCase())) return false;
+      return true;
+    });
+    return list.sort((a, b) => {
+      const aArea = pendingByJobId[a.relatedJobId]?.asset || '';
+      const bArea = pendingByJobId[b.relatedJobId]?.asset || '';
+      const ai = AREA_LIST.indexOf(aArea); const bi = AREA_LIST.indexOf(bArea);
+      return (ai === -1 ? 999 : ai) - (bi === -1 ? 999 : bi);
+    });
+  }, [followupJobs, flSearch, flStatus, pendingByJobId]);
 
   const filteredRem = useMemo(() => reminders.filter(r => {
     if (remFreq !== 'All' && r.frequency !== remFreq) return false;
@@ -839,7 +848,8 @@ export default function JobTracker() {
                     <th style={{ width: 130 }}>Responsible</th>
                     <th style={{ width: 130, textAlign: 'center' }}>Status</th>
                     <th style={{ width: 140 }}>Doing / Completed By</th>
-                    <th style={{ width: 140 }}>Remarks</th>
+                    <th style={{ width: 130 }}>Remarks</th>
+                    <th style={{ width: 110, textAlign: 'center' }}>Completion Date</th>
                     <th style={{ width: 72, textAlign: 'center' }}>Actions</th>
                   </tr>
                 </thead>
@@ -921,7 +931,7 @@ export default function JobTracker() {
                 </thead>
                 <tbody>
                   {filteredCompleted.length === 0 && (
-                    <tr><td colSpan={10} style={{ textAlign: 'center', padding: 32, color: '#475569', fontStyle: 'italic' }}>No completed jobs yet.</td></tr>
+                    <tr><td colSpan={11} style={{ textAlign: 'center', padding: 32, color: '#475569', fontStyle: 'italic' }}>No completed jobs yet.</td></tr>
                   )}
                   {filteredCompleted.map((j, i) => {
                     const pc = PRIORITY_CFG[j.priority] || PRIORITY_CFG.Medium;
@@ -939,6 +949,7 @@ export default function JobTracker() {
                           <InlineEmpSelect value={j.completedBy} employees={employees} onChange={(v: string) => updateDoingBy(j, v)} />
                         </td>
                         <td style={{ color: '#6b7280', fontSize: 11 }}>{j.remarks || '—'}</td>
+                        <td style={{ textAlign: 'center', color: '#22c55e', fontSize: 11, fontWeight: 600, whiteSpace: 'nowrap' }}>{fmtDate(j.completedDate) || '—'}</td>
                         <td style={{ textAlign: 'center' }}>
                           <div style={{ display:'flex',gap:4,justifyContent:'center' }}>
                             <button title="Quick Edit" onClick={() => openQuickEdit(j)} style={{ display:'flex',alignItems:'center',gap:3,padding:'4px 7px',borderRadius:6,background:'rgba(16,185,129,0.12)',border:'1px solid rgba(16,185,129,0.4)',color:'#10b981',cursor:'pointer',fontSize:10,fontWeight:700 }}>
@@ -989,14 +1000,14 @@ export default function JobTracker() {
                 <thead>
                   <tr>
                     <th style={{ width: 36, textAlign: 'center' }}>Sl.</th>
-                    <th style={{ width: 100 }}>Followup ID</th>
-                    <th style={{ width: 100, textAlign: 'center' }}>Next Date</th>
-                    <th style={{ width: 110 }}>Related Job</th>
-                    <th>Description</th>
-                    <th style={{ width: 120, textAlign: 'center' }}>Status</th>
-                    <th style={{ width: 140 }}>Responsible</th>
+                    <th style={{ width: 110, textAlign: 'center' }}>Follow-up Date</th>
+                    <th style={{ width: 140 }}>Area / Location</th>
+                    <th style={{ minWidth: 260 }}>Description</th>
+                    <th style={{ width: 88, textAlign: 'center' }}>Priority</th>
+                    <th style={{ width: 130 }}>Responsible</th>
+                    <th style={{ width: 130, textAlign: 'center' }}>Status</th>
                     <th style={{ width: 140 }}>Doing / Completed By</th>
-                    <th style={{ width: 140 }}>Remarks / Comments</th>
+                    <th style={{ width: 130 }}>Remarks</th>
                     <th style={{ width: 72, textAlign: 'center' }}>Actions</th>
                   </tr>
                 </thead>
@@ -1008,17 +1019,21 @@ export default function JobTracker() {
                     const sc  = FLW_STATUS_CFG[f.status] || FLW_STATUS_CFG.Pending;
                     const du  = daysUntil(f.nextFollowupDate);
                     const od  = f.nextFollowupDate && new Date(f.nextFollowupDate) < new Date(today) && f.status !== 'Completed';
+                    const rel = pendingByJobId[f.relatedJobId];
+                    const area = rel?.asset || '';
+                    const pc = PRIORITY_CFG[rel?.priority] || PRIORITY_CFG.Medium;
                     return (
                       <tr key={f.id} style={{ background: od ? 'rgba(239,68,68,0.04)' : undefined }}>
                         <td style={{ textAlign: 'center', color: '#64748b' }}>{i + 1}</td>
-                        <td style={{ fontFamily: 'monospace', color: '#a855f7', fontWeight: 700, fontSize: 11 }}>{f.followupId || '—'}</td>
-                        <td style={{ textAlign: 'center', color: od ? '#ef4444' : '#94a3b8', fontWeight: od ? 700 : 400 }}>
-                          {fmtDate(f.nextFollowupDate)}
+                        <td style={{ textAlign: 'center', color: od ? '#ef4444' : '#374151', fontSize: 11, fontWeight: od ? 700 : 400, whiteSpace: 'nowrap' }}>
+                          {fmtDate(f.nextFollowupDate) || '—'}
                           {od && <div style={{ fontSize: 9, color: '#ef4444' }}>OVERDUE</div>}
                           {!od && du !== null && du <= 3 && du >= 0 && <div style={{ fontSize: 9, color: '#f59e0b' }}>in {du}d</div>}
                         </td>
-                        <td style={{ fontFamily: 'monospace', color: '#60a5fa', fontSize: 11 }}>{f.relatedJobId || '—'}</td>
+                        <td><span style={{ display:'inline-block', padding:'3px 9px', borderRadius:6, background:'#EFF6FF', color:'#1D4ED8', fontWeight:700, fontSize:13, whiteSpace:'nowrap' }}>{area || '—'}</span></td>
                         <td style={{ fontWeight: 500, color: '#1e293b' }}>{f.description}</td>
+                        <td style={{ textAlign: 'center' }}>{rel ? <Badge label={rel.priority} cfg={pc} /> : <span style={{ color:'#94a3b8' }}>—</span>}</td>
+                        <td style={{ fontWeight: 600, fontSize: 11, color: '#374151' }}>{f.responsiblePerson || '—'}</td>
                         <td style={{ textAlign: 'center' }}>
                           <StatusSelect value={f.status} options={FLW_STATUSES} cfg={sc} onChange={async v => {
                             try {
@@ -1026,9 +1041,6 @@ export default function JobTracker() {
                               setFollowupJobs(p => p.map(x => x.id === f.id ? up : x));
                             } catch {}
                           }} />
-                        </td>
-                        <td style={{ color: '#374151' }}>
-                          {f.responsiblePerson ? <span style={{ display: 'flex', alignItems: 'center', gap: 5 }}><User size={11} />{f.responsiblePerson}</span> : '—'}
                         </td>
                         <td>
                           <InlineEmpSelect value={f.responsiblePerson} employees={employees} onChange={async (v: string) => {
