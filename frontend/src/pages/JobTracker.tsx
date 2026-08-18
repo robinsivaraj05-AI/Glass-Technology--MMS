@@ -231,8 +231,8 @@ export default function JobTracker() {
 
   // Filters
   const [jpSearch,   setJpSearch]   = useState('');
-  const [jpStatus,   setJpStatus]   = useState('All');
-  const [jpPriority, setJpPriority] = useState('All');
+  const [jpArea,        setJpArea]        = useState('All');
+  const [jpResponsible, setJpResponsible] = useState('All');
   const [flSearch,   setFlSearch]   = useState('');
   const [flStatus,   setFlStatus]   = useState('All');
   const [remFreq,    setRemFreq]    = useState('All');
@@ -324,8 +324,8 @@ export default function JobTracker() {
 
   const filteredJobs = useMemo(() => {
     const list = activeJobs.filter(j => {
-      if (jpStatus !== 'All' && j.status !== jpStatus) return false;
-      if (jpPriority !== 'All' && j.priority !== jpPriority) return false;
+      if (jpArea !== 'All' && j.asset !== jpArea) return false;
+      if (jpResponsible !== 'All' && j.assignedTo !== jpResponsible) return false;
       if (jpSearch && !`${j.jobId} ${j.asset} ${j.description} ${j.assignedTo}`.toLowerCase().includes(jpSearch.toLowerCase())) return false;
       return true;
     });
@@ -333,7 +333,7 @@ export default function JobTracker() {
       const ai = AREA_LIST.indexOf(a.asset || ''); const bi = AREA_LIST.indexOf(b.asset || '');
       return (ai === -1 ? 999 : ai) - (bi === -1 ? 999 : bi);
     });
-  }, [activeJobs, jpSearch, jpStatus, jpPriority]);
+  }, [activeJobs, jpSearch, jpArea, jpResponsible]);
 
   const filteredFlw = useMemo(() => {
     const list = followupJobs.filter(f => {
@@ -871,13 +871,13 @@ export default function JobTracker() {
               <Search size={13} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: '#475569' }} />
               <input value={jpSearch} onChange={e => setJpSearch(e.target.value)} placeholder="Search jobs…" className="input-dark" style={{ paddingLeft: 30, width: '100%' }} />
             </div>
-            <select value={jpStatus} onChange={e => setJpStatus(e.target.value)} className="input-dark" style={{ width: 150, fontSize: 13 }}>
-              <option value="All">All Status</option>
-              {JOB_STATUSES.map(s => <option key={s} value={s}>{s}</option>)}
+            <select value={jpArea} onChange={e => setJpArea(e.target.value)} className="input-dark" style={{ width: 160, fontSize: 13 }}>
+              <option value="All">All Areas</option>
+              {AREA_LIST.map(a => <option key={a} value={a}>{a}</option>)}
             </select>
-            <select value={jpPriority} onChange={e => setJpPriority(e.target.value)} className="input-dark" style={{ width: 130, fontSize: 13 }}>
-              <option value="All">All Priority</option>
-              {PRIORITIES.map(p => <option key={p} value={p}>{p}</option>)}
+            <select value={jpResponsible} onChange={e => setJpResponsible(e.target.value)} className="input-dark" style={{ width: 150, fontSize: 13 }}>
+              <option value="All">All Responsible</option>
+              {RESPONSIBLE_LIST.map(r => <option key={r} value={r}>{r}</option>)}
             </select>
             <button onClick={() => openJobForm()} className="btn-primary" style={{ fontSize: 12, display: 'flex', alignItems: 'center', gap: 5 }}>
               <Plus size={13} /> Add Job
