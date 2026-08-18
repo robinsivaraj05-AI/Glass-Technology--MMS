@@ -266,6 +266,27 @@ export default function JobTracker() {
   const [inchargeEdit,      setInchargeEdit]      = useState<Record<string,string>>({});
   const openInchargeModal = () => { setInchargeEdit({ ...areaIncharge }); setShowInchargeModal(true); };
   const saveIncharge = () => { setAreaIncharge(inchargeEdit); localStorage.setItem('mms_area_incharge', JSON.stringify(inchargeEdit)); setShowInchargeModal(false); };
+  const syncIncharge = async (mapping?: Record<string,string>) => {
+    const map = mapping || areaIncharge;
+    const toSync = pendingJobs.filter(j => j.asset && map[j.asset] && !j.completedBy);
+    if (toSync.length === 0) { alert('No jobs to update — all jobs already have a "Doing By" assigned or no in-charge set for their area.'); return; }
+    let count = 0;
+    for (const j of toSync) {
+      try {
+        const up = await apiFetch(`/api/pending-jobs/${j.id}`, { method: 'PUT', body: JSON.stringify({ completedBy: map[j.asset] }) });
+        setPendingJobs(p => p.map(x => x.id === j.id ? up : x));
+        count++;
+      } catch {}
+    }
+    alert(`Applied in-charge to ${count} job${count !== 1 ? 's' : ''}.`);
+  };
+  const saveInchargeAndSync = async () => {
+    const map = inchargeEdit;
+    setAreaIncharge(map);
+    localStorage.setItem('mms_area_incharge', JSON.stringify(map));
+    setShowInchargeModal(false);
+    await syncIncharge(map);
+  };
 
   // ── Fetch ──
   const fetchAll = async () => {
@@ -605,6 +626,9 @@ export default function JobTracker() {
           <button onClick={openInchargeModal} style={{ fontSize: 12, display: 'flex', alignItems: 'center', gap: 5, padding: '7px 13px', borderRadius: 8, background: 'rgba(168,85,247,0.15)', border: '1px solid rgba(168,85,247,0.4)', color: '#a855f7', cursor: 'pointer', fontWeight: 700 }}>
             <Users size={13} /> Area In-Charge
           </button>
+          <button onClick={() => syncIncharge()} style={{ fontSize: 12, display: 'flex', alignItems: 'center', gap: 5, padding: '7px 13px', borderRadius: 8, background: 'rgba(16,185,129,0.12)', border: '1px solid rgba(16,185,129,0.4)', color: '#10b981', cursor: 'pointer', fontWeight: 700 }}>
+            <RefreshCw size={13} /> Sync In-Charge
+          </button>
           <button onClick={downloadPDF} className="btn-secondary" style={{ fontSize: 12, display: 'flex', alignItems: 'center', gap: 5 }}>
             <FileDown size={13} /> PDF
           </button>
@@ -789,26 +813,11 @@ export default function JobTracker() {
                     return (
                       <tr key={j.id}>
                         <td style={{ textAlign: 'center', color: '#64748b' }}>{i + 1}</td>
-                        <td style={{ textAlign: 'center' }}>
-                          <input type="date" value={toIsoDate(j.createdDate)} onChange={e => updateCreatedDate(j, e.target.value)}
-                            style={{ border:'1px solid #E5E7EB', borderRadius:6, padding:'3px 6px', fontSize:11, color:'#374151', background:'#F8FAFC', cursor:'pointer', width:'100%' }}/>
-                        </td>
-                        <td>
-                          <select value={j.asset || ''} onChange={e => updateArea(j, e.target.value)}
-                            style={{ padding:'4px 8px', borderRadius:7, fontSize:11, fontWeight:600, background:'#F8FAFC', color: j.asset ? '#1E293B' : '#9CA3AF', border:'1px solid #E5E7EB', cursor:'pointer', width:'100%', minWidth:110 }}>
-                            <option value="">— Select —</option>
-                            {AREA_LIST.map(a => <option key={a} value={a}>{a}</option>)}
-                          </select>
-                        </td>
+                        <td style={{ textAlign: 'center', color: '#374151', fontSize: 11, whiteSpace: 'nowrap' }}>{fmtDate(j.createdDate) || '—'}</td>
+                        <td><span style={{ display:'inline-block', padding:'3px 9px', borderRadius:6, background:'#EFF6FF', color:'#1D4ED8', fontWeight:600, fontSize:11, whiteSpace:'nowrap' }}>{j.asset || '—'}</span></td>
                         <td style={{ fontWeight: 500, color: '#1e293b' }}>{j.description}</td>
                         <td style={{ textAlign: 'center' }}><Badge label={j.priority} cfg={pc} /></td>
-                        <td style={{ color: '#374151' }}>
-                          <select value={j.assignedTo || ''} onChange={e => updateResponsible(j, e.target.value)}
-                            style={{ padding:'4px 8px', borderRadius:7, fontSize:11, fontWeight:600, background:'#F8FAFC', color: j.assignedTo ? '#1E293B' : '#9CA3AF', border:'1px solid #E5E7EB', cursor:'pointer', width:'100%', minWidth:100 }}>
-                            <option value="">— Select —</option>
-                            {RESPONSIBLE_LIST.map(r => <option key={r} value={r}>{r}</option>)}
-                          </select>
-                        </td>
+                        <td style={{ fontWeight: 600, fontSize: 11, color: '#374151' }}>{j.assignedTo || '—'}</td>
                         <td style={{ textAlign: 'center' }}>
                           <StatusSelect value={j.status} options={JOB_STATUSES} cfg={sc} onChange={v => updateStatus(j, v)} />
                         </td>
@@ -880,26 +889,11 @@ export default function JobTracker() {
                     return (
                       <tr key={j.id}>
                         <td style={{ textAlign: 'center', color: '#64748b' }}>{i + 1}</td>
-                        <td style={{ textAlign: 'center' }}>
-                          <input type="date" value={toIsoDate(j.createdDate)} onChange={e => updateCreatedDate(j, e.target.value)}
-                            style={{ border:'1px solid #E5E7EB', borderRadius:6, padding:'3px 6px', fontSize:11, color:'#374151', background:'#F8FAFC', cursor:'pointer', width:'100%' }}/>
-                        </td>
-                        <td>
-                          <select value={j.asset || ''} onChange={e => updateArea(j, e.target.value)}
-                            style={{ padding:'4px 8px', borderRadius:7, fontSize:11, fontWeight:600, background:'#F8FAFC', color: j.asset ? '#1E293B' : '#9CA3AF', border:'1px solid #E5E7EB', cursor:'pointer', width:'100%', minWidth:110 }}>
-                            <option value="">— Select —</option>
-                            {AREA_LIST.map(a => <option key={a} value={a}>{a}</option>)}
-                          </select>
-                        </td>
+                        <td style={{ textAlign: 'center', color: '#374151', fontSize: 11, whiteSpace: 'nowrap' }}>{fmtDate(j.createdDate) || '—'}</td>
+                        <td><span style={{ display:'inline-block', padding:'3px 9px', borderRadius:6, background:'#EFF6FF', color:'#1D4ED8', fontWeight:600, fontSize:11, whiteSpace:'nowrap' }}>{j.asset || '—'}</span></td>
                         <td style={{ fontWeight: 500, color: '#1e293b' }}>{j.description}</td>
                         <td style={{ textAlign: 'center' }}><Badge label={j.priority} cfg={pc} /></td>
-                        <td style={{ color: '#374151' }}>
-                          <select value={j.assignedTo || ''} onChange={e => updateResponsible(j, e.target.value)}
-                            style={{ padding:'4px 8px', borderRadius:7, fontSize:11, fontWeight:600, background:'#F8FAFC', color: j.assignedTo ? '#1E293B' : '#9CA3AF', border:'1px solid #E5E7EB', cursor:'pointer', width:'100%', minWidth:100 }}>
-                            <option value="">— Select —</option>
-                            {RESPONSIBLE_LIST.map(r => <option key={r} value={r}>{r}</option>)}
-                          </select>
-                        </td>
+                        <td style={{ fontWeight: 600, fontSize: 11, color: '#374151' }}>{j.assignedTo || '—'}</td>
                         <td style={{ textAlign: 'center' }}><Badge label={j.status} cfg={sc} /></td>
                         <td>
                           <InlineEmpSelect value={j.completedBy} employees={employees} onChange={(v: string) => updateDoingBy(j, v)} />
@@ -1297,9 +1291,12 @@ export default function JobTracker() {
                 </div>
               ))}
             </div>
-            <div style={{ display:'flex',gap:10,marginTop:18 }}>
-              <button onClick={saveIncharge} style={{ flex:1,display:'flex',alignItems:'center',justifyContent:'center',gap:6,padding:'9px 0',borderRadius:8,background:'linear-gradient(135deg,#a855f7,#7c3aed)',color:'#fff',border:'none',fontWeight:700,fontSize:13,cursor:'pointer' }}>
-                <Users size={13}/> Save Assignments
+            <div style={{ display:'flex',gap:10,marginTop:18,flexWrap:'wrap' }}>
+              <button onClick={saveIncharge} style={{ flex:1,display:'flex',alignItems:'center',justifyContent:'center',gap:6,padding:'9px 0',borderRadius:8,background:'linear-gradient(135deg,#a855f7,#7c3aed)',color:'#fff',border:'none',fontWeight:700,fontSize:13,cursor:'pointer',minWidth:140 }}>
+                <Users size={13}/> Save Only
+              </button>
+              <button onClick={saveInchargeAndSync} style={{ flex:1,display:'flex',alignItems:'center',justifyContent:'center',gap:6,padding:'9px 0',borderRadius:8,background:'linear-gradient(135deg,#10b981,#059669)',color:'#fff',border:'none',fontWeight:700,fontSize:13,cursor:'pointer',minWidth:160 }}>
+                <RefreshCw size={13}/> Save &amp; Apply to Jobs
               </button>
               <button onClick={() => setShowInchargeModal(false)} className="btn-secondary" style={{ fontSize:13 }}>Cancel</button>
             </div>
