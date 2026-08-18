@@ -196,9 +196,13 @@ export default function Header() {
           onClick={() => { setShowProfile(!showProfile); setShowNotif(false); }}
           style={{ background: '#F8FAFC', border: '1px solid #E5E7EB', borderRadius: 9, cursor: 'pointer', padding: '5px 10px', display: 'flex', alignItems: 'center', gap: 8 }}
         >
-          <div style={{ width: 28, height: 28, borderRadius: '50%', background: 'linear-gradient(135deg,#3b82f6,#8b5cf6)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 700, color: 'white', flexShrink: 0 }}>
-            {user?.name.split(' ').map(n => n[0]).join('').slice(0,2)}
-          </div>
+          {user?.avatar ? (
+            <img src={user.avatar} alt="" style={{ width: 28, height: 28, borderRadius: '50%', objectFit: 'cover', flexShrink: 0, border: '2px solid rgba(59,130,246,0.4)' }} />
+          ) : (
+            <div style={{ width: 28, height: 28, borderRadius: '50%', background: 'linear-gradient(135deg,#3b82f6,#8b5cf6)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 700, color: 'white', flexShrink: 0 }}>
+              {user?.name.split(' ').map(n => n[0]).join('').slice(0,2)}
+            </div>
+          )}
           <div style={{ textAlign: 'left' }}>
             <div style={{ fontSize: 12, fontWeight: 700, color: '#1E293B' }}>{user?.name.split(' ')[0]}</div>
             <div style={{ fontSize: 10, color: roleColor[user?.role ?? 'guest'] ?? '#9CA3AF', textTransform: 'capitalize' }}>{roleLabel}</div>

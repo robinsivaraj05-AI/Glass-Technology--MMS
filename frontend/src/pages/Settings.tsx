@@ -70,6 +70,7 @@ export default function Settings() {
       shift: form.shift,
       phone: form.phone,
       dateOfJoining: form.dateOfJoining,
+      avatar: photoUrl || user?.avatar || '',
     });
     setSaved(true);
     setTimeout(() => setSaved(false), 2500);

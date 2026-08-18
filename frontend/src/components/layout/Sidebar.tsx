@@ -168,15 +168,19 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
       {!collapsed && user && (
         <div style={{ padding: '11px 14px', borderBottom: '1px solid #F1F5F9', background: '#FAFAFA', flexShrink: 0 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <div style={{
-              width: 34, height: 34, borderRadius: '50%', flexShrink: 0,
-              background: 'linear-gradient(135deg, #3b82f6, #8b5cf6)',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              fontSize: 12, fontWeight: 700, color: 'white',
-              boxShadow: '0 2px 6px rgba(59,130,246,0.25)',
-            }}>
-              {user.name.split(' ').map((n: string) => n[0]).join('').slice(0,2)}
-            </div>
+            {user.avatar ? (
+              <img src={user.avatar} alt="" style={{ width: 34, height: 34, borderRadius: '50%', objectFit: 'cover', flexShrink: 0, border: '2px solid rgba(59,130,246,0.4)', boxShadow: '0 2px 6px rgba(59,130,246,0.25)' }} />
+            ) : (
+              <div style={{
+                width: 34, height: 34, borderRadius: '50%', flexShrink: 0,
+                background: 'linear-gradient(135deg, #3b82f6, #8b5cf6)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                fontSize: 12, fontWeight: 700, color: 'white',
+                boxShadow: '0 2px 6px rgba(59,130,246,0.25)',
+              }}>
+                {user.name.split(' ').map((n: string) => n[0]).join('').slice(0,2)}
+              </div>
+            )}
             <div style={{ overflow: 'hidden' }}>
               <div style={{ fontSize: 12, fontWeight: 700, color: '#1E293B', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{user.name}</div>
               <div style={{ fontSize: 10, color: '#3B82F6', textTransform: 'capitalize', fontWeight: 600 }}>{user.role.replace('_', ' ')}</div>
