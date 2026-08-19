@@ -12,7 +12,7 @@ export interface ISparePart extends Document {
   currentStock: number;
   unitPrice: number;
   totalValue: number;
-  purchaseDate?: Date;
+  poNumber: string;
   supplier: string;
   location: string;
   minStock: number;
@@ -33,7 +33,7 @@ const SparePartSchema = new Schema<ISparePart>({
   currentStock:  { type: Number, default: 0 },
   unitPrice:     { type: Number, default: 0 },
   totalValue:    { type: Number, default: 0 },
-  purchaseDate:  { type: Date },
+  poNumber:      { type: String, default: '' },
   supplier:      { type: String, default: '' },
   location:      { type: String, default: '' },
   minStock:      { type: Number, default: 0 },

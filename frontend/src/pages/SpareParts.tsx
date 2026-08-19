@@ -1,7 +1,7 @@
 // @ts-nocheck
 import { useState, useEffect, useRef } from 'react';
 import {
-  Package, TrendingDown, DollarSign, Search, Download, Upload,
+  Package, DollarSign, Search, Download, Upload,
   Plus, Edit2, Trash2, RefreshCw, ChevronUp, ChevronDown, ChevronLeft,
   ChevronRight, X, Check, FileText, BarChart2,
 } from 'lucide-react';
@@ -22,8 +22,8 @@ const STORE_COLORS: Record<string, string> = {
 const CHART_COLORS = ['#3B82F6','#8B5CF6','#22C55E','#F59E0B','#EF4444','#06B6D4','#F97316','#EC4899','#10B981','#6366F1'];
 
 const BLANK: any = {
-  spareCode:'', itemName:'', category:'', storeName:'Main Store', unit:'Nos',
-  openingStock:0, unitPrice:0, purchaseDate:'',
+  spareCode:'', itemName:'', category:'', storeName:'Main Store',
+  unit:'Nos', currentStock:0, unitPrice:0, poNumber:'',
 };
 
 function fmt(n: number) { return (n || 0).toLocaleString('en-IN'); }
@@ -42,12 +42,12 @@ export default function SpareParts() {
   const [page,         setPage]         = useState(1);
   const PAGE = 15;
 
-  const [showAdd,      setShowAdd]      = useState(false);
-  const [editItem,     setEditItem]     = useState<any>(null);
-  const [showImport,   setShowImport]   = useState(false);
-  const [importRows,   setImportRows]   = useState<any[]>([]);
-  const [importing,    setImporting]    = useState(false);
-  const [importDone,   setImportDone]   = useState<any>(null);
+  const [showAdd,    setShowAdd]    = useState(false);
+  const [editItem,   setEditItem]   = useState<any>(null);
+  const [showImport, setShowImport] = useState(false);
+  const [importRows, setImportRows] = useState<any[]>([]);
+  const [importing,  setImporting]  = useState(false);
+  const [importDone, setImportDone] = useState<any>(null);
   const importRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => { fetchSpares(); }, []);
@@ -68,7 +68,8 @@ export default function SpareParts() {
 
   const filtered = storeItems.filter((s:any) => {
     const t = search.toLowerCase();
-    if (t && !s.itemName?.toLowerCase().includes(t) && !s.spareCode?.toLowerCase().includes(t) && !s.category?.toLowerCase().includes(t)) return false;
+    if (t && !s.itemName?.toLowerCase().includes(t) && !s.spareCode?.toLowerCase().includes(t)
+           && !s.category?.toLowerCase().includes(t) && !s.poNumber?.toLowerCase().includes(t)) return false;
     if (catFilter !== 'all' && s.category !== catFilter) return false;
     return true;
   });
@@ -109,11 +110,15 @@ export default function SpareParts() {
   function handleExport() {
     const wb = XLSX.utils.book_new();
     const rows = spares.map((s:any) => ({
-      'Spare Code': s.spareCode, 'Item Name': s.itemName, 'Category': s.category,
-      'Store': s.storeName, 'Unit': s.unit,
-      'Opening Stock': s.openingStock,
-      'Current Stock': s.currentStock, 'Unit Price (₹)': s.unitPrice, 'Total Value (₹)': s.totalValue,
-      'Purchase Date': s.purchaseDate ? new Date(s.purchaseDate).toLocaleDateString('en-IN') : '',
+      'Spare Code':     s.spareCode,
+      'Item Name':      s.itemName,
+      'Category':       s.category,
+      'Store':          s.storeName,
+      'Unit':           s.unit,
+      'Current Stock':  s.currentStock,
+      'Unit Price (₹)': s.unitPrice,
+      'Total Value (₹)':s.totalValue,
+      'PO Number':      s.poNumber || '',
     }));
     XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(rows), 'Spare Parts Inventory');
     const sumRows = storeSummary.map(s => ({
@@ -127,8 +132,8 @@ export default function SpareParts() {
     const wb = XLSX.utils.book_new();
     const tpl = [{
       'Spare Code':'SP-001', 'Item Name':'Example Circuit Breaker', 'Category':'Electrical',
-      'Store':'Main Store', 'Unit':'Nos', 'Opening Stock':10,
-      'Unit Price':500, 'Purchase Date':'2026-01-01',
+      'Store':'Main Store', 'Unit':'Nos', 'Current Stock':10,
+      'Unit Price':500, 'PO Number':'PO-2026-001',
     }];
     XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(tpl), 'Import Template');
     XLSX.writeFile(wb, 'SpareParts_ImportTemplate.xlsx');
@@ -151,21 +156,21 @@ export default function SpareParts() {
     let added = 0, updated = 0, failed = 0;
     for (const row of importRows) {
       try {
-        const openingStock = Number(row['Opening Stock'] || 0);
+        const currentStock = Number(row['Current Stock'] || 0);
         const unitPrice    = Number(row['Unit Price']    || 0);
         const payload = {
-          spareCode:    String(row['Spare Code']    || '').trim(),
-          itemName:     String(row['Item Name']     || '').trim(),
-          category:     String(row['Category']      || 'General').trim(),
-          storeName:    String(row['Store']         || 'Main Store').trim(),
-          unit:         String(row['Unit']          || 'Nos').trim(),
-          openingStock,
-          receivedQty: 0,
-          issuedQty:   0,
+          spareCode:    String(row['Spare Code'] || '').trim(),
+          itemName:     String(row['Item Name']  || '').trim(),
+          category:     String(row['Category']   || 'General').trim(),
+          storeName:    String(row['Store']       || 'Main Store').trim(),
+          unit:         String(row['Unit']        || 'Nos').trim(),
+          openingStock: currentStock,
+          receivedQty:  0,
+          issuedQty:    0,
+          currentStock,
           unitPrice,
-          currentStock: openingStock,
-          totalValue:   openingStock * unitPrice,
-          purchaseDate: row['Purchase Date'] || '',
+          totalValue:   currentStock * unitPrice,
+          poNumber:     String(row['PO Number']   || '').trim(),
         };
         if (!payload.spareCode || !payload.itemName) { failed++; continue; }
         const existing = spares.find((s:any) => s.spareCode === payload.spareCode);
@@ -336,7 +341,7 @@ export default function SpareParts() {
         <div style={{ display:'flex', gap:8, flexWrap:'wrap', alignItems:'center' }}>
           <div style={{ position:'relative', flex:1, minWidth:200 }}>
             <Search size={13} style={{ position:'absolute', left:10, top:'50%', transform:'translateY(-50%)', color:'#94a3b8' }}/>
-            <input value={search} onChange={e=>{setSearch(e.target.value);setPage(1);}} placeholder="Search code, name, category..."
+            <input value={search} onChange={e=>{setSearch(e.target.value);setPage(1);}} placeholder="Search code, name, category, PO number..."
               style={{ width:'100%', padding:'8px 12px 8px 30px', border:'1px solid #E2E8F0', borderRadius:8, fontSize:12, outline:'none', background:'white', color:'#374151', boxSizing:'border-box' }}/>
           </div>
           <select value={catFilter} onChange={e=>{setCatFilter(e.target.value);setPage(1);}} style={{ padding:'8px 10px', border:'1px solid #E2E8F0', borderRadius:8, fontSize:12, background:'white', color:'#374151', outline:'none' }}>
@@ -356,11 +361,10 @@ export default function SpareParts() {
                   {key:'category',     label:'Category'},
                   {key:'storeName',    label:'Store'},
                   {key:'unit',         label:'Unit'},
-                  {key:'openingStock', label:'Opening Stock'},
                   {key:'currentStock', label:'Current Stock'},
                   {key:'unitPrice',    label:'Unit Price'},
                   {key:'totalValue',   label:'Total Value'},
-                  {key:'purchaseDate', label:'Purchase Date'},
+                  {key:'poNumber',     label:'PO Number'},
                   {key:null,           label:'Actions'},
                 ].map(h=>(
                   <th key={h.label} onClick={()=>h.key&&toggleSort(h.key)} style={{ padding:'10px 12px', textAlign:'left', color:'#374151', fontWeight:600, fontSize:11, whiteSpace:'nowrap', cursor:h.key?'pointer':'default', userSelect:'none' }}>
@@ -374,9 +378,9 @@ export default function SpareParts() {
             </thead>
             <tbody>
               {loading ? (
-                <tr><td colSpan={11} style={{ padding:40, textAlign:'center', color:'#94a3b8' }}>Loading inventory...</td></tr>
+                <tr><td colSpan={10} style={{ padding:40, textAlign:'center', color:'#94a3b8' }}>Loading inventory...</td></tr>
               ) : pageItems.length === 0 ? (
-                <tr><td colSpan={11} style={{ padding:40, textAlign:'center', color:'#94a3b8' }}>No items found</td></tr>
+                <tr><td colSpan={10} style={{ padding:40, textAlign:'center', color:'#94a3b8' }}>No items found</td></tr>
               ) : pageItems.map((s:any, i:number)=>(
                 <tr key={s._id} style={{ borderBottom:'1px solid #F3F4F6', background:i%2===0?'white':'#FAFAFA' }}>
                   <td style={{ padding:'9px 12px', color:'#3B82F6', fontFamily:'monospace', fontWeight:600, whiteSpace:'nowrap' }}>{s.spareCode}</td>
@@ -388,15 +392,12 @@ export default function SpareParts() {
                     </span>
                   </td>
                   <td style={{ padding:'9px 12px', color:'#64748b' }}>{s.unit}</td>
-                  <td style={{ padding:'9px 12px', textAlign:'right', color:'#374151' }}>{s.openingStock||0}</td>
                   <td style={{ padding:'9px 12px', textAlign:'right' }}>
                     <span style={{ fontWeight:700, fontSize:14, color:'#22C55E' }}>{s.currentStock||0}</span>
                   </td>
                   <td style={{ padding:'9px 12px', textAlign:'right', color:'#374151' }}>₹{fmt(s.unitPrice)}</td>
                   <td style={{ padding:'9px 12px', textAlign:'right', color:'#22C55E', fontWeight:600 }}>₹{fmt(s.totalValue)}</td>
-                  <td style={{ padding:'9px 12px', color:'#64748b', whiteSpace:'nowrap' }}>
-                    {s.purchaseDate ? new Date(s.purchaseDate).toLocaleDateString('en-IN') : '—'}
-                  </td>
+                  <td style={{ padding:'9px 12px', color:'#6366F1', fontFamily:'monospace', fontSize:11 }}>{s.poNumber || '—'}</td>
                   <td style={{ padding:'9px 12px' }}>
                     <div style={{ display:'flex', gap:4 }}>
                       <button onClick={()=>{setEditItem(s);setShowAdd(true);}} style={{ padding:'4px 8px', background:'#EFF6FF', border:'1px solid #BFDBFE', borderRadius:6, color:'#3B82F6', cursor:'pointer', display:'flex', alignItems:'center' }}><Edit2 size={11}/></button>
@@ -557,18 +558,14 @@ export default function SpareParts() {
 
 /* ─── ADD / EDIT MODAL ──────────────────────────────────────────────────── */
 function AddEditModal({ item, onSave, onClose }: any) {
-  const [form, setForm] = useState<any>({ ...BLANK, ...(item ? {
-    ...item,
-    purchaseDate: item.purchaseDate ? new Date(item.purchaseDate).toISOString().slice(0,10) : '',
-  } : {}) });
+  const [form, setForm] = useState<any>({ ...BLANK, ...(item || {}) });
 
   function set(k: string, v: any) {
     setForm((f: any) => {
       const next  = { ...f, [k]: v };
-      const open  = Number(k==='openingStock' ? v : f.openingStock) || 0;
+      const stock = Number(k==='currentStock' ? v : f.currentStock) || 0;
       const price = Number(k==='unitPrice'    ? v : f.unitPrice)    || 0;
-      next.currentStock = open;
-      next.totalValue   = open * price;
+      next.totalValue = stock * price;
       return next;
     });
   }
@@ -577,7 +574,7 @@ function AddEditModal({ item, onSave, onClose }: any) {
     e.preventDefault();
     if (!form.spareCode?.trim()) return alert('Spare Code is required');
     if (!form.itemName?.trim())  return alert('Item Name is required');
-    onSave({ ...form, receivedQty: 0, issuedQty: 0 });
+    onSave({ ...form, openingStock: form.currentStock, receivedQty: 0, issuedQty: 0 });
   }
 
   const fieldStyle = { width:'100%', padding:'8px 10px', border:'1px solid #E2E8F0', borderRadius:8, fontSize:12, outline:'none', background:'white', color:'#374151', boxSizing:'border-box' as const };
@@ -585,7 +582,7 @@ function AddEditModal({ item, onSave, onClose }: any) {
 
   return (
     <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.45)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:1000, padding:20, overflowY:'auto' }}>
-      <div style={{ background:'white', borderRadius:16, width:'100%', maxWidth:700, boxShadow:'0 20px 60px rgba(0,0,0,0.15)', maxHeight:'92vh', display:'flex', flexDirection:'column' }}>
+      <div style={{ background:'white', borderRadius:16, width:'100%', maxWidth:680, boxShadow:'0 20px 60px rgba(0,0,0,0.15)', maxHeight:'92vh', display:'flex', flexDirection:'column' }}>
         <div style={{ padding:'18px 24px', borderBottom:'1px solid #E5E7EB', display:'flex', alignItems:'center', justifyContent:'space-between', flexShrink:0 }}>
           <div style={{ fontSize:15, fontWeight:700, color:'#111827' }}>{item ? 'Edit Spare Part' : 'Add New Spare Part'}</div>
           <button onClick={onClose} style={{ background:'none', border:'none', cursor:'pointer', color:'#64748b', padding:4 }}><X size={18}/></button>
@@ -616,28 +613,21 @@ function AddEditModal({ item, onSave, onClose }: any) {
               <input value={form.unit||''} onChange={e=>set('unit',e.target.value)} placeholder="Nos / Set / Kg / Mtr..." style={fieldStyle}/>
             </div>
             <div>
-              <label style={labelStyle}>Opening Stock</label>
-              <input type="number" min="0" value={form.openingStock||0} onChange={e=>set('openingStock',Number(e.target.value))} style={fieldStyle}/>
-            </div>
-
-            {/* Auto-calc readonly */}
-            <div>
-              <label style={labelStyle}>Current Stock <span style={{color:'#22C55E',fontSize:10}}>(auto)</span></label>
-              <input value={form.currentStock??0} readOnly style={{...fieldStyle, background:'#F0FDF4', color:'#22C55E', fontWeight:700, fontSize:14}}/>
+              <label style={labelStyle}>Current Stock</label>
+              <input type="number" min="0" value={form.currentStock||0} onChange={e=>set('currentStock',Number(e.target.value))} style={fieldStyle}/>
             </div>
             <div>
               <label style={labelStyle}>Unit Price (₹)</label>
               <input type="number" min="0" value={form.unitPrice||0} onChange={e=>set('unitPrice',Number(e.target.value))} style={fieldStyle}/>
             </div>
+            <div>
+              <label style={labelStyle}>PO Number</label>
+              <input value={form.poNumber||''} onChange={e=>set('poNumber',e.target.value)} placeholder="e.g. PO-2026-001" style={fieldStyle}/>
+            </div>
 
             <div style={{ gridColumn:'1/-1' }}>
               <label style={labelStyle}>Total Inventory Value (₹) <span style={{color:'#22C55E',fontSize:10}}>(auto = Current Stock × Unit Price)</span></label>
               <input value={`₹ ${fmt(form.totalValue||0)}`} readOnly style={{...fieldStyle, background:'#F0FDF4', color:'#22C55E', fontWeight:700, fontSize:14}}/>
-            </div>
-
-            <div style={{ gridColumn:'1/-1' }}>
-              <label style={labelStyle}>Purchase Date</label>
-              <input type="date" value={form.purchaseDate||''} onChange={e=>set('purchaseDate',e.target.value)} style={{...fieldStyle, maxWidth:220}}/>
             </div>
 
           </div>
@@ -701,7 +691,7 @@ function ImportModal({ importRows, importing, importDone, onFileSelect, onConfir
                 <table style={{ width:'100%', borderCollapse:'collapse', fontSize:11 }}>
                   <thead>
                     <tr style={{ background:'#F9FAFB' }}>
-                      {['Spare Code','Item Name','Category','Store','Unit','Opening Stock','Unit Price','Purchase Date'].map(h=>(
+                      {['Spare Code','Item Name','Category','Store','Unit','Current Stock','Unit Price','PO Number'].map(h=>(
                         <th key={h} style={{ padding:'8px 10px', textAlign:'left', color:'#374151', fontWeight:600, borderBottom:'1px solid #E5E7EB', whiteSpace:'nowrap' }}>{h}</th>
                       ))}
                     </tr>
@@ -714,9 +704,9 @@ function ImportModal({ importRows, importing, importDone, onFileSelect, onConfir
                         <td style={{ padding:'7px 10px', color:'#64748b' }}>{String(r['Category']||'—')}</td>
                         <td style={{ padding:'7px 10px', color:'#64748b' }}>{String(r['Store']||'—')}</td>
                         <td style={{ padding:'7px 10px', color:'#64748b' }}>{String(r['Unit']||'—')}</td>
-                        <td style={{ padding:'7px 10px', textAlign:'right', color:'#374151' }}>{r['Opening Stock']??'—'}</td>
+                        <td style={{ padding:'7px 10px', textAlign:'right', color:'#374151' }}>{r['Current Stock']??'—'}</td>
                         <td style={{ padding:'7px 10px', textAlign:'right', color:'#374151' }}>₹{r['Unit Price']??'—'}</td>
-                        <td style={{ padding:'7px 10px', color:'#64748b' }}>{String(r['Purchase Date']||'—')}</td>
+                        <td style={{ padding:'7px 10px', color:'#6366F1', fontFamily:'monospace' }}>{String(r['PO Number']||'—')}</td>
                       </tr>
                     ))}
                   </tbody>
