@@ -4,6 +4,7 @@ export interface ISparePart extends Document {
   spareCode: string;
   itemName: string;
   category: string;
+  area: string;
   storeName: 'Main Store' | 'E&I Store' | 'IT Store' | 'Other Stores';
   unit: string;
   openingStock: number;
@@ -25,6 +26,7 @@ const SparePartSchema = new Schema<ISparePart>({
   spareCode:     { type: String, required: true, unique: true, trim: true },
   itemName:      { type: String, required: true, trim: true },
   category:      { type: String, default: 'General', trim: true },
+  area:          { type: String, default: '', trim: true },
   storeName:     { type: String, enum: ['Main Store', 'E&I Store', 'IT Store', 'Other Stores'], default: 'Main Store' },
   unit:          { type: String, default: 'Nos' },
   openingStock:  { type: Number, default: 0 },

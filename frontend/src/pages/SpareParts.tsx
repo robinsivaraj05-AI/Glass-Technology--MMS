@@ -22,7 +22,7 @@ const STORE_COLORS: Record<string, string> = {
 const CHART_COLORS = ['#3B82F6','#8B5CF6','#22C55E','#F59E0B','#EF4444','#06B6D4','#F97316','#EC4899','#10B981','#6366F1'];
 
 const BLANK: any = {
-  spareCode:'', itemName:'', category:'', storeName:'Main Store',
+  spareCode:'', itemName:'', category:'', area:'', storeName:'Main Store',
   unit:'Nos', currentStock:0, unitPrice:0, poNumber:'',
 };
 
@@ -113,6 +113,7 @@ export default function SpareParts() {
       'Spare Code':     s.spareCode,
       'Item Name':      s.itemName,
       'Category':       s.category,
+      'Area':           s.area || '',
       'Store':          s.storeName,
       'Unit':           s.unit,
       'Current Stock':  s.currentStock,
@@ -132,7 +133,7 @@ export default function SpareParts() {
     const wb = XLSX.utils.book_new();
     const tpl = [{
       'Spare Code':'SP-001', 'Item Name':'Example Circuit Breaker', 'Category':'Electrical',
-      'Store':'Main Store', 'Unit':'Nos', 'Current Stock':10,
+      'Area':'Section A', 'Store':'Main Store', 'Unit':'Nos', 'Current Stock':10,
       'Unit Price':500, 'PO Number':'PO-2026-001',
     }];
     XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(tpl), 'Import Template');
@@ -162,6 +163,7 @@ export default function SpareParts() {
           spareCode:    String(row['Spare Code'] || '').trim(),
           itemName:     String(row['Item Name']  || '').trim(),
           category:     String(row['Category']   || 'General').trim(),
+          area:         String(row['Area']         || '').trim(),
           storeName:    String(row['Store']       || 'Main Store').trim(),
           unit:         String(row['Unit']        || 'Nos').trim(),
           openingStock: currentStock,
@@ -355,15 +357,16 @@ export default function SpareParts() {
           <table style={{ width:'100%', borderCollapse:'collapse', fontSize:12, minWidth:800, tableLayout:'fixed' }}>
             <colgroup>
               <col style={{ width:88 }}/>   {/* Spare Code */}
-              <col style={{ width:'34%' }}/> {/* Item Name — wider */}
-              <col style={{ width:95 }}/>   {/* Category */}
-              <col style={{ width:72 }}/>   {/* Store */}
-              <col style={{ width:52 }}/>   {/* Unit */}
+              <col style={{ width:'28%' }}/> {/* Item Name */}
+              <col style={{ width:90 }}/>   {/* Category */}
+              <col style={{ width:82 }}/>   {/* Area */}
+              <col style={{ width:70 }}/>   {/* Store */}
+              <col style={{ width:50 }}/>   {/* Unit */}
               <col style={{ width:88 }}/>   {/* Current Stock */}
               <col style={{ width:72 }}/>   {/* Unit Price */}
               <col style={{ width:82 }}/>   {/* Total Value */}
-              <col style={{ width:120 }}/>  {/* PO Number */}
-              <col style={{ width:72 }}/>   {/* Actions */}
+              <col style={{ width:118 }}/>  {/* PO Number */}
+              <col style={{ width:70 }}/>   {/* Actions */}
             </colgroup>
             <thead>
               <tr style={{ background:'#F9FAFB', borderBottom:'1px solid #E5E7EB' }}>
@@ -371,6 +374,7 @@ export default function SpareParts() {
                   {key:'spareCode',    label:'Spare Code',    align:'left'},
                   {key:'itemName',     label:'Item Name',     align:'left'},
                   {key:'category',     label:'Category',      align:'left'},
+                  {key:'area',         label:'Area',          align:'left'},
                   {key:'storeName',    label:'Store',         align:'left'},
                   {key:'unit',         label:'Unit',          align:'left'},
                   {key:'currentStock', label:'Current Stock', align:'center'},
@@ -390,14 +394,15 @@ export default function SpareParts() {
             </thead>
             <tbody>
               {loading ? (
-                <tr><td colSpan={10} style={{ padding:40, textAlign:'center', color:'#94a3b8' }}>Loading inventory...</td></tr>
+                <tr><td colSpan={11} style={{ padding:40, textAlign:'center', color:'#94a3b8' }}>Loading inventory...</td></tr>
               ) : pageItems.length === 0 ? (
-                <tr><td colSpan={10} style={{ padding:40, textAlign:'center', color:'#94a3b8' }}>No items found</td></tr>
+                <tr><td colSpan={11} style={{ padding:40, textAlign:'center', color:'#94a3b8' }}>No items found</td></tr>
               ) : pageItems.map((s:any, i:number)=>(
                 <tr key={s._id} style={{ borderBottom:'1px solid #F3F4F6', background:i%2===0?'white':'#FAFAFA' }}>
                   <td style={{ padding:'9px 12px', color:'#3B82F6', fontFamily:'monospace', fontWeight:600, whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>{s.spareCode}</td>
                   <td style={{ padding:'9px 12px', color:'#111827', fontWeight:500, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{s.itemName}</td>
                   <td style={{ padding:'9px 12px', overflow:'hidden' }}><span style={{ padding:'2px 7px', background:'#F1F5F9', borderRadius:20, color:'#374151', fontSize:10 }}>{s.category}</span></td>
+                  <td style={{ padding:'9px 12px', color:'#374151', fontSize:11, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{s.area || '—'}</td>
                   <td style={{ padding:'9px 12px', overflow:'hidden' }}>
                     <span style={{ padding:'2px 7px', background:(STORE_COLORS[s.storeName]||'#94a3b8')+'20', borderRadius:20, color:STORE_COLORS[s.storeName]||'#64748b', fontSize:10, fontWeight:600 }}>
                       {(s.storeName||'').replace(' Store','')}
@@ -615,6 +620,10 @@ function AddEditModal({ item, onSave, onClose }: any) {
               <input value={form.category||''} onChange={e=>set('category',e.target.value)} placeholder="e.g. Electrical, Mechanical..." style={fieldStyle}/>
             </div>
             <div>
+              <label style={labelStyle}>Area</label>
+              <input value={form.area||''} onChange={e=>set('area',e.target.value)} placeholder="e.g. Section A, Plant 1..." style={fieldStyle}/>
+            </div>
+            <div>
               <label style={labelStyle}>Store Name</label>
               <select value={form.storeName||'Main Store'} onChange={e=>set('storeName',e.target.value)} style={fieldStyle}>
                 {['Main Store','E&I Store','IT Store','Other Stores'].map(s=><option key={s} value={s}>{s}</option>)}
@@ -703,7 +712,7 @@ function ImportModal({ importRows, importing, importDone, onFileSelect, onConfir
                 <table style={{ width:'100%', borderCollapse:'collapse', fontSize:11 }}>
                   <thead>
                     <tr style={{ background:'#F9FAFB' }}>
-                      {['Spare Code','Item Name','Category','Store','Unit','Current Stock','Unit Price','PO Number'].map(h=>(
+                      {['Spare Code','Item Name','Category','Area','Store','Unit','Current Stock','Unit Price','PO Number'].map(h=>(
                         <th key={h} style={{ padding:'8px 10px', textAlign:'left', color:'#374151', fontWeight:600, borderBottom:'1px solid #E5E7EB', whiteSpace:'nowrap' }}>{h}</th>
                       ))}
                     </tr>
@@ -714,6 +723,7 @@ function ImportModal({ importRows, importing, importDone, onFileSelect, onConfir
                         <td style={{ padding:'7px 10px', color:'#3B82F6', fontFamily:'monospace', fontWeight:600 }}>{String(r['Spare Code']||'—')}</td>
                         <td style={{ padding:'7px 10px', color:'#111827' }}>{String(r['Item Name']||'—')}</td>
                         <td style={{ padding:'7px 10px', color:'#64748b' }}>{String(r['Category']||'—')}</td>
+                        <td style={{ padding:'7px 10px', color:'#64748b' }}>{String(r['Area']||'—')}</td>
                         <td style={{ padding:'7px 10px', color:'#64748b' }}>{String(r['Store']||'—')}</td>
                         <td style={{ padding:'7px 10px', color:'#64748b' }}>{String(r['Unit']||'—')}</td>
                         <td style={{ padding:'7px 10px', textAlign:'right', color:'#374151' }}>{r['Current Stock']??'—'}</td>
