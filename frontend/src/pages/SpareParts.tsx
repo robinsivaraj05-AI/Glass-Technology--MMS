@@ -62,9 +62,10 @@ export default function SpareParts() {
     setLoading(false);
   }
 
-  /* derived */
-  const storeItems = activeStore === 'All Stores' ? spares : spares.filter(s => s.storeName === activeStore);
-  const categories = ['all', ...Array.from(new Set(spares.map((s:any) => s.category))).filter(Boolean)];
+  /* derived — zero-stock items are hidden everywhere */
+  const inStockSpares = spares.filter((s:any) => (s.currentStock || 0) > 0);
+  const storeItems = (activeStore === 'All Stores' ? inStockSpares : inStockSpares.filter(s => s.storeName === activeStore));
+  const categories = ['all', ...Array.from(new Set(inStockSpares.map((s:any) => s.category))).filter(Boolean)];
 
   const filtered = storeItems.filter((s:any) => {
     const t = search.toLowerCase();
@@ -89,11 +90,11 @@ export default function SpareParts() {
       stockValue: arr.reduce((s, i) => s + (i.totalValue || 0), 0),
     };
   }
-  const overallKpi = kpi(spares);
+  const overallKpi = kpi(inStockSpares);
   const storeKpi   = kpi(storeItems);
 
   const storeSummary = ['Main Store','E&I Store','IT Store','Other Stores'].map(store => {
-    const items = spares.filter((s:any) => s.storeName === store);
+    const items = inStockSpares.filter((s:any) => s.storeName === store);
     return {
       store, items: items.length,
       value: items.reduce((s, i) => s + (i.totalValue || 0), 0),
@@ -223,7 +224,7 @@ export default function SpareParts() {
           </div>
           <div>
             <div style={{ fontSize:18, fontWeight:700, color:'#111827' }}>Spare Parts Inventory</div>
-            <div style={{ fontSize:12, color:'#64748b' }}>{spares.length} items · {storeSummary.filter(s=>s.items>0).length} stores</div>
+            <div style={{ fontSize:12, color:'#64748b' }}>{inStockSpares.length} in-stock items · {storeSummary.filter(s=>s.items>0).length} stores</div>
           </div>
         </div>
         <div style={{ display:'flex', gap:8, flexWrap:'wrap' }}>
