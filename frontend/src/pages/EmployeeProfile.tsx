@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+﻿import { useState, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import {
@@ -39,7 +39,7 @@ function StarRating({ rating, onChange }: { rating: number; onChange?: (r: numbe
   );
 }
 
-const inp: React.CSSProperties = { width:'100%', background:'rgba(255,255,255,0.05)', border:'1px solid rgba(255,255,255,0.1)', borderRadius:8, padding:'8px 12px', color:'#e2e8f0', fontSize:13, outline:'none', boxSizing:'border-box', colorScheme:'dark' };
+const inp: React.CSSProperties = { width:'100%', background:'white', border:'1px solid #E2E8F0', borderRadius:8, padding:'8px 12px', color:'#374151', fontSize:13, outline:'none', boxSizing:'border-box', colorScheme:'light' };
 const lbl: React.CSSProperties = { fontSize:11, color:'#64748b', marginBottom:4, display:'block', fontWeight:500 };
 const r2: React.CSSProperties = { display:'grid', gridTemplateColumns:'1fr 1fr', gap:12 };
 const r3: React.CSSProperties = { display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:12 };
@@ -50,18 +50,18 @@ const secHdr = (label: string, icon: React.ReactNode) => (
 );
 
 const InfoBox = ({ label, value }: { label: string; value: string }) => (
-  <div style={{ background:'rgba(255,255,255,0.03)', borderRadius:8, padding:'10px 14px' }}>
+  <div style={{ background:'#F8FAFC', border:'1px solid #E5E7EB', borderRadius:8, padding:'10px 14px' }}>
     <div style={{ fontSize:10, color:'#64748b', marginBottom:2 }}>{label}</div>
-    <div style={{ fontSize:13, color:'#e2e8f0', fontWeight:500 }}>{value || '—'}</div>
+    <div style={{ fontSize:13, color:'#111827', fontWeight:500 }}>{value || '—'}</div>
   </div>
 );
 
 function Modal({ title, onClose, onSave, children }: { title: string; onClose: () => void; onSave: () => void; children: React.ReactNode }) {
   return (
     <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.8)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:2000, padding:20 }}>
-      <div className="glass-card" style={{ width:'100%', maxWidth:640, maxHeight:'90vh', overflowY:'auto', padding:24, position:'relative' }}>
+      <div style={{ background:'white', borderRadius:14, boxShadow:'0 20px 60px rgba(0,0,0,0.15)', width:'100%', maxWidth:640, maxHeight:'90vh', overflowY:'auto', padding:24, position:'relative' }}>
         <button onClick={onClose} style={{ position:'absolute', top:16, right:16, background:'none', border:'none', color:'#64748b', cursor:'pointer' }}><X size={18}/></button>
-        <h3 style={{ margin:'0 0 18px', fontSize:15, fontWeight:700, color:'#f1f5f9' }}>{title}</h3>
+        <h3 style={{ margin:'0 0 18px', fontSize:15, fontWeight:700, color:'#111827' }}>{title}</h3>
         <div style={{ display:'flex', flexDirection:'column', gap:12 }}>{children}</div>
         <div style={{ display:'flex', gap:10, justifyContent:'flex-end', marginTop:16 }}>
           <button className="btn-secondary" onClick={onClose} style={{ fontSize:13 }}>Cancel</button>
@@ -592,7 +592,7 @@ export default function EmployeeProfile() {
     doc.save(`${emp.name.replace(/ /g, '_')}_Profile.pdf`);
   };
 
-  const age = Math.floor((Date.now() - new Date(emp.dateOfBirth).getTime()) / 31536000000);
+  const age = emp.dateOfBirth ? Math.floor((Date.now() - new Date(emp.dateOfBirth).getTime()) / 31536000000) : 0;
   const _MS   = 31536000000;
   const _gtMs = emp.joiningDate ? Date.now() - new Date(emp.joiningDate).getTime() : 0;
   const _gtYr = Math.floor(_gtMs / _MS);
@@ -619,7 +619,7 @@ export default function EmployeeProfile() {
         <button onClick={() => navigate('/employees')} style={{ background:'none', border:'none', color:'#64748b', cursor:'pointer', display:'flex', alignItems:'center', gap:4, fontSize:12 }}>
           <ArrowLeft size={16}/> Back
         </button>
-        <div style={{ width:1, height:36, background:'rgba(255,255,255,0.08)' }}/>
+        <div style={{ width:1, height:36, background:'#E2E8F0' }}/>
         <div style={{ position:'relative', flexShrink:0 }}>
           <div style={{ width:64, height:64, borderRadius:'50%', background: emp.photo ? 'transparent' : 'linear-gradient(135deg,#3b82f6,#8b5cf6)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:22, fontWeight:700, color:'white', overflow:'hidden', border:'2px solid rgba(59,130,246,0.4)' }}>
             {emp.photo ? <img src={emp.photo} style={{ width:'100%', height:'100%', objectFit:'cover' }}/> : emp.name.split(' ').map(n=>n[0]).join('')}
@@ -630,15 +630,15 @@ export default function EmployeeProfile() {
           <input ref={photoRef} type="file" accept="image/*" style={{ display:'none' }} onChange={handlePhotoChange}/>
         </div>
         <div style={{ flex:1 }}>
-          <div style={{ fontSize:18, fontWeight:700, color:'#f1f5f9' }}>{emp.name}</div>
-          <div style={{ fontSize:12, color:'#60a5fa' }}>{emp.designation} · {emp.empId}</div>
+          <div style={{ fontSize:18, fontWeight:700, color:'#111827' }}>{emp.name}</div>
+          <div style={{ fontSize:12, color:'#2563EB' }}>{emp.designation} · {emp.empId}</div>
           <div style={{ fontSize:11, color:'#64748b', marginTop:2 }}>{emp.department} · Reports to: {emp.reportingManager}</div>
         </div>
         <div style={{ display:'flex', gap:8, alignItems:'center' }}>
           <span style={{ fontSize:12, fontWeight:600, color:STATUS_COLOR[emp.status], background:STATUS_COLOR[emp.status]+'20', padding:'4px 12px', borderRadius:20, border:`1px solid ${STATUS_COLOR[emp.status]}40` }}>
             {STATUS_LABEL[emp.status]}
           </span>
-          <span style={{ fontSize:11, color:'#64748b', background:'rgba(255,255,255,0.04)', padding:'4px 10px', borderRadius:8, border:'1px solid rgba(255,255,255,0.08)' }}>
+          <span style={{ fontSize:11, color:'#64748b', background:'#F1F5F9', padding:'4px 10px', borderRadius:8, border:'1px solid #E2E8F0' }}>
             Grade: {emp.grade}
           </span>
           <button onClick={handleDownloadProfilePDF} style={{ display:'flex', alignItems:'center', gap:5, padding:'6px 14px', background:'rgba(59,130,246,0.12)', border:'1px solid rgba(59,130,246,0.35)', borderRadius:8, color:'#60a5fa', fontSize:12, fontWeight:600, cursor:'pointer' }}>
@@ -653,8 +653,8 @@ export default function EmployeeProfile() {
           <button key={t.key} onClick={() => setActiveTab(t.key)} style={{
             padding:'8px 14px', borderRadius:8, border:'none', cursor:'pointer', fontSize:12, fontWeight:500,
             whiteSpace:'nowrap', display:'flex', alignItems:'center', gap:5,
-            background: activeTab === t.key ? '#3b82f6' : 'rgba(255,255,255,0.04)',
-            color: activeTab === t.key ? 'white' : '#64748b',
+            background: activeTab === t.key ? '#3b82f6' : '#F1F5F9',
+            color: activeTab === t.key ? 'white' : '#374151',
           }}>{t.icon} {t.label}</button>
         ))}
       </div>
@@ -663,7 +663,7 @@ export default function EmployeeProfile() {
       {activeTab === 'personal' && (
         <div className="glass-card" style={{ padding:20 }}>
           <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:16 }}>
-            <div style={{ fontSize:13, fontWeight:600, color:'#f1f5f9' }}>Personal Information</div>
+            <div style={{ fontSize:13, fontWeight:600, color:'#111827' }}>Personal Information</div>
             <button className={editPersonal ? 'btn-primary' : 'btn-secondary'} style={{ fontSize:12, display:'flex', alignItems:'center', gap:4 }}
               onClick={() => {
                 if (editPersonal) {
@@ -793,7 +793,7 @@ export default function EmployeeProfile() {
               <div className="glass-card" style={{ flex:1, padding:16 }}>
                 <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:10 }}>
                   <div>
-                    <div style={{ fontSize:14, fontWeight:700, color:'#f1f5f9' }}>{eh.company}</div>
+                    <div style={{ fontSize:14, fontWeight:700, color:'#111827' }}>{eh.company}</div>
                     <div style={{ fontSize:12, color:'#60a5fa' }}>{eh.designation} · {eh.department}</div>
                     <div style={{ fontSize:11, color:'#64748b', marginTop:2 }}>{eh.joiningDate} → {eh.leavingDate} &nbsp;({eh.experience})</div>
                   </div>
@@ -810,8 +810,8 @@ export default function EmployeeProfile() {
                   <InfoBox label="Reason for Leaving" value={eh.reasonLeaving}/>
                   {eh.salary && <InfoBox label="Last Salary" value={eh.salary}/>}
                 </div>
-                {eh.responsibilities && <div style={{ marginTop:8, background:'rgba(255,255,255,0.03)', borderRadius:8, padding:'10px 14px' }}><div style={{ fontSize:10, color:'#64748b', marginBottom:4 }}>Main Responsibilities</div><div style={{ fontSize:12, color:'#94a3b8', lineHeight:1.6 }}>{eh.responsibilities}</div></div>}
-                {eh.projects && <div style={{ marginTop:8, background:'rgba(255,255,255,0.03)', borderRadius:8, padding:'10px 14px' }}><div style={{ fontSize:10, color:'#64748b', marginBottom:4 }}>Projects Handled</div><div style={{ fontSize:12, color:'#94a3b8' }}>{eh.projects}</div></div>}
+                {eh.responsibilities && <div style={{ marginTop:8, background:'#F8FAFC', borderRadius:8, padding:'10px 14px' }}><div style={{ fontSize:10, color:'#64748b', marginBottom:4 }}>Main Responsibilities</div><div style={{ fontSize:12, color:'#94a3b8', lineHeight:1.6 }}>{eh.responsibilities}</div></div>}
+                {eh.projects && <div style={{ marginTop:8, background:'#F8FAFC', borderRadius:8, padding:'10px 14px' }}><div style={{ fontSize:10, color:'#64748b', marginBottom:4 }}>Projects Handled</div><div style={{ fontSize:12, color:'#94a3b8' }}>{eh.projects}</div></div>}
               </div>
             </div>
           ))}
@@ -883,7 +883,7 @@ export default function EmployeeProfile() {
             <div key={ed.id} className="glass-card" style={{ padding:16, borderLeft:'3px solid #3b82f6' }}>
               <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:10 }}>
                 <div>
-                  <div style={{ fontSize:14, fontWeight:700, color:'#f1f5f9' }}>{ed.degree} — {ed.course}</div>
+                  <div style={{ fontSize:14, fontWeight:700, color:'#111827' }}>{ed.degree} — {ed.course}</div>
                   <div style={{ fontSize:12, color:'#60a5fa' }}>{ed.specialization}</div>
                   <div style={{ fontSize:11, color:'#64748b', marginTop:2 }}>{ed.institution} · {ed.university}</div>
                 </div>
@@ -943,7 +943,7 @@ export default function EmployeeProfile() {
               <div key={q.id} className="glass-card" style={{ padding:16, borderLeft:`3px solid ${cc}` }}>
                 <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:10 }}>
                   <div>
-                    <div style={{ fontSize:14, fontWeight:700, color:'#f1f5f9' }}>{q.courseName}</div>
+                    <div style={{ fontSize:14, fontWeight:700, color:'#111827' }}>{q.courseName}</div>
                     <div style={{ fontSize:11, color:'#64748b' }}>{q.category} · {q.institute}</div>
                   </div>
                   <div style={{ display:'flex', gap:6, alignItems:'center' }}>
@@ -1002,7 +1002,7 @@ export default function EmployeeProfile() {
                     <FileText size={18} color="#60a5fa"/>
                   </div>
                   <div style={{ flex:1, minWidth:0 }}>
-                    <div style={{ fontSize:12, fontWeight:600, color:'#e2e8f0', whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>{doc.name}</div>
+                    <div style={{ fontSize:12, fontWeight:600, color:'#111827', whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>{doc.name}</div>
                     <div style={{ fontSize:10, color:'#64748b', marginTop:2 }}>{doc.type} · {doc.size}</div>
                     <div style={{ fontSize:10, color:'#475569' }}>Uploaded: {doc.uploadDate}</div>
                     {doc.expiryDate && (
@@ -1066,7 +1066,7 @@ export default function EmployeeProfile() {
               <tbody>
                 {emp.leaves.map(l => (
                   <tr key={l.id}>
-                    <td style={{ fontWeight:500, color:'#e2e8f0' }}>{l.type}</td>
+                    <td style={{ fontWeight:500, color:'#111827' }}>{l.type}</td>
                     <td style={{ fontSize:12, color:'#64748b' }}>{l.from}</td>
                     <td style={{ fontSize:12, color:'#64748b' }}>{l.to}</td>
                     <td style={{ fontSize:12, color:'#94a3b8', fontWeight:600 }}>{l.days}</td>
@@ -1145,7 +1145,7 @@ export default function EmployeeProfile() {
               <tbody>
                 {emp.training.map(t => (
                   <tr key={t.id}>
-                    <td style={{ fontWeight:500, color:'#e2e8f0' }}>{t.name}</td>
+                    <td style={{ fontWeight:500, color:'#111827' }}>{t.name}</td>
                     <td><span className="badge badge-blue" style={{ fontSize:10 }}>{t.type}</span></td>
                     <td><span className={`badge ${t.mode==='Internal'?'badge-gray':'badge-blue'}`} style={{ fontSize:10 }}>{t.mode}</span></td>
                     <td style={{ fontSize:12, color:'#64748b' }}>{t.trainer}</td>
@@ -1198,7 +1198,7 @@ export default function EmployeeProfile() {
               <div className="glass-card" style={{ flex:1, padding:16, borderLeft:'3px solid #22c55e' }}>
                 <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:10 }}>
                   <div>
-                    <div style={{ fontSize:14, fontWeight:700, color:'#f1f5f9' }}>{p.prevDesignation} → {p.newDesignation}</div>
+                    <div style={{ fontSize:14, fontWeight:700, color:'#111827' }}>{p.prevDesignation} → {p.newDesignation}</div>
                     <div style={{ fontSize:12, color:'#64748b' }}>Effective: {p.effectiveDate}</div>
                   </div>
                   <div style={{ display:'flex', gap:6, alignItems:'center' }}>
@@ -1232,3 +1232,4 @@ export default function EmployeeProfile() {
     </div>
   );
 }
+
