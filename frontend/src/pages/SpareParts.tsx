@@ -27,6 +27,19 @@ const STORE_COLORS: Record<string, string> = {
 };
 /* OEM stores — cost included in project, shown separately as free-of-cost */
 const OEM_STORES = ['Main Store - OEM Spare', 'Electrical Store - OEM Spare'];
+
+/* Classify a spare into its effective display store:
+   Main Store  + PO contains "OEM" → Main Store - OEM Spare
+   E&I Store   + PO contains "OEM" → Electrical Store - OEM Spare
+   Otherwise   → storeName as-is                                      */
+function effectiveStore(s: any): string {
+  const po = (s.poNumber || '').toLowerCase();
+  if (po.includes('oem')) {
+    if (s.storeName === 'Main Store') return 'Main Store - OEM Spare';
+    if (s.storeName === 'E&I Store')  return 'Electrical Store - OEM Spare';
+  }
+  return s.storeName;
+}
 const CHART_COLORS = ['#3B82F6','#8B5CF6','#22C55E','#F59E0B','#EF4444','#06B6D4','#F97316','#EC4899','#10B981','#6366F1'];
 
 const BLANK: any = {
@@ -72,7 +85,13 @@ export default function SpareParts() {
 
   /* derived — zero-stock items are hidden everywhere */
   const inStockSpares = spares.filter((s:any) => (s.currentStock || 0) > 0);
-  const storeItems = (activeStore === 'All Stores' ? inStockSpares : inStockSpares.filter(s => s.storeName === activeStore));
+  /* effectiveStore-based tab filtering:
+     "Main Store" tab → Main Store items that are NOT OEM
+     "Main Store - OEM Spare" tab → Main Store items whose PO contains "OEM"
+     "Electrical Store - OEM Spare" tab → E&I Store items whose PO contains "OEM" */
+  const storeItems = activeStore === 'All Stores'
+    ? inStockSpares
+    : inStockSpares.filter((s:any) => effectiveStore(s) === activeStore);
   const categories = ['all', ...Array.from(new Set(inStockSpares.map((s:any) => s.category))).filter(Boolean)];
 
   const filtered = storeItems.filter((s:any) => {
@@ -98,12 +117,13 @@ export default function SpareParts() {
       stockValue: arr.reduce((s, i) => s + (i.totalValue || 0), 0),
     };
   }
-  const overallKpi = kpi(inStockSpares);
+  const regularSpares = inStockSpares.filter((s:any) => !OEM_STORES.includes(effectiveStore(s)));
+  const overallKpi = kpi(regularSpares);
   const storeKpi   = kpi(storeItems);
 
   const ALL_STORE_NAMES = ['Main Store','E&I Store','IT Store','Other Stores','Main Store - OEM Spare','Electrical Store - OEM Spare'];
   const storeSummary = ALL_STORE_NAMES.map(store => {
-    const items = inStockSpares.filter((s:any) => s.storeName === store);
+    const items = inStockSpares.filter((s:any) => effectiveStore(s) === store);
     const isOEM = OEM_STORES.includes(store);
     return {
       store, isOEM, items: items.length,
@@ -234,7 +254,7 @@ export default function SpareParts() {
           </div>
           <div>
             <div style={{ fontSize:18, fontWeight:700, color:'#111827' }}>Spare Parts Inventory</div>
-            <div style={{ fontSize:12, color:'#64748b' }}>{inStockSpares.length} in-stock items · {storeSummary.filter(s=>s.items>0).length} stores</div>
+            <div style={{ fontSize:12, color:'#64748b' }}>{regularSpares.length} regular · {inStockSpares.length - regularSpares.length} OEM · {storeSummary.filter(s=>s.items>0).length} stores</div>
           </div>
         </div>
         <div style={{ display:'flex', gap:8, flexWrap:'wrap' }}>
@@ -660,13 +680,11 @@ function AddEditModal({ item, onSave, onClose }: any) {
             <div>
               <label style={labelStyle}>Store Name</label>
               <select value={form.storeName||'Main Store'} onChange={e=>set('storeName',e.target.value)} style={fieldStyle}>
-                <optgroup label="Regular Stores">
-                  {['Main Store','E&I Store','IT Store','Other Stores'].map(s=><option key={s} value={s}>{s}</option>)}
-                </optgroup>
-                <optgroup label="OEM Spares (Free of Cost — Project Included)">
-                  {['Main Store - OEM Spare','Electrical Store - OEM Spare'].map(s=><option key={s} value={s}>{s}</option>)}
-                </optgroup>
+                {['Main Store','E&I Store','IT Store','Other Stores'].map(s=><option key={s} value={s}>{s}</option>)}
               </select>
+              <div style={{ fontSize:10, color:'#6366F1', marginTop:4 }}>
+                To mark as OEM Spare, select the store and enter "OEM Spare" in the PO Number field.
+              </div>
             </div>
             <div>
               <label style={labelStyle}>Unit</label>
