@@ -12,13 +12,21 @@ import {
 import * as XLSX from 'xlsx';
 
 const API = (import.meta as any).env?.VITE_API_URL || 'http://localhost:5000';
-const STORES = ['All Stores', 'Main Store', 'E&I Store', 'IT Store', 'Other Stores'];
+const STORES = [
+  'All Stores',
+  'Main Store', 'E&I Store', 'IT Store', 'Other Stores',
+  'Main Store - OEM Spare', 'Electrical Store - OEM Spare',
+];
 const STORE_COLORS: Record<string, string> = {
-  'Main Store':   '#3B82F6',
-  'E&I Store':    '#8B5CF6',
-  'IT Store':     '#22C55E',
-  'Other Stores': '#F59E0B',
+  'Main Store':                  '#3B82F6',
+  'E&I Store':                   '#8B5CF6',
+  'IT Store':                    '#22C55E',
+  'Other Stores':                '#F59E0B',
+  'Main Store - OEM Spare':      '#14B8A6',
+  'Electrical Store - OEM Spare':'#EC4899',
 };
+/* OEM stores — cost included in project, shown separately as free-of-cost */
+const OEM_STORES = ['Main Store - OEM Spare', 'Electrical Store - OEM Spare'];
 const CHART_COLORS = ['#3B82F6','#8B5CF6','#22C55E','#F59E0B','#EF4444','#06B6D4','#F97316','#EC4899','#10B981','#6366F1'];
 
 const BLANK: any = {
@@ -93,10 +101,12 @@ export default function SpareParts() {
   const overallKpi = kpi(inStockSpares);
   const storeKpi   = kpi(storeItems);
 
-  const storeSummary = ['Main Store','E&I Store','IT Store','Other Stores'].map(store => {
+  const ALL_STORE_NAMES = ['Main Store','E&I Store','IT Store','Other Stores','Main Store - OEM Spare','Electrical Store - OEM Spare'];
+  const storeSummary = ALL_STORE_NAMES.map(store => {
     const items = inStockSpares.filter((s:any) => s.storeName === store);
+    const isOEM = OEM_STORES.includes(store);
     return {
-      store, items: items.length,
+      store, isOEM, items: items.length,
       value: items.reduce((s, i) => s + (i.totalValue || 0), 0),
     };
   });
@@ -304,7 +314,8 @@ export default function SpareParts() {
               </tr>
             </thead>
             <tbody>
-              {storeSummary.map((s,i)=>(
+              {/* ── Regular stores ── */}
+              {storeSummary.filter(s=>!s.isOEM).map((s,i)=>(
                 <tr key={s.store} style={{ borderBottom:'1px solid #F3F4F6', background: i%2===0?'white':'#FAFAFA' }}>
                   <td style={{ padding:'10px 16px' }}>
                     <div style={{ display:'flex', alignItems:'center', gap:8 }}>
@@ -316,11 +327,33 @@ export default function SpareParts() {
                   <td style={{ padding:'10px 16px', textAlign:'right', color:'#22C55E', fontWeight:600 }}>₹{fmt(s.value)}</td>
                 </tr>
               ))}
+              {/* ── Subtotal regular ── */}
               <tr style={{ background:'#F0F9FF', borderTop:'2px solid #BFDBFE' }}>
-                <td style={{ padding:'10px 16px', fontWeight:700, color:'#1E40AF' }}>Total</td>
+                <td style={{ padding:'10px 16px', fontWeight:700, color:'#1E40AF' }}>Total (Regular Stores)</td>
                 <td style={{ padding:'10px 16px', textAlign:'right', fontWeight:700, color:'#111827' }}>{overallKpi.total}</td>
                 <td style={{ padding:'10px 16px', textAlign:'right', fontWeight:700, color:'#22C55E' }}>₹{fmt(overallKpi.stockValue)}</td>
               </tr>
+              {/* ── OEM Spare separator ── */}
+              <tr>
+                <td colSpan={3} style={{ padding:'8px 16px', background:'#FFF7ED', borderTop:'2px solid #FED7AA', borderBottom:'1px solid #FED7AA' }}>
+                  <div style={{ display:'flex', alignItems:'center', gap:8 }}>
+                    <span style={{ fontSize:11, fontWeight:700, color:'#C2410C', textTransform:'uppercase', letterSpacing:0.5 }}>OEM Spares — Cost Included in Project (Free of Cost)</span>
+                  </div>
+                </td>
+              </tr>
+              {storeSummary.filter(s=>s.isOEM).map((s,i)=>(
+                <tr key={s.store} style={{ borderBottom:'1px solid #F3F4F6', background: i%2===0?'#FFFBF5':'#FFF7ED' }}>
+                  <td style={{ padding:'10px 16px' }}>
+                    <div style={{ display:'flex', alignItems:'center', gap:8 }}>
+                      <div style={{ width:10, height:10, borderRadius:2, background:STORE_COLORS[s.store]||'#94a3b8', flexShrink:0 }}/>
+                      <span style={{ color:'#374151', fontWeight:500 }}>{s.store}</span>
+                      <span style={{ fontSize:10, padding:'1px 6px', background:'#FED7AA', borderRadius:10, color:'#C2410C', fontWeight:600 }}>OEM</span>
+                    </div>
+                  </td>
+                  <td style={{ padding:'10px 16px', textAlign:'right', color:'#374151' }}>{s.items}</td>
+                  <td style={{ padding:'10px 16px', textAlign:'right', color:'#14B8A6', fontWeight:600 }}>Free of Cost</td>
+                </tr>
+              ))}
             </tbody>
           </table>
         </div>
@@ -627,7 +660,12 @@ function AddEditModal({ item, onSave, onClose }: any) {
             <div>
               <label style={labelStyle}>Store Name</label>
               <select value={form.storeName||'Main Store'} onChange={e=>set('storeName',e.target.value)} style={fieldStyle}>
-                {['Main Store','E&I Store','IT Store','Other Stores'].map(s=><option key={s} value={s}>{s}</option>)}
+                <optgroup label="Regular Stores">
+                  {['Main Store','E&I Store','IT Store','Other Stores'].map(s=><option key={s} value={s}>{s}</option>)}
+                </optgroup>
+                <optgroup label="OEM Spares (Free of Cost — Project Included)">
+                  {['Main Store - OEM Spare','Electrical Store - OEM Spare'].map(s=><option key={s} value={s}>{s}</option>)}
+                </optgroup>
               </select>
             </div>
             <div>
