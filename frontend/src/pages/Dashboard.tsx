@@ -196,13 +196,17 @@ export default function Dashboard() {
     const from = `${yr}-01-01`;
     const to   = `${yr}-12-31`;
     const MON  = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    // Pre-seed all 12 months with zero so the full year always shows
+    const map: Record<string, { m:string; outsource:number; rental:number; purchase:number }> = {};
+    for (let i = 1; i <= 12; i++) {
+      map[`${yr}-${String(i).padStart(2,'0')}`] = { m: MON[i - 1], outsource: 0, rental: 0, purchase: 0 };
+    }
     Promise.all([
       fetch('/api/outsource/dashboard').then(r => r.json()).catch(() => ({})),
       fetch(`/api/equipment-entries?from=${from}&to=${to}&limit=2000`).then(r => r.json()).catch(() => ({ entries: [] })),
       fetch(`/api/accessories?from=${from}&to=${to}&limit=2000`).then(r => r.json()).catch(() => ({ entries: [] })),
       fetch('/api/purchase-followup').then(r => r.json()).catch(() => []),
     ]).then(([outDash, eqData, accData, purData]) => {
-      const map: Record<string, { m:string; outsource:number; rental:number; purchase:number }> = {};
       const slot = (monthNum: number, year: number) => {
         const key = `${year}-${String(monthNum).padStart(2,'0')}`;
         if (!map[key]) map[key] = { m: MON[monthNum - 1], outsource: 0, rental: 0, purchase: 0 };
@@ -245,7 +249,7 @@ export default function Dashboard() {
           rental:    Math.round(v.rental    / 1000),
           purchase:  Math.round(v.purchase  / 1000),
         }));
-      if (result.length > 0) setLiveCostData(result);
+      setLiveCostData(result);
     });
   }, []);
 
