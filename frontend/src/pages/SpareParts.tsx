@@ -1,7 +1,7 @@
 // @ts-nocheck
 import { useState, useEffect, useRef } from 'react';
 import {
-  Package, AlertTriangle, TrendingDown, DollarSign, Search, Download, Upload,
+  Package, TrendingDown, DollarSign, Search, Download, Upload,
   Plus, Edit2, Trash2, RefreshCw, ChevronUp, ChevronDown, ChevronLeft,
   ChevronRight, X, Check, FileText, BarChart2,
 } from 'lucide-react';
@@ -23,8 +23,7 @@ const CHART_COLORS = ['#3B82F6','#8B5CF6','#22C55E','#F59E0B','#EF4444','#06B6D4
 
 const BLANK: any = {
   spareCode:'', itemName:'', category:'', storeName:'Main Store', unit:'Nos',
-  openingStock:0, receivedQty:0, issuedQty:0, unitPrice:0, minStock:0,
-  criticalLevel:0, isCritical:false, supplier:'', location:'', purchaseDate:'', remarks:'',
+  openingStock:0, unitPrice:0, purchaseDate:'',
 };
 
 function fmt(n: number) { return (n || 0).toLocaleString('en-IN'); }
@@ -38,9 +37,6 @@ export default function SpareParts() {
   const [activeTab,    setActiveTab]    = useState<'inventory'|'analytics'>('inventory');
   const [search,       setSearch]       = useState('');
   const [catFilter,    setCatFilter]    = useState('all');
-  const [supFilter,    setSupFilter]    = useState('all');
-  const [showLow,      setShowLow]      = useState(false);
-  const [showCrit,     setShowCrit]     = useState(false);
   const [sortBy,       setSortBy]       = useState('itemName');
   const [sortDir,      setSortDir]      = useState<'asc'|'desc'>('asc');
   const [page,         setPage]         = useState(1);
@@ -68,16 +64,12 @@ export default function SpareParts() {
 
   /* derived */
   const storeItems = activeStore === 'All Stores' ? spares : spares.filter(s => s.storeName === activeStore);
-  const categories  = ['all', ...Array.from(new Set(spares.map((s:any) => s.category))).filter(Boolean)];
-  const suppliers   = ['all', ...Array.from(new Set(spares.map((s:any) => s.supplier))).filter(Boolean)];
+  const categories = ['all', ...Array.from(new Set(spares.map((s:any) => s.category))).filter(Boolean)];
 
   const filtered = storeItems.filter((s:any) => {
     const t = search.toLowerCase();
-    if (t && !s.itemName?.toLowerCase().includes(t) && !s.spareCode?.toLowerCase().includes(t) && !s.category?.toLowerCase().includes(t) && !s.supplier?.toLowerCase().includes(t)) return false;
+    if (t && !s.itemName?.toLowerCase().includes(t) && !s.spareCode?.toLowerCase().includes(t) && !s.category?.toLowerCase().includes(t)) return false;
     if (catFilter !== 'all' && s.category !== catFilter) return false;
-    if (supFilter !== 'all' && s.supplier !== supFilter) return false;
-    if (showLow  && !(s.currentStock <= s.minStock))   return false;
-    if (showCrit && !s.isCritical)                      return false;
     return true;
   });
 
@@ -94,8 +86,6 @@ export default function SpareParts() {
     return {
       total:      arr.length,
       stockValue: arr.reduce((s, i) => s + (i.totalValue || 0), 0),
-      lowStock:   arr.filter(i => i.currentStock <= i.minStock).length,
-      critical:   arr.filter(i => i.isCritical).length,
     };
   }
   const overallKpi = kpi(spares);
@@ -105,13 +95,9 @@ export default function SpareParts() {
     const items = spares.filter((s:any) => s.storeName === store);
     return {
       store, items: items.length,
-      value:    items.reduce((s, i) => s + (i.totalValue || 0), 0),
-      low:      items.filter(i => i.currentStock <= i.minStock).length,
-      critical: items.filter(i => i.isCritical).length,
+      value: items.reduce((s, i) => s + (i.totalValue || 0), 0),
     };
   });
-
-  const lowAlerts = storeItems.filter((s:any) => s.currentStock <= s.minStock);
 
   function toggleSort(col: string) {
     if (sortBy === col) setSortDir(d => d === 'asc' ? 'desc' : 'asc');
@@ -125,18 +111,13 @@ export default function SpareParts() {
     const rows = spares.map((s:any) => ({
       'Spare Code': s.spareCode, 'Item Name': s.itemName, 'Category': s.category,
       'Store': s.storeName, 'Unit': s.unit,
-      'Opening Stock': s.openingStock, 'Received Qty': s.receivedQty, 'Issued Qty': s.issuedQty,
+      'Opening Stock': s.openingStock,
       'Current Stock': s.currentStock, 'Unit Price (₹)': s.unitPrice, 'Total Value (₹)': s.totalValue,
-      'Min Stock': s.minStock, 'Critical Level': s.criticalLevel,
-      'Critical Item': s.isCritical ? 'Yes' : 'No',
-      'Supplier': s.supplier, 'Location': s.location,
       'Purchase Date': s.purchaseDate ? new Date(s.purchaseDate).toLocaleDateString('en-IN') : '',
-      'Remarks': s.remarks,
     }));
     XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(rows), 'Spare Parts Inventory');
     const sumRows = storeSummary.map(s => ({
-      'Store Name': s.store, 'Total Items': s.items,
-      'Inventory Value (₹)': s.value, 'Low Stock Items': s.low, 'Critical Items': s.critical,
+      'Store Name': s.store, 'Total Items': s.items, 'Inventory Value (₹)': s.value,
     }));
     XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(sumRows), 'Store Cost Summary');
     XLSX.writeFile(wb, `SpareParts_${new Date().toISOString().slice(0,10)}.xlsx`);
@@ -145,10 +126,9 @@ export default function SpareParts() {
   function handleDownloadTemplate() {
     const wb = XLSX.utils.book_new();
     const tpl = [{
-      'Spare Code':'SP-001','Item Name':'Example Circuit Breaker','Category':'Electrical',
-      'Store':'Main Store','Unit':'Nos','Opening Stock':10,'Received Qty':5,'Issued Qty':2,
-      'Unit Price':500,'Min Stock':3,'Critical Level':1,'Critical Item':'No',
-      'Supplier':'ABC Suppliers','Location':'Shelf A-1','Purchase Date':'2026-01-01','Remarks':'',
+      'Spare Code':'SP-001', 'Item Name':'Example Circuit Breaker', 'Category':'Electrical',
+      'Store':'Main Store', 'Unit':'Nos', 'Opening Stock':10,
+      'Unit Price':500, 'Purchase Date':'2026-01-01',
     }];
     XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(tpl), 'Import Template');
     XLSX.writeFile(wb, 'SpareParts_ImportTemplate.xlsx');
@@ -171,23 +151,21 @@ export default function SpareParts() {
     let added = 0, updated = 0, failed = 0;
     for (const row of importRows) {
       try {
+        const openingStock = Number(row['Opening Stock'] || 0);
+        const unitPrice    = Number(row['Unit Price']    || 0);
         const payload = {
-          spareCode: String(row['Spare Code'] || '').trim(),
-          itemName:  String(row['Item Name']  || '').trim(),
-          category:  String(row['Category']   || 'General').trim(),
-          storeName: String(row['Store']       || 'Main Store').trim(),
-          unit:      String(row['Unit']        || 'Nos').trim(),
-          openingStock:  Number(row['Opening Stock']  || 0),
-          receivedQty:   Number(row['Received Qty']   || 0),
-          issuedQty:     Number(row['Issued Qty']     || 0),
-          unitPrice:     Number(row['Unit Price']     || 0),
-          minStock:      Number(row['Min Stock']      || 0),
-          criticalLevel: Number(row['Critical Level'] || 0),
-          isCritical: String(row['Critical Item'] || '').toLowerCase() === 'yes',
-          supplier:   String(row['Supplier']  || '').trim(),
-          location:   String(row['Location']  || '').trim(),
+          spareCode:    String(row['Spare Code']    || '').trim(),
+          itemName:     String(row['Item Name']     || '').trim(),
+          category:     String(row['Category']      || 'General').trim(),
+          storeName:    String(row['Store']         || 'Main Store').trim(),
+          unit:         String(row['Unit']          || 'Nos').trim(),
+          openingStock,
+          receivedQty: 0,
+          issuedQty:   0,
+          unitPrice,
+          currentStock: openingStock,
+          totalValue:   openingStock * unitPrice,
           purchaseDate: row['Purchase Date'] || '',
-          remarks:    String(row['Remarks']   || '').trim(),
         };
         if (!payload.spareCode || !payload.itemName) { failed++; continue; }
         const existing = spares.find((s:any) => s.spareCode === payload.spareCode);
@@ -258,12 +236,10 @@ export default function SpareParts() {
       </div>
 
       {/* Overall KPI Cards */}
-      <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:12 }}>
+      <div style={{ display:'grid', gridTemplateColumns:'repeat(2,1fr)', gap:12 }}>
         {[
-          { label:'Total Items',      value:overallKpi.total,              icon:<Package size={18}/>,       color:'#3B82F6', bg:'#EFF6FF', brd:'#BFDBFE' },
-          { label:'Total Stock Value',value:fmtL(overallKpi.stockValue),   icon:<DollarSign size={18}/>,    color:'#22C55E', bg:'#F0FDF4', brd:'#BBF7D0' },
-          { label:'Low Stock Items',  value:overallKpi.lowStock,           icon:<TrendingDown size={18}/>,  color:'#F59E0B', bg:'#FFFBEB', brd:'#FDE68A' },
-          { label:'Critical Items',   value:overallKpi.critical,           icon:<AlertTriangle size={18}/>, color:'#EF4444', bg:'#FFF5F5', brd:'#FECACA' },
+          { label:'Total Items',      value:overallKpi.total,            icon:<Package size={18}/>,    color:'#3B82F6', bg:'#EFF6FF', brd:'#BFDBFE' },
+          { label:'Total Stock Value',value:fmtL(overallKpi.stockValue), icon:<DollarSign size={18}/>, color:'#22C55E', bg:'#F0FDF4', brd:'#BBF7D0' },
         ].map(c=>(
           <div key={c.label} style={{ background:c.bg, border:`1px solid ${c.brd}`, borderRadius:12, padding:'14px 18px', display:'flex', alignItems:'center', gap:12 }}>
             <div style={{ width:36, height:36, borderRadius:8, background:c.color+'20', display:'flex', alignItems:'center', justifyContent:'center', color:c.color }}>{c.icon}</div>
@@ -292,12 +268,10 @@ export default function SpareParts() {
 
       {/* Per-Store KPI strip */}
       {activeStore !== 'All Stores' && (
-        <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:12 }}>
+        <div style={{ display:'grid', gridTemplateColumns:'repeat(2,1fr)', gap:12 }}>
           {[
             { label:`${activeStore} Items`, value:storeKpi.total,            color:STORE_COLORS[activeStore]||'#3B82F6' },
             { label:'Stock Value',          value:fmtL(storeKpi.stockValue), color:'#22C55E' },
-            { label:'Low Stock',            value:storeKpi.lowStock,         color:'#F59E0B' },
-            { label:'Critical Items',       value:storeKpi.critical,         color:'#EF4444' },
           ].map(c=>(
             <div key={c.label} style={{ background:'white', border:'1px solid #E5E7EB', borderTop:`3px solid ${c.color}`, borderRadius:10, padding:'14px 18px' }}>
               <div style={{ fontSize:22, fontWeight:700, color:'#111827' }}>{c.value}</div>
@@ -316,7 +290,7 @@ export default function SpareParts() {
           <table style={{ width:'100%', borderCollapse:'collapse', fontSize:13 }}>
             <thead>
               <tr style={{ background:'#F9FAFB' }}>
-                {['Store','Total Items','Inventory Value','Low Stock','Critical Items'].map(h=>(
+                {['Store','Total Items','Inventory Value'].map(h=>(
                   <th key={h} style={{ padding:'10px 16px', textAlign:h==='Store'?'left':'right', color:'#374151', fontWeight:600, fontSize:12, borderBottom:'1px solid #E5E7EB' }}>{h}</th>
                 ))}
               </tr>
@@ -332,39 +306,15 @@ export default function SpareParts() {
                   </td>
                   <td style={{ padding:'10px 16px', textAlign:'right', color:'#374151' }}>{s.items}</td>
                   <td style={{ padding:'10px 16px', textAlign:'right', color:'#22C55E', fontWeight:600 }}>₹{fmt(s.value)}</td>
-                  <td style={{ padding:'10px 16px', textAlign:'right' }}>
-                    <span style={{ color: s.low>0?'#F59E0B':'#64748b', fontWeight: s.low>0?600:400 }}>{s.low}</span>
-                  </td>
-                  <td style={{ padding:'10px 16px', textAlign:'right' }}>
-                    <span style={{ color: s.critical>0?'#EF4444':'#64748b', fontWeight: s.critical>0?600:400 }}>{s.critical}</span>
-                  </td>
                 </tr>
               ))}
               <tr style={{ background:'#F0F9FF', borderTop:'2px solid #BFDBFE' }}>
                 <td style={{ padding:'10px 16px', fontWeight:700, color:'#1E40AF' }}>Total</td>
                 <td style={{ padding:'10px 16px', textAlign:'right', fontWeight:700, color:'#111827' }}>{overallKpi.total}</td>
                 <td style={{ padding:'10px 16px', textAlign:'right', fontWeight:700, color:'#22C55E' }}>₹{fmt(overallKpi.stockValue)}</td>
-                <td style={{ padding:'10px 16px', textAlign:'right', fontWeight:700, color:'#F59E0B' }}>{overallKpi.lowStock}</td>
-                <td style={{ padding:'10px 16px', textAlign:'right', fontWeight:700, color:'#EF4444' }}>{overallKpi.critical}</td>
               </tr>
             </tbody>
           </table>
-        </div>
-      )}
-
-      {/* Low Stock Alert Banner */}
-      {lowAlerts.length > 0 && (
-        <div style={{ padding:'10px 14px', background:'#FFFBEB', border:'1px solid #FDE68A', borderRadius:10, display:'flex', alignItems:'flex-start', gap:10, flexWrap:'wrap' }}>
-          <AlertTriangle size={15} style={{ color:'#F59E0B', flexShrink:0, marginTop:1 }}/>
-          <span style={{ fontSize:12, color:'#92400E', fontWeight:600 }}>Low Stock Alert ({lowAlerts.length}):</span>
-          <div style={{ display:'flex', gap:6, flexWrap:'wrap', flex:1 }}>
-            {lowAlerts.slice(0,10).map((s:any)=>(
-              <span key={s._id} style={{ fontSize:11, padding:'2px 8px', background:'#FEF3C7', border:'1px solid #FDE68A', borderRadius:20, color:'#92400E' }}>
-                {s.itemName} ({s.currentStock}/{s.minStock})
-              </span>
-            ))}
-            {lowAlerts.length > 10 && <span style={{ fontSize:11, color:'#92400E' }}>+{lowAlerts.length-10} more</span>}
-          </div>
         </div>
       )}
 
@@ -386,37 +336,32 @@ export default function SpareParts() {
         <div style={{ display:'flex', gap:8, flexWrap:'wrap', alignItems:'center' }}>
           <div style={{ position:'relative', flex:1, minWidth:200 }}>
             <Search size={13} style={{ position:'absolute', left:10, top:'50%', transform:'translateY(-50%)', color:'#94a3b8' }}/>
-            <input value={search} onChange={e=>{setSearch(e.target.value);setPage(1);}} placeholder="Search code, name, category, supplier..."
+            <input value={search} onChange={e=>{setSearch(e.target.value);setPage(1);}} placeholder="Search code, name, category..."
               style={{ width:'100%', padding:'8px 12px 8px 30px', border:'1px solid #E2E8F0', borderRadius:8, fontSize:12, outline:'none', background:'white', color:'#374151', boxSizing:'border-box' }}/>
           </div>
           <select value={catFilter} onChange={e=>{setCatFilter(e.target.value);setPage(1);}} style={{ padding:'8px 10px', border:'1px solid #E2E8F0', borderRadius:8, fontSize:12, background:'white', color:'#374151', outline:'none' }}>
             {categories.map(c=><option key={String(c)} value={String(c)}>{c==='all'?'All Categories':String(c)}</option>)}
           </select>
-          <select value={supFilter} onChange={e=>{setSupFilter(e.target.value);setPage(1);}} style={{ padding:'8px 10px', border:'1px solid #E2E8F0', borderRadius:8, fontSize:12, background:'white', color:'#374151', outline:'none' }}>
-            {suppliers.map(s=><option key={String(s)} value={String(s)}>{s==='all'?'All Suppliers':String(s)}</option>)}
-          </select>
-          <button onClick={()=>{setShowLow(!showLow);setPage(1);}} style={{ padding:'7px 12px', border:`1px solid ${showLow?'#FDE68A':'#E2E8F0'}`, borderRadius:8, fontSize:11, background:showLow?'#FFFBEB':'white', color:showLow?'#92400E':'#64748b', cursor:'pointer', fontWeight:showLow?600:400, display:'flex', alignItems:'center', gap:4 }}>
-            {showLow && <Check size={10}/>}Low Stock
-          </button>
-          <button onClick={()=>{setShowCrit(!showCrit);setPage(1);}} style={{ padding:'7px 12px', border:`1px solid ${showCrit?'#FECACA':'#E2E8F0'}`, borderRadius:8, fontSize:11, background:showCrit?'#FFF5F5':'white', color:showCrit?'#991B1B':'#64748b', cursor:'pointer', fontWeight:showCrit?600:400, display:'flex', alignItems:'center', gap:4 }}>
-            {showCrit && <Check size={10}/>}Critical Only
-          </button>
           <span style={{ fontSize:12, color:'#64748b' }}>{filtered.length} item{filtered.length!==1?'s':''}</span>
         </div>
 
         {/* Table */}
         <div style={{ background:'white', borderRadius:12, border:'1px solid #E5E7EB', overflow:'auto' }}>
-          <table style={{ width:'100%', borderCollapse:'collapse', fontSize:12, minWidth:1100 }}>
+          <table style={{ width:'100%', borderCollapse:'collapse', fontSize:12, minWidth:700 }}>
             <thead>
               <tr style={{ background:'#F9FAFB', borderBottom:'1px solid #E5E7EB' }}>
                 {[
-                  {key:'spareCode',label:'Spare Code'},{key:'itemName',label:'Item Name'},
-                  {key:'category',label:'Category'},{key:'storeName',label:'Store'},
-                  {key:'unit',label:'Unit'},{key:'openingStock',label:'Opening'},
-                  {key:'receivedQty',label:'Received'},{key:'issuedQty',label:'Issued'},
-                  {key:'currentStock',label:'Current'},{key:'unitPrice',label:'Unit Price'},
-                  {key:'totalValue',label:'Total Value'},{key:'supplier',label:'Supplier'},
-                  {key:null,label:'Status'},{key:null,label:'Actions'},
+                  {key:'spareCode',    label:'Spare Code'},
+                  {key:'itemName',     label:'Item Name'},
+                  {key:'category',     label:'Category'},
+                  {key:'storeName',    label:'Store'},
+                  {key:'unit',         label:'Unit'},
+                  {key:'openingStock', label:'Opening Stock'},
+                  {key:'currentStock', label:'Current Stock'},
+                  {key:'unitPrice',    label:'Unit Price'},
+                  {key:'totalValue',   label:'Total Value'},
+                  {key:'purchaseDate', label:'Purchase Date'},
+                  {key:null,           label:'Actions'},
                 ].map(h=>(
                   <th key={h.label} onClick={()=>h.key&&toggleSort(h.key)} style={{ padding:'10px 12px', textAlign:'left', color:'#374151', fontWeight:600, fontSize:11, whiteSpace:'nowrap', cursor:h.key?'pointer':'default', userSelect:'none' }}>
                     <span style={{ display:'inline-flex', alignItems:'center', gap:3 }}>
@@ -429,51 +374,37 @@ export default function SpareParts() {
             </thead>
             <tbody>
               {loading ? (
-                <tr><td colSpan={14} style={{ padding:40, textAlign:'center', color:'#94a3b8' }}>Loading inventory...</td></tr>
+                <tr><td colSpan={11} style={{ padding:40, textAlign:'center', color:'#94a3b8' }}>Loading inventory...</td></tr>
               ) : pageItems.length === 0 ? (
-                <tr><td colSpan={14} style={{ padding:40, textAlign:'center', color:'#94a3b8' }}>No items found</td></tr>
-              ) : pageItems.map((s:any, i:number)=>{
-                const isLow  = s.currentStock <= s.minStock;
-                const isCrit = s.criticalLevel > 0 && s.currentStock <= s.criticalLevel;
-                return (
-                  <tr key={s._id} style={{ borderBottom:'1px solid #F3F4F6', background:i%2===0?'white':'#FAFAFA' }}>
-                    <td style={{ padding:'9px 12px', color:'#3B82F6', fontFamily:'monospace', fontWeight:600, whiteSpace:'nowrap' }}>{s.spareCode}</td>
-                    <td style={{ padding:'9px 12px', color:'#111827', fontWeight:500, maxWidth:180, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{s.itemName}</td>
-                    <td style={{ padding:'9px 12px' }}><span style={{ padding:'2px 7px', background:'#F1F5F9', borderRadius:20, color:'#374151', fontSize:10 }}>{s.category}</span></td>
-                    <td style={{ padding:'9px 12px' }}>
-                      <span style={{ padding:'2px 7px', background:(STORE_COLORS[s.storeName]||'#94a3b8')+'20', borderRadius:20, color:STORE_COLORS[s.storeName]||'#64748b', fontSize:10, fontWeight:600 }}>
-                        {(s.storeName||'').replace(' Store','')}
-                      </span>
-                    </td>
-                    <td style={{ padding:'9px 12px', color:'#64748b' }}>{s.unit}</td>
-                    <td style={{ padding:'9px 12px', textAlign:'right', color:'#374151' }}>{s.openingStock||0}</td>
-                    <td style={{ padding:'9px 12px', textAlign:'right', color:'#22C55E', fontWeight:500 }}>{s.receivedQty>0?'+':''}{s.receivedQty||0}</td>
-                    <td style={{ padding:'9px 12px', textAlign:'right', color:'#EF4444', fontWeight:500 }}>{s.issuedQty>0?'-':''}{s.issuedQty||0}</td>
-                    <td style={{ padding:'9px 12px', textAlign:'right' }}>
-                      <span style={{ fontWeight:700, fontSize:14, color:isCrit?'#EF4444':isLow?'#F59E0B':'#22C55E' }}>{s.currentStock||0}</span>
-                      {isLow && <AlertTriangle size={10} style={{ color:'#F59E0B', marginLeft:3 }}/>}
-                    </td>
-                    <td style={{ padding:'9px 12px', textAlign:'right', color:'#374151' }}>₹{fmt(s.unitPrice)}</td>
-                    <td style={{ padding:'9px 12px', textAlign:'right', color:'#22C55E', fontWeight:600 }}>₹{fmt(s.totalValue)}</td>
-                    <td style={{ padding:'9px 12px', color:'#64748b', maxWidth:120, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{s.supplier}</td>
-                    <td style={{ padding:'9px 12px', whiteSpace:'nowrap' }}>
-                      {isCrit ? (
-                        <span style={{ padding:'2px 8px', background:'#FEE2E2', borderRadius:20, color:'#EF4444', fontSize:10, fontWeight:600 }}>⚠ Critical</span>
-                      ) : s.isCritical ? (
-                        <span style={{ padding:'2px 8px', background:'#FEF3C7', borderRadius:20, color:'#B45309', fontSize:10 }}>Critical Spare</span>
-                      ) : (
-                        <span style={{ padding:'2px 8px', background:'#F0FDF4', borderRadius:20, color:'#166534', fontSize:10 }}>Normal</span>
-                      )}
-                    </td>
-                    <td style={{ padding:'9px 12px' }}>
-                      <div style={{ display:'flex', gap:4 }}>
-                        <button onClick={()=>{setEditItem(s);setShowAdd(true);}} style={{ padding:'4px 8px', background:'#EFF6FF', border:'1px solid #BFDBFE', borderRadius:6, color:'#3B82F6', cursor:'pointer', display:'flex', alignItems:'center' }}><Edit2 size={11}/></button>
-                        <button onClick={()=>handleDelete(s._id)} style={{ padding:'4px 8px', background:'#FFF5F5', border:'1px solid #FECACA', borderRadius:6, color:'#EF4444', cursor:'pointer', display:'flex', alignItems:'center' }}><Trash2 size={11}/></button>
-                      </div>
-                    </td>
-                  </tr>
-                );
-              })}
+                <tr><td colSpan={11} style={{ padding:40, textAlign:'center', color:'#94a3b8' }}>No items found</td></tr>
+              ) : pageItems.map((s:any, i:number)=>(
+                <tr key={s._id} style={{ borderBottom:'1px solid #F3F4F6', background:i%2===0?'white':'#FAFAFA' }}>
+                  <td style={{ padding:'9px 12px', color:'#3B82F6', fontFamily:'monospace', fontWeight:600, whiteSpace:'nowrap' }}>{s.spareCode}</td>
+                  <td style={{ padding:'9px 12px', color:'#111827', fontWeight:500, maxWidth:180, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{s.itemName}</td>
+                  <td style={{ padding:'9px 12px' }}><span style={{ padding:'2px 7px', background:'#F1F5F9', borderRadius:20, color:'#374151', fontSize:10 }}>{s.category}</span></td>
+                  <td style={{ padding:'9px 12px' }}>
+                    <span style={{ padding:'2px 7px', background:(STORE_COLORS[s.storeName]||'#94a3b8')+'20', borderRadius:20, color:STORE_COLORS[s.storeName]||'#64748b', fontSize:10, fontWeight:600 }}>
+                      {(s.storeName||'').replace(' Store','')}
+                    </span>
+                  </td>
+                  <td style={{ padding:'9px 12px', color:'#64748b' }}>{s.unit}</td>
+                  <td style={{ padding:'9px 12px', textAlign:'right', color:'#374151' }}>{s.openingStock||0}</td>
+                  <td style={{ padding:'9px 12px', textAlign:'right' }}>
+                    <span style={{ fontWeight:700, fontSize:14, color:'#22C55E' }}>{s.currentStock||0}</span>
+                  </td>
+                  <td style={{ padding:'9px 12px', textAlign:'right', color:'#374151' }}>₹{fmt(s.unitPrice)}</td>
+                  <td style={{ padding:'9px 12px', textAlign:'right', color:'#22C55E', fontWeight:600 }}>₹{fmt(s.totalValue)}</td>
+                  <td style={{ padding:'9px 12px', color:'#64748b', whiteSpace:'nowrap' }}>
+                    {s.purchaseDate ? new Date(s.purchaseDate).toLocaleDateString('en-IN') : '—'}
+                  </td>
+                  <td style={{ padding:'9px 12px' }}>
+                    <div style={{ display:'flex', gap:4 }}>
+                      <button onClick={()=>{setEditItem(s);setShowAdd(true);}} style={{ padding:'4px 8px', background:'#EFF6FF', border:'1px solid #BFDBFE', borderRadius:6, color:'#3B82F6', cursor:'pointer', display:'flex', alignItems:'center' }}><Edit2 size={11}/></button>
+                      <button onClick={()=>handleDelete(s._id)} style={{ padding:'4px 8px', background:'#FFF5F5', border:'1px solid #FECACA', borderRadius:6, color:'#EF4444', cursor:'pointer', display:'flex', alignItems:'center' }}><Trash2 size={11}/></button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
             </tbody>
           </table>
         </div>
@@ -557,7 +488,7 @@ export default function SpareParts() {
               <FileText size={14} style={{color:'#3B82F6'}}/> Store-Wise Cost Report
               <button onClick={()=>{
                 const wb=XLSX.utils.book_new();
-                XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(storeSummary.map(s=>({'Store':s.store,'Items':s.items,'Value (₹)':s.value,'Low Stock':s.low,'Critical':s.critical}))),'Store Cost Summary');
+                XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(storeSummary.map(s=>({'Store':s.store,'Items':s.items,'Value (₹)':s.value}))),'Store Cost Summary');
                 XLSX.writeFile(wb,`StoreCostSummary_${new Date().toISOString().slice(0,10)}.xlsx`);
               }} style={{ marginLeft:'auto', padding:'4px 10px', background:'#F0FDF4', border:'1px solid #BBF7D0', borderRadius:6, color:'#166534', fontSize:11, cursor:'pointer', display:'flex', alignItems:'center', gap:4 }}>
                 <Download size={11}/> Export
@@ -566,7 +497,7 @@ export default function SpareParts() {
             <table style={{ width:'100%', borderCollapse:'collapse', fontSize:12 }}>
               <thead>
                 <tr style={{ background:'#F9FAFB' }}>
-                  {['Store','Items','Inventory Value','% of Total','Low Stock','Critical'].map(h=>(
+                  {['Store','Items','Inventory Value','% of Total'].map(h=>(
                     <th key={h} style={{ padding:'8px 12px', textAlign:h==='Store'?'left':'right', color:'#374151', fontWeight:600, fontSize:11, borderBottom:'1px solid #E5E7EB' }}>{h}</th>
                   ))}
                 </tr>
@@ -592,8 +523,6 @@ export default function SpareParts() {
                           <span style={{ color:'#64748b', fontSize:11, minWidth:36 }}>{pct}%</span>
                         </div>
                       </td>
-                      <td style={{ padding:'9px 12px', textAlign:'right', color:s.low>0?'#F59E0B':'#64748b', fontWeight:s.low>0?600:400 }}>{s.low}</td>
-                      <td style={{ padding:'9px 12px', textAlign:'right', color:s.critical>0?'#EF4444':'#64748b', fontWeight:s.critical>0?600:400 }}>{s.critical}</td>
                     </tr>
                   );
                 })}
@@ -602,8 +531,6 @@ export default function SpareParts() {
                   <td style={{ padding:'9px 12px', textAlign:'right', fontWeight:700, color:'#111827' }}>{overallKpi.total}</td>
                   <td style={{ padding:'9px 12px', textAlign:'right', fontWeight:700, color:'#22C55E' }}>₹{fmt(overallKpi.stockValue)}</td>
                   <td style={{ padding:'9px 12px', textAlign:'right', color:'#64748b', fontSize:11 }}>100%</td>
-                  <td style={{ padding:'9px 12px', textAlign:'right', fontWeight:700, color:'#F59E0B' }}>{overallKpi.lowStock}</td>
-                  <td style={{ padding:'9px 12px', textAlign:'right', fontWeight:700, color:'#EF4444' }}>{overallKpi.critical}</td>
                 </tr>
               </tbody>
             </table>
@@ -637,13 +564,11 @@ function AddEditModal({ item, onSave, onClose }: any) {
 
   function set(k: string, v: any) {
     setForm((f: any) => {
-      const next = { ...f, [k]: v };
-      const open  = Number(k==='openingStock'  ? v : f.openingStock)  || 0;
-      const recv  = Number(k==='receivedQty'   ? v : f.receivedQty)   || 0;
-      const iss   = Number(k==='issuedQty'     ? v : f.issuedQty)     || 0;
-      const price = Number(k==='unitPrice'     ? v : f.unitPrice)     || 0;
-      next.currentStock = open + recv - iss;
-      next.totalValue   = next.currentStock * price;
+      const next  = { ...f, [k]: v };
+      const open  = Number(k==='openingStock' ? v : f.openingStock) || 0;
+      const price = Number(k==='unitPrice'    ? v : f.unitPrice)    || 0;
+      next.currentStock = open;
+      next.totalValue   = open * price;
       return next;
     });
   }
@@ -652,7 +577,7 @@ function AddEditModal({ item, onSave, onClose }: any) {
     e.preventDefault();
     if (!form.spareCode?.trim()) return alert('Spare Code is required');
     if (!form.itemName?.trim())  return alert('Item Name is required');
-    onSave(form);
+    onSave({ ...form, receivedQty: 0, issuedQty: 0 });
   }
 
   const fieldStyle = { width:'100%', padding:'8px 10px', border:'1px solid #E2E8F0', borderRadius:8, fontSize:12, outline:'none', background:'white', color:'#374151', boxSizing:'border-box' as const };
@@ -660,7 +585,7 @@ function AddEditModal({ item, onSave, onClose }: any) {
 
   return (
     <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.45)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:1000, padding:20, overflowY:'auto' }}>
-      <div style={{ background:'white', borderRadius:16, width:'100%', maxWidth:800, boxShadow:'0 20px 60px rgba(0,0,0,0.15)', maxHeight:'92vh', display:'flex', flexDirection:'column' }}>
+      <div style={{ background:'white', borderRadius:16, width:'100%', maxWidth:700, boxShadow:'0 20px 60px rgba(0,0,0,0.15)', maxHeight:'92vh', display:'flex', flexDirection:'column' }}>
         <div style={{ padding:'18px 24px', borderBottom:'1px solid #E5E7EB', display:'flex', alignItems:'center', justifyContent:'space-between', flexShrink:0 }}>
           <div style={{ fontSize:15, fontWeight:700, color:'#111827' }}>{item ? 'Edit Spare Part' : 'Add New Spare Part'}</div>
           <button onClick={onClose} style={{ background:'none', border:'none', cursor:'pointer', color:'#64748b', padding:4 }}><X size={18}/></button>
@@ -694,14 +619,6 @@ function AddEditModal({ item, onSave, onClose }: any) {
               <label style={labelStyle}>Opening Stock</label>
               <input type="number" min="0" value={form.openingStock||0} onChange={e=>set('openingStock',Number(e.target.value))} style={fieldStyle}/>
             </div>
-            <div>
-              <label style={labelStyle}>Received Qty</label>
-              <input type="number" min="0" value={form.receivedQty||0} onChange={e=>set('receivedQty',Number(e.target.value))} style={fieldStyle}/>
-            </div>
-            <div>
-              <label style={labelStyle}>Issued Qty</label>
-              <input type="number" min="0" value={form.issuedQty||0} onChange={e=>set('issuedQty',Number(e.target.value))} style={fieldStyle}/>
-            </div>
 
             {/* Auto-calc readonly */}
             <div>
@@ -714,39 +631,15 @@ function AddEditModal({ item, onSave, onClose }: any) {
             </div>
 
             <div style={{ gridColumn:'1/-1' }}>
-              <label style={labelStyle}>Total Inventory Value (₹) <span style={{color:'#22C55E',fontSize:10}}>(auto = Current × Unit Price)</span></label>
+              <label style={labelStyle}>Total Inventory Value (₹) <span style={{color:'#22C55E',fontSize:10}}>(auto = Current Stock × Unit Price)</span></label>
               <input value={`₹ ${fmt(form.totalValue||0)}`} readOnly style={{...fieldStyle, background:'#F0FDF4', color:'#22C55E', fontWeight:700, fontSize:14}}/>
             </div>
 
-            <div>
-              <label style={labelStyle}>Min Stock Level</label>
-              <input type="number" min="0" value={form.minStock||0} onChange={e=>set('minStock',Number(e.target.value))} style={fieldStyle}/>
-            </div>
-            <div>
-              <label style={labelStyle}>Critical Level</label>
-              <input type="number" min="0" value={form.criticalLevel||0} onChange={e=>set('criticalLevel',Number(e.target.value))} style={fieldStyle}/>
-            </div>
-            <div>
-              <label style={labelStyle}>Supplier</label>
-              <input value={form.supplier||''} onChange={e=>set('supplier',e.target.value)} placeholder="Supplier name" style={fieldStyle}/>
-            </div>
-            <div>
-              <label style={labelStyle}>Location / Shelf</label>
-              <input value={form.location||''} onChange={e=>set('location',e.target.value)} placeholder="e.g. Shelf A-1" style={fieldStyle}/>
-            </div>
-            <div>
-              <label style={labelStyle}>Purchase Date</label>
-              <input type="date" value={form.purchaseDate||''} onChange={e=>set('purchaseDate',e.target.value)} style={fieldStyle}/>
-            </div>
-            <div style={{ display:'flex', alignItems:'center', gap:10, paddingTop:22 }}>
-              <input type="checkbox" id="isCrit" checked={!!form.isCritical} onChange={e=>set('isCritical',e.target.checked)} style={{ width:16, height:16, cursor:'pointer', accentColor:'#EF4444' }}/>
-              <label htmlFor="isCrit" style={{ fontSize:13, color:'#374151', cursor:'pointer', userSelect:'none' as const }}>Mark as Critical Spare Part</label>
-            </div>
             <div style={{ gridColumn:'1/-1' }}>
-              <label style={labelStyle}>Remarks</label>
-              <textarea value={form.remarks||''} onChange={e=>set('remarks',e.target.value)} rows={2}
-                style={{...fieldStyle, resize:'vertical' as const, fontFamily:'inherit'}}/>
+              <label style={labelStyle}>Purchase Date</label>
+              <input type="date" value={form.purchaseDate||''} onChange={e=>set('purchaseDate',e.target.value)} style={{...fieldStyle, maxWidth:220}}/>
             </div>
+
           </div>
           <div style={{ padding:'16px 24px', borderTop:'1px solid #E5E7EB', display:'flex', gap:10, justifyContent:'flex-end', flexShrink:0 }}>
             <button type="button" onClick={onClose} style={{ padding:'9px 20px', background:'#F1F5F9', border:'1px solid #E2E8F0', borderRadius:8, color:'#374151', fontSize:13, cursor:'pointer' }}>Cancel</button>
@@ -808,7 +701,7 @@ function ImportModal({ importRows, importing, importDone, onFileSelect, onConfir
                 <table style={{ width:'100%', borderCollapse:'collapse', fontSize:11 }}>
                   <thead>
                     <tr style={{ background:'#F9FAFB' }}>
-                      {['Spare Code','Item Name','Category','Store','Unit','Opening Stock','Unit Price','Supplier'].map(h=>(
+                      {['Spare Code','Item Name','Category','Store','Unit','Opening Stock','Unit Price','Purchase Date'].map(h=>(
                         <th key={h} style={{ padding:'8px 10px', textAlign:'left', color:'#374151', fontWeight:600, borderBottom:'1px solid #E5E7EB', whiteSpace:'nowrap' }}>{h}</th>
                       ))}
                     </tr>
@@ -823,7 +716,7 @@ function ImportModal({ importRows, importing, importDone, onFileSelect, onConfir
                         <td style={{ padding:'7px 10px', color:'#64748b' }}>{String(r['Unit']||'—')}</td>
                         <td style={{ padding:'7px 10px', textAlign:'right', color:'#374151' }}>{r['Opening Stock']??'—'}</td>
                         <td style={{ padding:'7px 10px', textAlign:'right', color:'#374151' }}>₹{r['Unit Price']??'—'}</td>
-                        <td style={{ padding:'7px 10px', color:'#64748b' }}>{String(r['Supplier']||'—')}</td>
+                        <td style={{ padding:'7px 10px', color:'#64748b' }}>{String(r['Purchase Date']||'—')}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -838,7 +731,7 @@ function ImportModal({ importRows, importing, importDone, onFileSelect, onConfir
               <div style={{ fontSize:13, fontWeight:700, color:'#166534', marginBottom:12 }}>Import Complete!</div>
               <div style={{ display:'flex', gap:12, flexWrap:'wrap' }}>
                 {[
-                  { label:'New Items Added', value:importDone.added, color:'#22C55E', bg:'#F0FDF4', brd:'#BBF7D0' },
+                  { label:'New Items Added', value:importDone.added,   color:'#22C55E', bg:'#F0FDF4', brd:'#BBF7D0' },
                   { label:'Items Updated',   value:importDone.updated, color:'#3B82F6', bg:'#EFF6FF', brd:'#BFDBFE' },
                   { label:'Failed / Skipped',value:importDone.failed,  color:'#EF4444', bg:'#FFF5F5', brd:'#FECACA' },
                 ].map(c=>(
