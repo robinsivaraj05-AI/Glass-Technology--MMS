@@ -1028,8 +1028,8 @@ export default function PurchaseFollowup() {
         </div>
       )}
 
-      </div>{/* inner flex column */}
-    </div>{/* gradient wrapper */}
+      </div>
+    </div>
   );
 }
 
