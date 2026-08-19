@@ -47,8 +47,13 @@ const BLANK: any = {
   unit:'Nos', currentStock:0, unitPrice:0, poNumber:'',
 };
 
-function fmt(n: number) { return (n || 0).toLocaleString('en-IN'); }
-function fmtL(n: number) { return `₹${((n||0)/100000).toFixed(1)}L`; }
+function fmt(n: number) { return (n || 0).toLocaleString('en-AE'); }
+function fmtAED(n: number) {
+  const v = n || 0;
+  if (v >= 1000000) return `AED ${(v/1000000).toFixed(2)}M`;
+  if (v >= 1000)    return `AED ${(v/1000).toFixed(1)}K`;
+  return `AED ${fmt(v)}`;
+}
 
 /* ─── MAIN PAGE ─────────────────────────────────────────────────────────── */
 export default function SpareParts() {
@@ -148,13 +153,13 @@ export default function SpareParts() {
       'Store':          s.storeName,
       'Unit':           s.unit,
       'Current Stock':  s.currentStock,
-      'Unit Price (₹)': s.unitPrice,
-      'Total Value (₹)':s.totalValue,
+      'Unit Price (AED)': s.unitPrice,
+      'Total Value (AED)':s.totalValue,
       'PO Number':      s.poNumber || '',
     }));
     XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(rows), 'Spare Parts Inventory');
     const sumRows = storeSummary.map(s => ({
-      'Store Name': s.store, 'Total Items': s.items, 'Inventory Value (₹)': s.value,
+      'Store Name': s.store, 'Total Items': s.items, 'Inventory Value (AED)': s.value,
     }));
     XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(sumRows), 'Store Cost Summary');
     XLSX.writeFile(wb, `SpareParts_${new Date().toISOString().slice(0,10)}.xlsx`);
@@ -277,7 +282,7 @@ export default function SpareParts() {
       <div style={{ display:'grid', gridTemplateColumns:'repeat(2,1fr)', gap:12 }}>
         {[
           { label:'Total Items',      value:overallKpi.total,            icon:<Package size={18}/>,    color:'#3B82F6', bg:'#EFF6FF', brd:'#BFDBFE' },
-          { label:'Total Stock Value',value:fmtL(overallKpi.stockValue), icon:<DollarSign size={18}/>, color:'#22C55E', bg:'#F0FDF4', brd:'#BBF7D0' },
+          { label:'Total Stock Value',value:fmtAED(overallKpi.stockValue), icon:<DollarSign size={18}/>, color:'#22C55E', bg:'#F0FDF4', brd:'#BBF7D0' },
         ].map(c=>(
           <div key={c.label} style={{ background:c.bg, border:`1px solid ${c.brd}`, borderRadius:12, padding:'14px 18px', display:'flex', alignItems:'center', gap:12 }}>
             <div style={{ width:36, height:36, borderRadius:8, background:c.color+'20', display:'flex', alignItems:'center', justifyContent:'center', color:c.color }}>{c.icon}</div>
@@ -309,7 +314,7 @@ export default function SpareParts() {
         <div style={{ display:'grid', gridTemplateColumns:'repeat(2,1fr)', gap:12 }}>
           {[
             { label:`${activeStore} Items`, value:storeKpi.total,            color:STORE_COLORS[activeStore]||'#3B82F6' },
-            { label:'Stock Value',          value:fmtL(storeKpi.stockValue), color:'#22C55E' },
+            { label:'Stock Value',          value:fmtAED(storeKpi.stockValue), color:'#22C55E' },
           ].map(c=>(
             <div key={c.label} style={{ background:'white', border:'1px solid #E5E7EB', borderTop:`3px solid ${c.color}`, borderRadius:10, padding:'14px 18px' }}>
               <div style={{ fontSize:22, fontWeight:700, color:'#111827' }}>{c.value}</div>
@@ -344,14 +349,14 @@ export default function SpareParts() {
                     </div>
                   </td>
                   <td style={{ padding:'10px 16px', textAlign:'right', color:'#374151' }}>{s.items}</td>
-                  <td style={{ padding:'10px 16px', textAlign:'right', color:'#22C55E', fontWeight:600 }}>₹{fmt(s.value)}</td>
+                  <td style={{ padding:'10px 16px', textAlign:'right', color:'#22C55E', fontWeight:600 }}>AED {fmt(s.value)}</td>
                 </tr>
               ))}
               {/* ── Subtotal regular ── */}
               <tr style={{ background:'#F0F9FF', borderTop:'2px solid #BFDBFE' }}>
                 <td style={{ padding:'10px 16px', fontWeight:700, color:'#1E40AF' }}>Total (Regular Stores)</td>
                 <td style={{ padding:'10px 16px', textAlign:'right', fontWeight:700, color:'#111827' }}>{overallKpi.total}</td>
-                <td style={{ padding:'10px 16px', textAlign:'right', fontWeight:700, color:'#22C55E' }}>₹{fmt(overallKpi.stockValue)}</td>
+                <td style={{ padding:'10px 16px', textAlign:'right', fontWeight:700, color:'#22C55E' }}>AED {fmt(overallKpi.stockValue)}</td>
               </tr>
               {/* ── OEM Spare separator ── */}
               <tr>
@@ -466,8 +471,8 @@ export default function SpareParts() {
                   <td style={{ padding:'9px 12px', textAlign:'center' }}>
                     <span style={{ fontWeight:700, fontSize:14, color:'#22C55E' }}>{s.currentStock||0}</span>
                   </td>
-                  <td style={{ padding:'9px 12px', textAlign:'center', color:'#374151' }}>₹{fmt(s.unitPrice)}</td>
-                  <td style={{ padding:'9px 12px', textAlign:'right', color:'#22C55E', fontWeight:600 }}>₹{fmt(s.totalValue)}</td>
+                  <td style={{ padding:'9px 12px', textAlign:'center', color:'#374151' }}>AED {fmt(s.unitPrice)}</td>
+                  <td style={{ padding:'9px 12px', textAlign:'right', color:'#22C55E', fontWeight:600 }}>AED {fmt(s.totalValue)}</td>
                   <td style={{ padding:'9px 12px', color:'#6366F1', fontFamily:'monospace', fontSize:11, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{s.poNumber || '—'}</td>
                   <td style={{ padding:'9px 12px' }}>
                     <div style={{ display:'flex', gap:4 }}>
@@ -515,8 +520,8 @@ export default function SpareParts() {
               <BarChart data={storeCostChart}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#F3F4F6"/>
                 <XAxis dataKey="name" tick={{fontSize:11,fill:'#64748b'}} axisLine={false} tickLine={false}/>
-                <YAxis tick={{fontSize:11,fill:'#64748b'}} axisLine={false} tickLine={false} tickFormatter={(v:any)=>`₹${(v/1000).toFixed(0)}K`}/>
-                <Tooltip formatter={(v:any)=>[`₹${Number(v).toLocaleString('en-IN')}`, 'Value']} contentStyle={{background:'white',border:'1px solid #E5E7EB',borderRadius:8,fontSize:12}}/>
+                <YAxis tick={{fontSize:11,fill:'#64748b'}} axisLine={false} tickLine={false} tickFormatter={(v:any)=>`AED ${(v/1000).toFixed(0)}K`}/>
+                <Tooltip formatter={(v:any)=>[`AED ${Number(v).toLocaleString('en-AE')}`, 'Value']} contentStyle={{background:'white',border:'1px solid #E5E7EB',borderRadius:8,fontSize:12}}/>
                 <Bar dataKey="value" radius={[4,4,0,0]}>
                   {storeCostChart.map((_,idx)=><Cell key={idx} fill={Object.values(STORE_COLORS)[idx]||'#3B82F6'}/>)}
                 </Bar>
@@ -529,9 +534,9 @@ export default function SpareParts() {
             <ResponsiveContainer width="100%" height={200}>
               <BarChart data={catCostChart} layout="vertical">
                 <CartesianGrid strokeDasharray="3 3" stroke="#F3F4F6"/>
-                <XAxis type="number" tick={{fontSize:10,fill:'#64748b'}} axisLine={false} tickLine={false} tickFormatter={(v:any)=>`₹${(v/1000).toFixed(0)}K`}/>
+                <XAxis type="number" tick={{fontSize:10,fill:'#64748b'}} axisLine={false} tickLine={false} tickFormatter={(v:any)=>`AED ${(v/1000).toFixed(0)}K`}/>
                 <YAxis type="category" dataKey="name" tick={{fontSize:10,fill:'#374151'}} axisLine={false} tickLine={false} width={80}/>
-                <Tooltip formatter={(v:any)=>[`₹${Number(v).toLocaleString('en-IN')}`, 'Value']} contentStyle={{background:'white',border:'1px solid #E5E7EB',borderRadius:8,fontSize:12}}/>
+                <Tooltip formatter={(v:any)=>[`AED ${Number(v).toLocaleString('en-AE')}`, 'Value']} contentStyle={{background:'white',border:'1px solid #E5E7EB',borderRadius:8,fontSize:12}}/>
                 <Bar dataKey="value" radius={[0,4,4,0]}>
                   {catCostChart.map((_,idx)=><Cell key={idx} fill={CHART_COLORS[idx%CHART_COLORS.length]}/>)}
                 </Bar>
@@ -545,8 +550,8 @@ export default function SpareParts() {
               <BarChart data={top10Chart}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#F3F4F6"/>
                 <XAxis dataKey="name" tick={{fontSize:10,fill:'#64748b'}} axisLine={false} tickLine={false}/>
-                <YAxis tick={{fontSize:11,fill:'#64748b'}} axisLine={false} tickLine={false} tickFormatter={(v:any)=>`₹${(v/1000).toFixed(0)}K`}/>
-                <Tooltip formatter={(v:any)=>[`₹${Number(v).toLocaleString('en-IN')}`, 'Total Value']} contentStyle={{background:'white',border:'1px solid #E5E7EB',borderRadius:8,fontSize:12}}/>
+                <YAxis tick={{fontSize:11,fill:'#64748b'}} axisLine={false} tickLine={false} tickFormatter={(v:any)=>`AED ${(v/1000).toFixed(0)}K`}/>
+                <Tooltip formatter={(v:any)=>[`AED ${Number(v).toLocaleString('en-AE')}`, 'Total Value']} contentStyle={{background:'white',border:'1px solid #E5E7EB',borderRadius:8,fontSize:12}}/>
                 <Bar dataKey="value" radius={[4,4,0,0]}>
                   {top10Chart.map((_,idx)=><Cell key={idx} fill={CHART_COLORS[idx%CHART_COLORS.length]}/>)}
                 </Bar>
@@ -560,7 +565,7 @@ export default function SpareParts() {
               <FileText size={14} style={{color:'#3B82F6'}}/> Store-Wise Cost Report
               <button onClick={()=>{
                 const wb=XLSX.utils.book_new();
-                XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(storeSummary.map(s=>({'Store':s.store,'Items':s.items,'Value (₹)':s.value}))),'Store Cost Summary');
+                XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(storeSummary.map(s=>({'Store':s.store,'Items':s.items,'Value (AED)':s.value}))),'Store Cost Summary');
                 XLSX.writeFile(wb,`StoreCostSummary_${new Date().toISOString().slice(0,10)}.xlsx`);
               }} style={{ marginLeft:'auto', padding:'4px 10px', background:'#F0FDF4', border:'1px solid #BBF7D0', borderRadius:6, color:'#166534', fontSize:11, cursor:'pointer', display:'flex', alignItems:'center', gap:4 }}>
                 <Download size={11}/> Export
@@ -586,7 +591,7 @@ export default function SpareParts() {
                         </div>
                       </td>
                       <td style={{ padding:'9px 12px', textAlign:'right', color:'#374151' }}>{s.items}</td>
-                      <td style={{ padding:'9px 12px', textAlign:'right', color:'#22C55E', fontWeight:600 }}>₹{fmt(s.value)}</td>
+                      <td style={{ padding:'9px 12px', textAlign:'right', color:'#22C55E', fontWeight:600 }}>AED {fmt(s.value)}</td>
                       <td style={{ padding:'9px 12px', textAlign:'right' }}>
                         <div style={{ display:'flex', alignItems:'center', justifyContent:'flex-end', gap:8 }}>
                           <div style={{ width:60, height:6, background:'#F1F5F9', borderRadius:3, overflow:'hidden' }}>
@@ -601,7 +606,7 @@ export default function SpareParts() {
                 <tr style={{ background:'#F0F9FF', borderTop:'2px solid #BFDBFE' }}>
                   <td style={{ padding:'9px 12px', fontWeight:700, color:'#1E40AF' }}>Total</td>
                   <td style={{ padding:'9px 12px', textAlign:'right', fontWeight:700, color:'#111827' }}>{overallKpi.total}</td>
-                  <td style={{ padding:'9px 12px', textAlign:'right', fontWeight:700, color:'#22C55E' }}>₹{fmt(overallKpi.stockValue)}</td>
+                  <td style={{ padding:'9px 12px', textAlign:'right', fontWeight:700, color:'#22C55E' }}>AED {fmt(overallKpi.stockValue)}</td>
                   <td style={{ padding:'9px 12px', textAlign:'right', color:'#64748b', fontSize:11 }}>100%</td>
                 </tr>
               </tbody>
@@ -695,7 +700,7 @@ function AddEditModal({ item, onSave, onClose }: any) {
               <input type="number" min="0" value={form.currentStock||0} onChange={e=>set('currentStock',Number(e.target.value))} style={fieldStyle}/>
             </div>
             <div>
-              <label style={labelStyle}>Unit Price (₹)</label>
+              <label style={labelStyle}>Unit Price (AED)</label>
               <input type="number" min="0" value={form.unitPrice||0} onChange={e=>set('unitPrice',Number(e.target.value))} style={fieldStyle}/>
             </div>
             <div>
@@ -704,8 +709,8 @@ function AddEditModal({ item, onSave, onClose }: any) {
             </div>
 
             <div style={{ gridColumn:'1/-1' }}>
-              <label style={labelStyle}>Total Inventory Value (₹) <span style={{color:'#22C55E',fontSize:10}}>(auto = Current Stock × Unit Price)</span></label>
-              <input value={`₹ ${fmt(form.totalValue||0)}`} readOnly style={{...fieldStyle, background:'#F0FDF4', color:'#22C55E', fontWeight:700, fontSize:14}}/>
+              <label style={labelStyle}>Total Inventory Value (AED) <span style={{color:'#22C55E',fontSize:10}}>(auto = Current Stock × Unit Price)</span></label>
+              <input value={`AED ${fmt(form.totalValue||0)}`} readOnly style={{...fieldStyle, background:'#F0FDF4', color:'#22C55E', fontWeight:700, fontSize:14}}/>
             </div>
 
           </div>
@@ -784,7 +789,7 @@ function ImportModal({ importRows, importing, importDone, onFileSelect, onConfir
                         <td style={{ padding:'7px 10px', color:'#64748b' }}>{String(r['Store']||'—')}</td>
                         <td style={{ padding:'7px 10px', color:'#64748b' }}>{String(r['Unit']||'—')}</td>
                         <td style={{ padding:'7px 10px', textAlign:'right', color:'#374151' }}>{r['Current Stock']??'—'}</td>
-                        <td style={{ padding:'7px 10px', textAlign:'right', color:'#374151' }}>₹{r['Unit Price']??'—'}</td>
+                        <td style={{ padding:'7px 10px', textAlign:'right', color:'#374151' }}>AED {r['Unit Price']??'—'}</td>
                         <td style={{ padding:'7px 10px', color:'#6366F1', fontFamily:'monospace' }}>{String(r['PO Number']||'—')}</td>
                       </tr>
                     ))}
