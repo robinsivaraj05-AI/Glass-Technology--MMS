@@ -22,6 +22,7 @@ import projectRoutes from './routes/projects';
 import pendingJobRoutes from './routes/pendingJobs';
 import followupJobRoutes from './routes/followupJobs';
 import reminderRoutes from './routes/reminders';
+import sparePartRoutes from './routes/spareParts';
 
 const app = express();
 
@@ -58,6 +59,7 @@ app.use('/api/projects', projectRoutes);
 app.use('/api/pending-jobs', pendingJobRoutes);
 app.use('/api/followup-jobs', followupJobRoutes);
 app.use('/api/reminders', reminderRoutes);
+app.use('/api/spare-parts', sparePartRoutes);
 
 // 404 handler
 app.use((req, res) => res.status(404).json({ message: `Route ${req.originalUrl} not found` }));
