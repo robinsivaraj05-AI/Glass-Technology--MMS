@@ -352,23 +352,35 @@ export default function SpareParts() {
 
         {/* Table */}
         <div style={{ background:'white', borderRadius:12, border:'1px solid #E5E7EB', overflow:'auto' }}>
-          <table style={{ width:'100%', borderCollapse:'collapse', fontSize:12, minWidth:700 }}>
+          <table style={{ width:'100%', borderCollapse:'collapse', fontSize:12, minWidth:800, tableLayout:'fixed' }}>
+            <colgroup>
+              <col style={{ width:90 }}/>   {/* Spare Code */}
+              <col style={{ width:'28%' }}/> {/* Item Name — wider */}
+              <col style={{ width:100 }}/>  {/* Category */}
+              <col style={{ width:80 }}/>   {/* Store */}
+              <col style={{ width:60 }}/>   {/* Unit */}
+              <col style={{ width:90 }}/>   {/* Current Stock */}
+              <col style={{ width:90 }}/>   {/* Unit Price */}
+              <col style={{ width:110 }}/>  {/* Total Value */}
+              <col style={{ width:130 }}/>  {/* PO Number */}
+              <col style={{ width:80 }}/>   {/* Actions */}
+            </colgroup>
             <thead>
               <tr style={{ background:'#F9FAFB', borderBottom:'1px solid #E5E7EB' }}>
                 {[
-                  {key:'spareCode',    label:'Spare Code'},
-                  {key:'itemName',     label:'Item Name'},
-                  {key:'category',     label:'Category'},
-                  {key:'storeName',    label:'Store'},
-                  {key:'unit',         label:'Unit'},
-                  {key:'currentStock', label:'Current Stock'},
-                  {key:'unitPrice',    label:'Unit Price'},
-                  {key:'totalValue',   label:'Total Value'},
-                  {key:'poNumber',     label:'PO Number'},
-                  {key:null,           label:'Actions'},
+                  {key:'spareCode',    label:'Spare Code',    align:'left'},
+                  {key:'itemName',     label:'Item Name',     align:'left'},
+                  {key:'category',     label:'Category',      align:'left'},
+                  {key:'storeName',    label:'Store',         align:'left'},
+                  {key:'unit',         label:'Unit',          align:'left'},
+                  {key:'currentStock', label:'Current Stock', align:'center'},
+                  {key:'unitPrice',    label:'Unit Price',    align:'center'},
+                  {key:'totalValue',   label:'Total Value',   align:'right'},
+                  {key:'poNumber',     label:'PO Number',     align:'left'},
+                  {key:null,           label:'Actions',       align:'left'},
                 ].map(h=>(
-                  <th key={h.label} onClick={()=>h.key&&toggleSort(h.key)} style={{ padding:'10px 12px', textAlign:'left', color:'#374151', fontWeight:600, fontSize:11, whiteSpace:'nowrap', cursor:h.key?'pointer':'default', userSelect:'none' }}>
-                    <span style={{ display:'inline-flex', alignItems:'center', gap:3 }}>
+                  <th key={h.label} onClick={()=>h.key&&toggleSort(h.key)} style={{ padding:'10px 12px', textAlign:h.align as any, color:'#374151', fontWeight:600, fontSize:11, whiteSpace:'nowrap', cursor:h.key?'pointer':'default', userSelect:'none', overflow:'hidden' }}>
+                    <span style={{ display:'inline-flex', alignItems:'center', justifyContent: h.align==='center'?'center':'flex-start', gap:3 }}>
                       {h.label}
                       {h.key && sortBy===h.key && (sortDir==='asc'?<ChevronUp size={11}/>:<ChevronDown size={11}/>)}
                     </span>
@@ -383,21 +395,21 @@ export default function SpareParts() {
                 <tr><td colSpan={10} style={{ padding:40, textAlign:'center', color:'#94a3b8' }}>No items found</td></tr>
               ) : pageItems.map((s:any, i:number)=>(
                 <tr key={s._id} style={{ borderBottom:'1px solid #F3F4F6', background:i%2===0?'white':'#FAFAFA' }}>
-                  <td style={{ padding:'9px 12px', color:'#3B82F6', fontFamily:'monospace', fontWeight:600, whiteSpace:'nowrap' }}>{s.spareCode}</td>
-                  <td style={{ padding:'9px 12px', color:'#111827', fontWeight:500, maxWidth:180, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{s.itemName}</td>
-                  <td style={{ padding:'9px 12px' }}><span style={{ padding:'2px 7px', background:'#F1F5F9', borderRadius:20, color:'#374151', fontSize:10 }}>{s.category}</span></td>
-                  <td style={{ padding:'9px 12px' }}>
+                  <td style={{ padding:'9px 12px', color:'#3B82F6', fontFamily:'monospace', fontWeight:600, whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>{s.spareCode}</td>
+                  <td style={{ padding:'9px 12px', color:'#111827', fontWeight:500, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{s.itemName}</td>
+                  <td style={{ padding:'9px 12px', overflow:'hidden' }}><span style={{ padding:'2px 7px', background:'#F1F5F9', borderRadius:20, color:'#374151', fontSize:10 }}>{s.category}</span></td>
+                  <td style={{ padding:'9px 12px', overflow:'hidden' }}>
                     <span style={{ padding:'2px 7px', background:(STORE_COLORS[s.storeName]||'#94a3b8')+'20', borderRadius:20, color:STORE_COLORS[s.storeName]||'#64748b', fontSize:10, fontWeight:600 }}>
                       {(s.storeName||'').replace(' Store','')}
                     </span>
                   </td>
-                  <td style={{ padding:'9px 12px', color:'#64748b' }}>{s.unit}</td>
-                  <td style={{ padding:'9px 12px', textAlign:'right' }}>
+                  <td style={{ padding:'9px 12px', color:'#64748b', textAlign:'center' }}>{s.unit}</td>
+                  <td style={{ padding:'9px 12px', textAlign:'center' }}>
                     <span style={{ fontWeight:700, fontSize:14, color:'#22C55E' }}>{s.currentStock||0}</span>
                   </td>
-                  <td style={{ padding:'9px 12px', textAlign:'right', color:'#374151' }}>₹{fmt(s.unitPrice)}</td>
+                  <td style={{ padding:'9px 12px', textAlign:'center', color:'#374151' }}>₹{fmt(s.unitPrice)}</td>
                   <td style={{ padding:'9px 12px', textAlign:'right', color:'#22C55E', fontWeight:600 }}>₹{fmt(s.totalValue)}</td>
-                  <td style={{ padding:'9px 12px', color:'#6366F1', fontFamily:'monospace', fontSize:11 }}>{s.poNumber || '—'}</td>
+                  <td style={{ padding:'9px 12px', color:'#6366F1', fontFamily:'monospace', fontSize:11, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{s.poNumber || '—'}</td>
                   <td style={{ padding:'9px 12px' }}>
                     <div style={{ display:'flex', gap:4 }}>
                       <button onClick={()=>{setEditItem(s);setShowAdd(true);}} style={{ padding:'4px 8px', background:'#EFF6FF', border:'1px solid #BFDBFE', borderRadius:6, color:'#3B82F6', cursor:'pointer', display:'flex', alignItems:'center' }}><Edit2 size={11}/></button>
