@@ -169,7 +169,11 @@ export default function SpareParts() {
       'Store Name': s.store, 'Total Items': s.items, 'Inventory Value (AED)': s.value,
     }));
     XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(sumRows), 'Store Cost Summary');
-    XLSX.writeFile(wb, `SpareParts_${new Date().toISOString().slice(0,10)}.xlsx`);
+    const now = new Date();
+    const dd = String(now.getDate()).padStart(2,'0');
+    const mm = String(now.getMonth()+1).padStart(2,'0');
+    const yyyy = now.getFullYear();
+    XLSX.writeFile(wb, `E&I Spare list_${dd}-${mm}-${yyyy}.xlsx`);
   }
 
   function handleDownloadTemplate() {
