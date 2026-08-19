@@ -63,6 +63,8 @@ export default function SpareParts() {
   const [activeTab,    setActiveTab]    = useState<'inventory'|'analytics'>('inventory');
   const [search,       setSearch]       = useState('');
   const [catFilter,    setCatFilter]    = useState('all');
+  const [areaFilter,   setAreaFilter]   = useState('all');
+  const [poFilter,     setPoFilter]     = useState('all');
   const [sortBy,       setSortBy]       = useState('itemName');
   const [sortDir,      setSortDir]      = useState<'asc'|'desc'>('asc');
   const [page,         setPage]         = useState(1);
@@ -98,12 +100,17 @@ export default function SpareParts() {
     ? inStockSpares
     : inStockSpares.filter((s:any) => effectiveStore(s) === activeStore);
   const categories = ['all', ...Array.from(new Set(inStockSpares.map((s:any) => s.category))).filter(Boolean)];
+  const areas      = ['all', ...Array.from(new Set(inStockSpares.map((s:any) => s.area))).filter(Boolean).sort()];
+  const poNumbers  = ['all', ...Array.from(new Set(inStockSpares.map((s:any) => s.poNumber))).filter(Boolean).sort()];
 
   const filtered = storeItems.filter((s:any) => {
     const t = search.toLowerCase();
     if (t && !s.itemName?.toLowerCase().includes(t) && !s.spareCode?.toLowerCase().includes(t)
-           && !s.category?.toLowerCase().includes(t) && !s.poNumber?.toLowerCase().includes(t)) return false;
-    if (catFilter !== 'all' && s.category !== catFilter) return false;
+           && !s.category?.toLowerCase().includes(t) && !s.poNumber?.toLowerCase().includes(t)
+           && !s.area?.toLowerCase().includes(t)) return false;
+    if (catFilter  !== 'all' && s.category !== catFilter)  return false;
+    if (areaFilter !== 'all' && s.area     !== areaFilter) return false;
+    if (poFilter   !== 'all' && s.poNumber !== poFilter)   return false;
     return true;
   });
 
@@ -407,6 +414,12 @@ export default function SpareParts() {
           </div>
           <select value={catFilter} onChange={e=>{setCatFilter(e.target.value);setPage(1);}} style={{ padding:'8px 10px', border:'1px solid #E2E8F0', borderRadius:8, fontSize:12, background:'white', color:'#374151', outline:'none' }}>
             {categories.map(c=><option key={String(c)} value={String(c)}>{c==='all'?'All Categories':String(c)}</option>)}
+          </select>
+          <select value={areaFilter} onChange={e=>{setAreaFilter(e.target.value);setPage(1);}} style={{ padding:'8px 10px', border:'1px solid #E2E8F0', borderRadius:8, fontSize:12, background:'white', color:'#374151', outline:'none' }}>
+            {areas.map(a=><option key={String(a)} value={String(a)}>{a==='all'?'All Areas':String(a)}</option>)}
+          </select>
+          <select value={poFilter} onChange={e=>{setPoFilter(e.target.value);setPage(1);}} style={{ padding:'8px 10px', border:'1px solid #E2E8F0', borderRadius:8, fontSize:12, background:'white', color:'#374151', outline:'none', maxWidth:160 }}>
+            {poNumbers.map(p=><option key={String(p)} value={String(p)}>{p==='all'?'All PO Numbers':String(p)}</option>)}
           </select>
           <span style={{ fontSize:12, color:'#64748b' }}>{filtered.length} item{filtered.length!==1?'s':''}</span>
         </div>
