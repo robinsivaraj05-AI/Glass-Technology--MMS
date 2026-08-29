@@ -621,7 +621,7 @@ export default function PurchaseFollowup() {
                   <td style={{ fontWeight:600, fontSize:12, color: tlc||'#64748b' }}>{r.requiredTimeline||'—'}</td>
                   <td>
                     <select value={r.currentStatus} onChange={e=>updateStatusDirect(r.id,e.target.value)} style={{ width:'100%', padding:'4px 8px', borderRadius:7, fontSize:11, fontWeight:700, cursor:'pointer', outline:'none', background:sc?.bg||'#F3F4F6', border:`1px solid ${sc?sc.tc+'55':'#D1D5DB'}`, color:sc?.tc||'#6B7280' }}>
-                      {STATUSES.map(s=><option key={s} value={s} style={{ background:'#FFFFFF', color:STATUS_WEB[s]?.tc||'#374151' }}>{s||'— Not set —'}</option>)}
+                      {STATUSES.map(s=><option key={s} value={s} style={{ background:'#FFFFFF', color:'#374151' }}>{s||'— Not set —'}</option>)}
                     </select>
                   </td>
                   <td style={{ fontSize:12, color:'#60a5fa', fontFamily:'monospace' }}>{r.prNumber||'—'}</td>
@@ -724,7 +724,7 @@ export default function PurchaseFollowup() {
                         </td>
                         <td>
                           <select value={r.paymentStatus} onChange={e=>updatePaymentDirect(r.id,e.target.value)}
-                            style={{ width:'100%', padding:'4px 8px', borderRadius:7, fontSize:11, fontWeight:700, cursor:'pointer', outline:'none', background:pc?.bg||'rgba(255,255,255,0.06)', border:`1px solid ${pc?pc.tc+'55':'rgba(255,255,255,0.15)'}`, color:pc?.tc||'#374151' }}>
+                            style={{ width:'100%', padding:'4px 8px', borderRadius:7, fontSize:11, fontWeight:700, cursor:'pointer', outline:'none', background:pc?.bg||'#F3F4F6', border:`1px solid ${pc?pc.tc+'55':'#D1D5DB'}`, color:pc?.tc||'#6B7280' }}>
                             {PAYMENT_STATUSES.map(s=><option key={s} value={s} style={{ background:'#FFFFFF' }}>{s||'— Not set —'}</option>)}
                           </select>
                         </td>
