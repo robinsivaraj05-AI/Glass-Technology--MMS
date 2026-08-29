@@ -81,11 +81,12 @@ const CustomTooltip = ({ active, payload, label }: any) => {
 
 // ─── PDF GENERATION ────────────────────────────────────────────────────────────
 async function generateManagementReport(dateFrom: string, dateTo: string, sections: Record<string, boolean>) {
-  const from      = new Date(dateFrom);
-  const year      = from.getFullYear();
-  const month     = from.getMonth() + 1;
+  const from       = new Date(dateFrom);
+  const year       = from.getFullYear();
+  const month      = from.getMonth() + 1;
   const monthLabel = from.toLocaleDateString('en-GB', { month: 'long', year: 'numeric' });
-  const today     = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+  const reportTitle = `E&I ${monthLabel} Monthly Report`;
+  const today      = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
 
   const need = (k: string) => sections[k] !== false;
 
@@ -152,34 +153,32 @@ async function generateManagementReport(dateFrom: string, dateTo: string, sectio
   // ── PDF setup ────────────────────────────────────────────────────────
   const jsPDFmod  = (await import('jspdf')).default;
   const autoTable = (await import('jspdf-autotable')).default;
-  const doc = new jsPDFmod({ orientation: 'portrait', unit: 'mm', format: 'a4' });
-  const W = 210;
+  const doc = new jsPDFmod({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+  const W = 297; // landscape A4 width
+  const H = 210; // landscape A4 height
 
   const BLUE   = [37, 99, 235];
   const GREY   = [100, 116, 139];
   const DARK   = [30, 41, 59];
   const WHITE  = [255, 255, 255];
-  const LIGHT  = [241, 245, 249];
   const GREEN  = [22, 163, 74];
   const ORANGE = [234, 88, 12];
   const TEAL   = [14, 165, 233];
   const PURPLE = [109, 40, 217];
+  const RED    = [220, 38, 38];
 
   // ─── Cover page ──────────────────────────────────────────────────────
   doc.setFillColor(...BLUE);
-  doc.rect(0, 0, W, 75, 'F');
+  doc.rect(0, 0, W, 80, 'F');
 
   doc.setFont('helvetica', 'bold');
-  doc.setFontSize(22);
+  doc.setFontSize(26);
   doc.setTextColor(...WHITE);
-  doc.text('Monthly Management Report', W / 2, 28, { align: 'center' });
-  doc.setFontSize(14);
+  doc.text(reportTitle, W / 2, 32, { align: 'center' });
+  doc.setFontSize(12);
   doc.setFont('helvetica', 'normal');
-  doc.text(monthLabel, W / 2, 40, { align: 'center' });
-  doc.setFontSize(9);
   doc.setTextColor(200, 220, 255);
-  doc.text(`Period: ${dateFrom}  →  ${dateTo}`, W / 2, 50, { align: 'center' });
-  doc.text(`Generated: ${today}    ·    E&I Department — Glass Technology`, W / 2, 58, { align: 'center' });
+  doc.text(`Period: ${dateFrom}  →  ${dateTo}     ·     Generated: ${today}     ·     E&I Department — Glass Technology`, W / 2, 46, { align: 'center' });
 
   // KPI cover boxes
   const coverBoxes = [
@@ -191,38 +190,36 @@ async function generateManagementReport(dateFrom: string, dateTo: string, sectio
     { label: 'Total PO Value',       value: fmtAED(totalPOValue),         color: [220, 38, 38] },
   ].filter((_, i) => i < 6);
 
-  const bW = 57, bH = 20, bGap = 7, bX0 = 15, bY0 = 84;
+  // 6 KPI boxes in a single row (landscape fits them nicely)
+  const bW = 42, bH = 22, bGap = 5, bX0 = 15, bY0 = 90;
   coverBoxes.forEach((b, i) => {
-    const bx = bX0 + (i % 3) * (bW + bGap);
-    const by = bY0 + Math.floor(i / 3) * (bH + 5);
+    const bx = bX0 + i * (bW + bGap);
     doc.setFillColor(248, 250, 252);
     doc.setDrawColor(226, 232, 240);
     doc.setLineWidth(0.3);
-    doc.roundedRect(bx, by, bW, bH, 3, 3, 'FD');
+    doc.roundedRect(bx, bY0, bW, bH, 3, 3, 'FD');
     doc.setFont('helvetica', 'bold');
-    doc.setFontSize(10);
+    doc.setFontSize(11);
     doc.setTextColor(...b.color);
-    doc.text(b.value, bx + bW / 2, by + 9, { align: 'center' });
+    doc.text(b.value, bx + bW / 2, bY0 + 10, { align: 'center' });
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(6.5);
     doc.setTextColor(...GREY);
-    doc.text(b.label, bx + bW / 2, by + 15.5, { align: 'center' });
+    doc.text(b.label, bx + bW / 2, bY0 + 18, { align: 'center' });
   });
 
   // Sections included
-  let y = bY0 + 2 * (bH + 5) + 12;
+  let y = bY0 + bH + 10;
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(9);
   doc.setTextColor(...DARK);
-  doc.text('Sections Included in This Report:', 15, y); y += 5;
+  doc.text('Sections Included:', 15, y); y += 5;
   const includedSections = MGMT_SECTIONS.filter(s => need(s.key));
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(8);
   doc.setTextColor(...GREY);
   includedSections.forEach((s, i) => {
-    const col = i % 2;
-    const row = Math.floor(i / 2);
-    doc.text(`• ${s.label}`, 15 + col * 90, y + row * 5);
+    doc.text(`• ${s.label}`, 15 + (i % 4) * 68, y + Math.floor(i / 4) * 5);
   });
 
   // ── helper: section header ──
@@ -257,120 +254,161 @@ async function generateManagementReport(dateFrom: string, dateTo: string, sectio
 
   // ─── 1. SPARE PARTS STORE-WISE SUMMARY ────────────────────────────────
   if (need('spares')) {
-    y = sectionHeader('Spare Parts Store-Wise Summary', `As of ${today}`);
+    y = sectionHeader('Spare Parts Inventory — Store-Wise Cost Summary', `As of ${today}`);
 
-    // Regular stores table
-    y = subHeader(y, 'Regular Stores');
+    // KPI boxes: Total Items + Total Value
+    const sKpis = [
+      { label: 'Total Regular Items', value: fmt(regularCount),  color: BLUE },
+      { label: 'Total Stock Value',   value: fmtAED(regularTotal), color: GREEN },
+      { label: 'OEM Spare Items',     value: fmt(oemCount),      color: [20, 184, 166] },
+    ];
+    sKpis.forEach((k, i) => {
+      const kx = 10 + i * 70;
+      doc.setFillColor(248, 250, 252); doc.setDrawColor(226, 232, 240); doc.setLineWidth(0.3);
+      doc.roundedRect(kx, y, 64, 18, 3, 3, 'FD');
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(12); doc.setTextColor(...k.color);
+      doc.text(k.value, kx + 32, y + 9, { align: 'center' });
+      doc.setFont('helvetica', 'normal'); doc.setFontSize(7); doc.setTextColor(...GREY);
+      doc.text(k.label, kx + 32, y + 15, { align: 'center' });
+    });
+    y += 26;
+
+    // Regular stores table with colored dot indicator
+    y = subHeader(y, 'Store-Wise Inventory');
+    const allStoreRows = [
+      ...regularStores.map(s => ({ store: s.store, count: s.count, value: s.value, isOEM: false, isTotalRow: false })),
+      { store: 'Total (Regular Stores)', count: regularCount, value: regularTotal, isOEM: false, isTotalRow: true },
+      { store: 'OEM SPARES — COST INCLUDED IN PROJECT', count: null, value: null, isOEM: true, isBanner: true },
+      ...oemStores.map(s => ({ store: s.store, count: s.count, value: null, isOEM: true, isTotalRow: false })),
+    ];
+
     autoTable(doc, {
       startY: y,
-      head: [['Store', 'Total Items (In Stock)', 'Inventory Value (AED)']],
-      body: [
-        ...regularStores.map(s => [s.store, fmt(s.count), s.value > 0 ? fmtAED(s.value) : 'AED 0']),
-        ['Total (Regular Stores)', fmt(regularCount), fmtAED(regularTotal)],
-      ],
-      styles: { fontSize: 9, cellPadding: 3.5 },
-      headStyles: { fillColor: BLUE, textColor: WHITE, fontStyle: 'bold' },
+      head: [['Store', 'Total Items (In Stock)', 'Inventory Value']],
+      body: allStoreRows.map(s => {
+        if ((s as any).isBanner) return ['', '', ''];
+        return [
+          s.store,
+          s.count !== null ? fmt(s.count) : '',
+          s.isOEM ? 'Free of Cost' : (s.value ? fmtAED(s.value) : 'AED 0'),
+        ];
+      }),
+      styles: { fontSize: 10, cellPadding: 4 },
+      headStyles: { fillColor: BLUE, textColor: WHITE, fontStyle: 'bold', fontSize: 10 },
       columnStyles: { 1: { halign: 'center' }, 2: { halign: 'right' } },
-      alternateRowStyles: { fillColor: [248, 250, 252] },
+      tableWidth: 180,
+      margin: { left: 10 },
       didParseCell: (data: any) => {
-        if (data.row.index === regularStores.length) {
+        const row = allStoreRows[data.row.index];
+        if (!row) return;
+        if ((row as any).isBanner) {
+          data.cell.styles.fillColor = [255, 247, 237];
+          data.cell.styles.textColor = [234, 88, 12];
           data.cell.styles.fontStyle = 'bold';
+          data.cell.styles.fontSize = 9;
+        } else if (row.isTotalRow) {
           data.cell.styles.fillColor = [219, 234, 254];
           data.cell.styles.textColor = BLUE;
+          data.cell.styles.fontStyle = 'bold';
+        } else if (row.isOEM) {
+          data.cell.styles.fillColor = [255, 251, 235];
+          if (data.column.index === 2) { data.cell.styles.textColor = GREEN; data.cell.styles.fontStyle = 'bold'; }
+        } else {
+          data.cell.styles.fillColor = data.row.index % 2 === 0 ? WHITE : [248, 250, 252];
+        }
+      },
+      didDrawCell: (data: any) => {
+        // Draw colored square indicator for store rows (column 0 body)
+        if (data.section === 'body' && data.column.index === 0) {
+          const row = allStoreRows[data.row.index];
+          if (!row || (row as any).isBanner || row.isTotalRow) return;
+          const storeColor = STORE_COLORS[row.store];
+          if (storeColor) {
+            doc.setFillColor(...storeColor);
+            doc.rect(data.cell.x + 2, data.cell.y + (data.cell.height - 3.5) / 2, 3.5, 3.5, 'F');
+          }
+        }
+        // Banner row: merge-look — print text spanning all columns
+        if (data.section === 'body' && data.column.index === 0) {
+          const row = allStoreRows[data.row.index];
+          if ((row as any).isBanner) {
+            doc.setFont('helvetica', 'bold');
+            doc.setFontSize(9);
+            doc.setTextColor(234, 88, 12);
+            doc.text('OEM SPARES — COST INCLUDED IN PROJECT (FREE OF COST)', data.cell.x + 2, data.cell.y + data.cell.height / 2 + 1.5);
+          }
         }
       },
     });
-    y = (doc as any).lastAutoTable.finalY + 8;
-
-    // OEM separator banner
-    doc.setFillColor(255, 247, 237);
-    doc.setDrawColor(253, 186, 116);
-    doc.setLineWidth(0.5);
-    doc.rect(10, y, W - 20, 10, 'FD');
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(8.5);
-    doc.setTextColor(234, 88, 12);
-    doc.text('OEM SPARES — COST INCLUDED IN PROJECT (FREE OF COST)', W / 2, y + 6.5, { align: 'center' });
-    y += 14;
-
-    // OEM stores table
-    autoTable(doc, {
-      startY: y,
-      head: [['OEM Store', 'Total Items (In Stock)', 'Inventory Value']],
-      body: oemStores.map(s => [s.store, fmt(s.count), 'Free of Cost']),
-      styles: { fontSize: 9, cellPadding: 3.5 },
-      headStyles: { fillColor: [245, 158, 11], textColor: WHITE, fontStyle: 'bold' },
-      columnStyles: {
-        1: { halign: 'center' },
-        2: { halign: 'right', textColor: GREEN, fontStyle: 'bold' },
-      },
-      alternateRowStyles: { fillColor: [255, 251, 235] },
-    });
-    y = (doc as any).lastAutoTable.finalY + 8;
-
-    // Grand summary box
-    doc.setFillColor(239, 246, 255);
-    doc.setDrawColor(...BLUE);
-    doc.setLineWidth(0.5);
-    doc.roundedRect(10, y, W - 20, 18, 3, 3, 'FD');
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(10);
-    doc.setTextColor(...BLUE);
-    doc.text(`Total Regular Store Value: ${fmtAED(regularTotal)}`, W / 2 - 30, y + 7, { align: 'center' });
-    doc.setFontSize(8);
-    doc.setTextColor(...GREY);
-    doc.text(`${fmt(regularCount)} regular items  ·  ${fmt(oemCount)} OEM items (free of cost)`, W / 2 - 30, y + 13.5, { align: 'center' });
   }
 
-  // ─── 2. ATTENDANCE ────────────────────────────────────────────────────
+  // ─── 2. ATTENDANCE WORK SUMMARY ──────────────────────────────────────
   if (need('attendance')) {
-    y = sectionHeader('Employee Attendance Summary', monthLabel);
+    y = sectionHeader('Employee Attendance — Monthly Work Summary', monthLabel);
 
-    const avgPresent = attSummary.length ? Math.round(attSummary.reduce((s, r) => s + r.present, 0) / attSummary.length) : 0;
-    const attPct     = daysInMonth > 0 ? ((avgPresent / daysInMonth) * 100).toFixed(1) : '0';
-    const empCount   = (Array.isArray(empRes) ? empRes : []).length || attSummary.length;
+    const empCount     = (Array.isArray(empRes) ? empRes : []).length || attSummary.length;
+    const totalPresent = attSummary.reduce((s, r) => s + r.present, 0);
+    const totalAbsent  = attSummary.reduce((s, r) => s + r.absent, 0);
+    const totalManDays = totalPresent; // manpower days = sum of all present
+    const avgPresent   = attSummary.length ? (totalPresent / attSummary.length).toFixed(1) : '0';
+    const attPct       = daysInMonth > 0 && attSummary.length > 0
+      ? ((totalPresent / (attSummary.length * daysInMonth)) * 100).toFixed(1) : '0';
 
-    const kpis = [
-      { label: 'Total Employees',  value: fmt(empCount),    color: BLUE },
-      { label: 'Avg Present Days', value: fmt(avgPresent),  color: GREEN },
-      { label: 'Attendance %',     value: `${attPct}%`,     color: Number(attPct) >= 90 ? GREEN : ORANGE },
-      { label: 'Working Days',     value: fmt(daysInMonth), color: GREY },
+    // 6 KPI summary boxes
+    const aKpis = [
+      { label: 'Total Employees',    value: fmt(empCount),       color: BLUE },
+      { label: 'Working Days / Month',value: fmt(daysInMonth),   color: DARK },
+      { label: 'Total Manpower Days', value: fmt(totalManDays),  color: GREEN },
+      { label: 'Total Absent Days',   value: fmt(totalAbsent),   color: RED },
+      { label: 'Avg Present / Person',value: `${avgPresent} days`,color: TEAL },
+      { label: 'Avg Attendance %',    value: `${attPct}%`,       color: Number(attPct) >= 90 ? GREEN : ORANGE },
     ];
-    const kW = 42, kH = 16, kX0 = 10;
-    kpis.forEach((k, i) => {
-      const kx = kX0 + i * (kW + 5);
-      doc.setFillColor(248, 250, 252);
-      doc.setDrawColor(226, 232, 240);
-      doc.setLineWidth(0.3);
-      doc.roundedRect(kx, y, kW, kH, 2, 2, 'FD');
-      doc.setFont('helvetica', 'bold');
-      doc.setFontSize(11);
-      doc.setTextColor(...k.color);
-      doc.text(k.value, kx + kW / 2, y + 8, { align: 'center' });
-      doc.setFont('helvetica', 'normal');
-      doc.setFontSize(6.5);
-      doc.setTextColor(...GREY);
-      doc.text(k.label, kx + kW / 2, y + 13.5, { align: 'center' });
+    const aW = 42, aH = 20;
+    aKpis.forEach((k, i) => {
+      const kx = 10 + i * (aW + 5);
+      doc.setFillColor(248, 250, 252); doc.setDrawColor(226, 232, 240); doc.setLineWidth(0.3);
+      doc.roundedRect(kx, y, aW, aH, 3, 3, 'FD');
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(12); doc.setTextColor(...k.color);
+      doc.text(k.value, kx + aW / 2, y + 10, { align: 'center' });
+      doc.setFont('helvetica', 'normal'); doc.setFontSize(6.5); doc.setTextColor(...GREY);
+      doc.text(k.label, kx + aW / 2, y + 17, { align: 'center' });
     });
-    y += kH + 8;
+    y += aH + 10;
 
     if (attSummary.length > 0) {
-      y = subHeader(y, 'Employee-wise Attendance');
+      y = subHeader(y, 'Employee-wise Monthly Attendance Summary');
       autoTable(doc, {
         startY: y,
-        head: [['#', 'Employee', 'Present', 'Absent', 'Attendance %']],
-        body: attSummary.map((r, i) => [
-          i + 1, r.name, r.present, r.absent,
-          r.total > 0 ? `${((r.present / r.total) * 100).toFixed(1)}%` : '—',
-        ]),
-        styles: { fontSize: 8.5, cellPadding: 3 },
+        head: [['#', 'Employee Name', 'Present Days', 'Absent Days', 'Leave / Others', 'Attendance %', 'Remarks']],
+        body: attSummary.map((r, i) => {
+          const other  = r.total - r.present - r.absent;
+          const pct    = r.total > 0 ? ((r.present / daysInMonth) * 100).toFixed(1) : '—';
+          const status = Number(pct) >= 95 ? 'Good' : Number(pct) >= 85 ? 'Average' : 'Low';
+          return [i + 1, r.name, r.present, r.absent, other > 0 ? other : '—', `${pct}%`, status];
+        }),
+        foot: [['', 'TOTAL', totalPresent, totalAbsent, '—', `${attPct}%`, '']],
+        styles: { fontSize: 9, cellPadding: 3.5 },
         headStyles: { fillColor: BLUE, textColor: WHITE, fontStyle: 'bold' },
-        columnStyles: { 0: { halign: 'center', cellWidth: 8 }, 2: { halign: 'center' }, 3: { halign: 'center' }, 4: { halign: 'center' } },
+        footStyles: { fillColor: [219, 234, 254], textColor: BLUE, fontStyle: 'bold' },
+        columnStyles: {
+          0: { halign: 'center', cellWidth: 10 },
+          2: { halign: 'center' }, 3: { halign: 'center' },
+          4: { halign: 'center' }, 5: { halign: 'center' },
+          6: { halign: 'center' },
+        },
         alternateRowStyles: { fillColor: [248, 250, 252] },
+        didParseCell: (data: any) => {
+          if (data.section === 'body' && data.column.index === 6) {
+            const v = data.cell.raw;
+            if (v === 'Good')    { data.cell.styles.textColor = GREEN; data.cell.styles.fontStyle = 'bold'; }
+            if (v === 'Low')     { data.cell.styles.textColor = RED;   data.cell.styles.fontStyle = 'bold'; }
+            if (v === 'Average') { data.cell.styles.textColor = ORANGE; }
+          }
+        },
       });
     } else {
       doc.setFontSize(9); doc.setTextColor(...GREY);
-      doc.text(`No attendance records found for ${monthLabel}.`, 10, y + 6);
+      doc.text(`No attendance records found for ${monthLabel}.`, 10, y + 8);
     }
   }
 
@@ -484,20 +522,50 @@ async function generateManagementReport(dateFrom: string, dateTo: string, sectio
       y = subHeader(y, 'Pending Purchase Items');
       autoTable(doc, {
         startY: y,
-        head: [['#', 'Item Description', 'Req. Date', 'Priority', 'Status', 'PR No.', 'Budget']],
-        body: pendingItems.map((r: any, i: number) => [
-          i + 1,
-          (r.itemDescription || '—').substring(0, 40),
-          r.requestDate ? new Date(r.requestDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: '2-digit' }) : '—',
-          r.requiredTimeline || '—',
-          r.currentStatus || 'No Status',
-          r.prNumber || '—',
-          r.budget ? fmtAED(r.budget) : '—',
-        ]),
-        styles: { fontSize: 7.5, cellPadding: 2.5 },
-        headStyles: { fillColor: BLUE, textColor: WHITE, fontStyle: 'bold' },
-        columnStyles: { 0: { halign: 'center', cellWidth: 8 }, 6: { halign: 'right' } },
+        head: [['SL', 'Item Description', 'Request Date', 'Days', 'Required Timeline', 'Current Status', 'PR Number', 'Req. Date', 'Budget', 'Lead Time', 'Working Time']],
+        body: pendingItems.map((r: any, i: number) => {
+          const reqDt = r.requestDate ? new Date(r.requestDate) : null;
+          const days  = reqDt ? Math.floor((Date.now() - reqDt.getTime()) / 86400000) : '—';
+          const fmtD  = (d: string) => d ? new Date(d).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: '2-digit' }) : '—';
+          return [
+            i + 1,
+            (r.itemDescription || '—').substring(0, 50),
+            fmtD(r.requestDate),
+            days,
+            r.requiredTimeline || '—',
+            r.currentStatus || '—',
+            r.prNumber || '—',
+            fmtD(r.reqDate),
+            r.budget ? fmtAED(r.budget) : '—',
+            r.leadTime || '—',
+            r.workingTime || '—',
+          ];
+        }),
+        styles: { fontSize: 7, cellPadding: 2 },
+        headStyles: { fillColor: BLUE, textColor: WHITE, fontStyle: 'bold', fontSize: 7 },
+        columnStyles: {
+          0:  { halign: 'center', cellWidth: 7 },
+          1:  { cellWidth: 58 },
+          2:  { halign: 'center', cellWidth: 22 },
+          3:  { halign: 'center', cellWidth: 12 },
+          4:  { halign: 'center', cellWidth: 22 },
+          5:  { cellWidth: 28 },
+          6:  { halign: 'center', cellWidth: 22 },
+          7:  { halign: 'center', cellWidth: 22 },
+          8:  { halign: 'right',  cellWidth: 24 },
+          9:  { halign: 'center', cellWidth: 20 },
+          10: { halign: 'center', cellWidth: 20 },
+        },
         alternateRowStyles: { fillColor: [248, 250, 252] },
+        didParseCell: (data: any) => {
+          if (data.column.index === 3 && data.section === 'body') {
+            const d = Number(data.cell.text[0]);
+            if (!isNaN(d)) {
+              if (d > 90)      data.cell.styles.textColor = RED;
+              else if (d > 30) data.cell.styles.textColor = ORANGE;
+            }
+          }
+        },
       });
     }
   }
@@ -639,18 +707,17 @@ async function generateManagementReport(dateFrom: string, dateTo: string, sectio
   for (let i = 1; i <= totalPages; i++) {
     doc.setPage(i);
     doc.setFillColor(248, 250, 252);
-    doc.rect(0, 285, W, 12, 'F');
+    doc.rect(0, H - 12, W, 12, 'F');
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(7);
     doc.setTextColor(...GREY);
-    doc.text('E&I Department — Glass Technology | Confidential', 10, 292);
-    doc.text(`Page ${i} of ${totalPages}`, W - 10, 292, { align: 'right' });
-    doc.text(today, W / 2, 292, { align: 'center' });
+    doc.text('E&I Department — Glass Technology | Confidential', 10, H - 5);
+    doc.text(`Page ${i} of ${totalPages}`, W - 10, H - 5, { align: 'right' });
+    doc.text(today, W / 2, H - 5, { align: 'center' });
   }
 
   // ─── Save ─────────────────────────────────────────────────────────────
-  const mm = String(month).padStart(2, '0');
-  doc.save(`Monthly_Management_Report_${year}-${mm}.pdf`);
+  doc.save(`EI_${monthLabel.replace(/\s+/g, '_')}_Monthly_Report.pdf`);
 }
 
 // ─── COMPONENT ─────────────────────────────────────────────────────────────────
