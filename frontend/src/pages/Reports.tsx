@@ -94,7 +94,7 @@ async function generateManagementReport(dateFrom: string, dateTo: string, sectio
 
   // ── Fetch only what's needed ──────────────────────────────────────────
   const [spareParts, empRes, attRes, outsourceRes, rentalRes, followupRes, poRes, projectRes, accessoriesRes] = await Promise.all([
-    need('spares')                          ? fetch('/api/spare-parts').then(r => r.json()).catch(() => []) : [],
+    need('spares')                          ? fetch('/api/spare-parts?limit=5000').then(r => r.json()).catch(() => ({ items: [] })) : { items: [] },
     need('attendance')                      ? fetch('/api/employees').then(r => r.json()).catch(() => []) : [],
     need('attendance')                      ? fetch(`/api/attendance?year=${year}&month=${month}`).then(r => r.json()).catch(() => []) : [],
     (need('outsource') || need('costing'))  ? fetch(`/api/outsource?from=${dateFrom}&to=${dateTo}&limit=2000`).then(r => r.json()).catch(() => ({ entries: [] })) : { entries: [] },
@@ -105,7 +105,7 @@ async function generateManagementReport(dateFrom: string, dateTo: string, sectio
     need('costing')                         ? fetch(`/api/accessories?from=${dateFrom}&to=${dateTo}&limit=2000`).then(r => r.json()).catch(() => ({ entries: [] })) : { entries: [] },
   ]);
 
-  const allSpares      = Array.isArray(spareParts) ? spareParts : [];
+  const allSpares      = spareParts?.items || (Array.isArray(spareParts) ? spareParts : []);
   const inStockSpares  = allSpares.filter(s => (s.currentStock || 0) > 0);
   const attRecords     = Array.isArray(attRes) ? attRes : [];
   const outsourceEntries = outsourceRes?.entries || [];
@@ -509,6 +509,38 @@ async function generateManagementReport(dateFrom: string, dateTo: string, sectio
           }
         },
       });
+    }
+
+    // Materials Received This Month
+    const receivedThisMonth = followupRecords.filter((r: any) => {
+      if (r.currentStatus !== 'Material Received') return false;
+      if (!r.receivedDate) return true;
+      const d = new Date(r.receivedDate);
+      return d.getFullYear() === year && (d.getMonth() + 1) === month;
+    });
+    y = (doc as any).lastAutoTable?.finalY + 10 || y + 10;
+    y = subHeader(y, `Materials Received This Month (${receivedThisMonth.length})`);
+    if (receivedThisMonth.length > 0) {
+      const fmtDs = (d: string) => d ? new Date(d).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: '2-digit' }) : '—';
+      autoTable(doc, {
+        startY: y,
+        head: [['#', 'Item Description', 'PR Number', 'Request Date', 'Received Date', 'Budget (AED)']],
+        body: receivedThisMonth.map((r: any, i: number) => [
+          i + 1,
+          (r.itemDescription || '—').substring(0, 60),
+          r.prNumber || '—',
+          fmtDs(r.requestDate),
+          fmtDs(r.receivedDate),
+          r.budget ? fmtAED(r.budget) : '—',
+        ]),
+        styles: { fontSize: 8.5, cellPadding: 3 },
+        headStyles: { fillColor: GREEN, textColor: WHITE, fontStyle: 'bold' },
+        columnStyles: { 0: { halign: 'center', cellWidth: 8 }, 2: { halign: 'center', cellWidth: 30 }, 3: { halign: 'center', cellWidth: 28 }, 4: { halign: 'center', cellWidth: 28 }, 5: { halign: 'right', cellWidth: 28 } },
+        alternateRowStyles: { fillColor: [240, 253, 244] },
+      });
+    } else {
+      doc.setFontSize(9); doc.setTextColor(...GREY);
+      doc.text(`No materials received in ${monthLabel}.`, 10, y + 6);
     }
   }
 
