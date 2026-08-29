@@ -904,6 +904,7 @@ export default function Reports() {
   const [dateTo,   setDateTo]   = useState(() => new Date().toISOString().slice(0, 10));
   const [format,   setFormat]   = useState<'pdf' | 'excel' | 'word'>('pdf');
   const [generating, setGenerating] = useState(false);
+  const [mgmtMonth, setMgmtMonth] = useState(() => new Date().toISOString().slice(0, 7)); // YYYY-MM
   const [mgmtSections, setMgmtSections] = useState<Record<string, boolean>>(
     Object.fromEntries(MGMT_SECTIONS.map(s => [s.key, true]))
   );
@@ -918,7 +919,11 @@ export default function Reports() {
     if (selectedReport === 'management') {
       if (!anySelected) { alert('Please select at least one section to include in the report.'); return; }
       setGenerating(true);
-      try { await generateManagementReport(dateFrom, dateTo, mgmtSections); }
+      const [my, mm] = mgmtMonth.split('-').map(Number);
+      const lastDay  = new Date(my, mm, 0).getDate();
+      const mFrom    = `${mgmtMonth}-01`;
+      const mTo      = `${mgmtMonth}-${String(lastDay).padStart(2, '0')}`;
+      try { await generateManagementReport(mFrom, mTo, mgmtSections); }
       catch (e) { console.error(e); alert('PDF generation failed. Check console.'); }
       finally { setGenerating(false); }
     }
@@ -1054,6 +1059,20 @@ export default function Reports() {
                 <div style={{ flex: 1 }}>
                   <div style={{ fontSize: 13, fontWeight: 700, color: '#1e40af' }}>Monthly Management Report</div>
                   <div style={{ fontSize: 10, color: '#64748b' }}>Select the sections to include — only ticked sections will appear in the PDF</div>
+                </div>
+                {/* Month picker */}
+                <div onClick={e => e.stopPropagation()} style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 2 }}>
+                  <label style={{ fontSize: 10, color: '#64748b', fontWeight: 500 }}>Report Month</label>
+                  <input
+                    type="month"
+                    value={mgmtMonth}
+                    onChange={e => setMgmtMonth(e.target.value)}
+                    style={{
+                      padding: '5px 10px', borderRadius: 8, border: '1.5px solid #93C5FD',
+                      background: '#EFF6FF', color: '#1e40af', fontSize: 12, fontWeight: 600,
+                      outline: 'none', cursor: 'pointer',
+                    }}
+                  />
                 </div>
                 <span style={{ fontSize: 10, fontWeight: 700, color: '#1e40af', background: '#DBEAFE', padding: '3px 12px', borderRadius: 20, whiteSpace: 'nowrap' }}>
                   Manager PDF
