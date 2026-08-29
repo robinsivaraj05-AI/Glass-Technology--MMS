@@ -445,7 +445,7 @@ export default function PurchaseFollowup() {
     } catch (e: any) { alert(e.message || 'Failed to delete'); }
   };
 
-  const lbl: React.CSSProperties = { fontSize: 12, color: '#94a3b8', display: 'block', marginBottom: 5 };
+  const lbl: React.CSSProperties = { fontSize: 12, color: '#64748b', display: 'block', marginBottom: 5 };
   const inp: React.CSSProperties = { width: '100%' };
   const todayStr = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: '2-digit' });
 
@@ -529,7 +529,7 @@ export default function PurchaseFollowup() {
           }}>
             {t.label}
             <span style={{ padding: '1px 8px', borderRadius: 20, fontSize: 11, fontWeight: 700,
-              background: listTab === t.key ? `${t.color}22` : 'rgba(255,255,255,0.05)',
+              background: listTab === t.key ? `${t.color}22` : '#F1F5F9',
               color: listTab === t.key ? t.color : '#475569',
             }}>{t.count}</span>
           </button>
@@ -553,7 +553,7 @@ export default function PurchaseFollowup() {
 
       {/* Sync message */}
       {syncMsg && (
-        <div style={{ padding: '8px 14px', background: 'rgba(59,130,246,0.1)', border: '1px solid rgba(59,130,246,0.3)', borderRadius: 8, fontSize: 12, color: '#93c5fd' }}>
+        <div style={{ padding: '8px 14px', background: 'rgba(59,130,246,0.1)', border: '1px solid rgba(59,130,246,0.3)', borderRadius: 8, fontSize: 12, color: '#1d4ed8' }}>
           {syncMsg}
         </div>
       )}
@@ -617,11 +617,11 @@ export default function PurchaseFollowup() {
                   <td style={{ textAlign:'center', color:'#64748b', fontSize:12, position:'sticky', left:0, background:'#FFFFFF', zIndex:1, boxShadow:'1px 0 0 #E5E7EB' }}>{sl}</td>
                   <td style={{ fontSize:13, fontWeight:500, color:'#1e293b', wordBreak:'break-word', overflow:'hidden' }}>{r.itemDescription}</td>
                   <td style={{ fontSize:11, color:'#94a3b8', whiteSpace:'nowrap' }}>{r.requestDate ? fmtDate(r.requestDate) : '—'}</td>
-                  <td style={{ textAlign:'center', fontWeight:700, fontSize:13, color: days && days>90 ? '#ef4444' : days && days>30 ? '#f59e0b' : '#e2e8f0' }}>{days !== null && days > 0 ? days : '—'}</td>
-                  <td style={{ fontWeight:600, fontSize:12, color: tlc||'#e2e8f0' }}>{r.requiredTimeline||'—'}</td>
+                  <td style={{ textAlign:'center', fontWeight:700, fontSize:13, color: days && days>90 ? '#ef4444' : days && days>30 ? '#f59e0b' : '#64748b' }}>{days !== null && days > 0 ? days : '—'}</td>
+                  <td style={{ fontWeight:600, fontSize:12, color: tlc||'#64748b' }}>{r.requiredTimeline||'—'}</td>
                   <td>
                     <select value={r.currentStatus} onChange={e=>updateStatusDirect(r.id,e.target.value)} style={{ width:'100%', padding:'4px 8px', borderRadius:7, fontSize:11, fontWeight:700, cursor:'pointer', outline:'none', background:sc?.bg||'rgba(255,255,255,0.06)', border:`1px solid ${sc?sc.tc+'55':'rgba(255,255,255,0.15)'}`, color:sc?.tc||'#374151' }}>
-                      {STATUSES.map(s=><option key={s} value={s} style={{ background:'#FFFFFF', color:STATUS_WEB[s]?.tc||'#e2e8f0' }}>{s||'— Not set —'}</option>)}
+                      {STATUSES.map(s=><option key={s} value={s} style={{ background:'#FFFFFF', color:STATUS_WEB[s]?.tc||'#374151' }}>{s||'— Not set —'}</option>)}
                     </select>
                   </td>
                   <td style={{ fontSize:12, color:'#60a5fa', fontFamily:'monospace' }}>{r.prNumber||'—'}</td>
@@ -682,7 +682,7 @@ export default function PurchaseFollowup() {
                       <td><input className="input-dark" style={{ fontSize:11, padding:'3px 6px', width:'100%' }} value={inlineRow.prNumber} onChange={e=>setIR('prNumber',e.target.value)} placeholder="PO / PR No."/></td>
                       <td><input type="date" className="input-dark" style={{ fontSize:11, padding:'3px 5px', width:'100%' }} value={inlineRow.receivedDate||''} onChange={e=>setIR('receivedDate',e.target.value)}/></td>
                       <td style={{ textAlign:'right', fontSize:12, color:'#22c55e', fontWeight:600 }}>{r.budget ? `AED ${r.budget.toLocaleString()}` : '—'}</td>
-                      <td style={{ textAlign:'center', fontWeight:700, color: dueDays && dueDays>60 ? '#ef4444' : dueDays && dueDays>30 ? '#f59e0b' : '#e2e8f0' }}>{dueDays ?? '—'}</td>
+                      <td style={{ textAlign:'center', fontWeight:700, color: dueDays && dueDays>60 ? '#ef4444' : dueDays && dueDays>30 ? '#f59e0b' : '#64748b' }}>{dueDays ?? '—'}</td>
                       <td style={{ textAlign:'right', fontSize:12, color:'#a855f7', fontWeight:700 }}>{totalPaid > 0 ? `AED ${totalPaid.toLocaleString()}` : '—'}</td>
                       <td style={{ textAlign:'right', fontSize:12, color:'#f59e0b', fontWeight:700 }}>{remaining > 0 ? `AED ${remaining.toLocaleString()}` : '✓'}</td>
                       <td>
@@ -703,14 +703,14 @@ export default function PurchaseFollowup() {
                     <React.Fragment key={r.id}>
                       <tr style={{ background: payments.length > 0 ? 'rgba(168,85,247,0.05)' : undefined }}>
                         <td style={{ textAlign:'center', color:'#64748b', fontSize:12 }}>{i+1}</td>
-                        <td style={{ fontSize:13, fontWeight:500, color:'#e2e8f0', wordBreak:'break-word' }}>
+                        <td style={{ fontSize:13, fontWeight:500, color:'#1e293b', wordBreak:'break-word' }}>
                           {r.itemDescription}
                           {payments.length > 0 && <span style={{ fontSize:10, color:'#a855f7', marginLeft:6, fontWeight:600 }}>{payments.length} payment{payments.length>1?'s':''}</span>}
                         </td>
                         <td style={{ fontSize:12, color:'#60a5fa', fontFamily:'monospace' }}>{r.prNumber||'—'}</td>
                         <td style={{ padding:'4px 6px' }}>
                           <input type="date" className="input-dark"
-                            style={{ fontSize:11, padding:'3px 5px', width:'100%', background:'transparent', border:'1px solid rgba(255,255,255,0.1)', borderRadius:5, color:'#94a3b8' }}
+                            style={{ fontSize:11, padding:'3px 5px', width:'100%', background:'transparent', border:'1px solid #E5E7EB', borderRadius:5, color:'#374151' }}
                             value={r.receivedDate||''} onChange={e=>updateFieldDirect(r.id,{receivedDate:e.target.value})}
                           />
                         </td>
@@ -833,10 +833,10 @@ export default function PurchaseFollowup() {
                     return (
                       <tr key={`po-${row.rec.id}`} style={{ background: full ? 'rgba(34,197,94,0.08)' : 'rgba(245,158,11,0.05)', borderLeft: full ? '3px solid rgba(34,197,94,0.6)' : '3px solid rgba(245,158,11,0.5)' }}>
                         <td style={{ textAlign:'center', fontSize:12, color:'#64748b', fontWeight:700 }}>{row.idx+1}</td>
-                        <td style={{ fontSize:13, fontWeight:700, color:'#e2e8f0', wordBreak:'break-word' }}>{row.rec.itemDescription}</td>
+                        <td style={{ fontSize:13, fontWeight:700, color:'#1e293b', wordBreak:'break-word' }}>{row.rec.itemDescription}</td>
                         <td style={{ fontSize:12, color:'#60a5fa', fontFamily:'monospace', fontWeight:700 }}>{row.rec.prNumber||'—'}</td>
                         <td style={{ fontSize:11, color:'#64748b' }}>{row.rec.receivedDate ? fmtDate(row.rec.receivedDate) : '—'}</td>
-                        <td style={{ textAlign:'right', fontSize:12, color:'#e2e8f0', fontWeight:700 }}>{row.rec.budget ? `AED ${row.rec.budget.toLocaleString()}` : '—'}</td>
+                        <td style={{ textAlign:'right', fontSize:12, color:'#374151', fontWeight:700 }}>{row.rec.budget ? `AED ${row.rec.budget.toLocaleString()}` : '—'}</td>
                         <td style={{ textAlign:'right', fontSize:12, color:'#a855f7', fontWeight:700 }}>{tp > 0 ? `AED ${tp.toLocaleString()}` : '—'}</td>
                         <td style={{ textAlign:'right', fontSize:12, fontWeight:700, color: rm>0 ? '#f59e0b' : '#22c55e' }}>{rm > 0 ? `AED ${rm.toLocaleString()}` : '✓ Fully Paid'}</td>
                         <td>
@@ -860,7 +860,7 @@ export default function PurchaseFollowup() {
                       </td>
                       <td style={{ fontSize:11, color:'#94a3b8', paddingLeft:28 }}>{rec.itemDescription}</td>
                       <td style={{ fontSize:11, color:'#64748b', fontFamily:'monospace' }}>{rec.prNumber||'—'}</td>
-                      <td style={{ fontSize:12, color:'#e2e8f0', fontWeight:600, whiteSpace:'nowrap' }}>{tx.date ? fmtDate(tx.date) : '—'}</td>
+                      <td style={{ fontSize:12, color:'#374151', fontWeight:600, whiteSpace:'nowrap' }}>{tx.date ? fmtDate(tx.date) : '—'}</td>
                       <td style={{ textAlign:'right', fontSize:11, color:'#475569' }}>{rec.budget ? `AED ${rec.budget.toLocaleString()}` : '—'}</td>
                       <td style={{ textAlign:'right', fontSize:13, fontWeight:800, color:isLast?'#22c55e':'#a855f7' }}>AED {tx.amount.toLocaleString()}</td>
                       <td style={{ textAlign:'right', fontSize:12, fontWeight:700, color:remaining>0?'#f59e0b':'#22c55e' }}>{remaining>0 ? `AED ${remaining.toLocaleString()}` : '✓ Cleared'}</td>
@@ -879,9 +879,9 @@ export default function PurchaseFollowup() {
       {payModal && (
         <div className="modal-overlay" onClick={()=>setPayModal(null)}>
           <div className="modal-content" style={{ maxWidth:420 }} onClick={e=>e.stopPropagation()}>
-            <div style={{ padding:'16px 20px', borderBottom:'1px solid rgba(255,255,255,0.06)', display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+            <div style={{ padding:'16px 20px', borderBottom:'1px solid #E5E7EB', display:'flex', justifyContent:'space-between', alignItems:'center' }}>
               <div>
-                <div style={{ fontSize:14, fontWeight:600, color:'#f1f5f9' }}>Add Payment</div>
+                <div style={{ fontSize:14, fontWeight:600, color:'#1e293b' }}>Add Payment</div>
                 <div style={{ fontSize:11, color:'#60a5fa', marginTop:2, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap', maxWidth:340 }}>{payModal.record.itemDescription}</div>
               </div>
               <button onClick={()=>setPayModal(null)} style={{ background:'none', border:'none', color:'#64748b', cursor:'pointer' }}><X size={16}/></button>
@@ -890,11 +890,11 @@ export default function PurchaseFollowup() {
               {/* Summary */}
               <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:8 }}>
                 {[
-                  { label:'PO Total', val:`AED ${(payModal.record.budget||0).toLocaleString()}`, color:'#e2e8f0' },
+                  { label:'PO Total', val:`AED ${(payModal.record.budget||0).toLocaleString()}`, color:'#374151' },
                   { label:'Paid So Far', val:`AED ${getTotalPaid(payModal.record).toLocaleString()}`, color:'#a855f7' },
                   { label:'Remaining', val:`AED ${getRemaining(payModal.record).toLocaleString()}`, color:'#f59e0b' },
                 ].map(c=>(
-                  <div key={c.label} style={{ background:'rgba(255,255,255,0.04)', borderRadius:8, padding:'8px 10px', textAlign:'center' }}>
+                  <div key={c.label} style={{ background:'#F8FAFC', borderRadius:8, padding:'8px 10px', textAlign:'center', border:'1px solid #E5E7EB' }}>
                     <div style={{ fontSize:10, color:'#64748b', marginBottom:2 }}>{c.label}</div>
                     <div style={{ fontSize:13, fontWeight:700, color:c.color }}>{c.val}</div>
                   </div>
@@ -952,7 +952,7 @@ export default function PurchaseFollowup() {
       {showForm && (
         <div className="modal-overlay" onClick={() => setShowForm(false)}>
           <div className="modal-content" style={{ maxWidth: 680 }} onClick={e => e.stopPropagation()}>
-            <div style={{ padding: '18px 24px', borderBottom: '1px solid rgba(255,255,255,0.06)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div style={{ padding: '18px 24px', borderBottom: '1px solid #E5E7EB', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <div style={{ fontSize: 16, fontWeight: 600, color: '#1e293b' }}>{editId ? 'Edit Record' : 'Add PR Follow-up Item'}</div>
               <button onClick={() => setShowForm(false)} style={{ background: 'none', border: 'none', color: '#64748b', cursor: 'pointer' }}><X size={18} /></button>
             </div>
