@@ -616,19 +616,19 @@ export default function PurchaseFollowup() {
                 <tr key={r.id}>
                   <td style={{ textAlign:'center', color:'#64748b', fontSize:12, position:'sticky', left:0, background:'#FFFFFF', zIndex:1, boxShadow:'1px 0 0 #E5E7EB' }}>{sl}</td>
                   <td style={{ fontSize:13, fontWeight:500, color:'#1e293b', wordBreak:'break-word', overflow:'hidden' }}>{r.itemDescription}</td>
-                  <td style={{ fontSize:11, color:'#94a3b8', whiteSpace:'nowrap' }}>{r.requestDate ? fmtDate(r.requestDate) : '—'}</td>
+                  <td style={{ fontSize:11, color:'#374151', whiteSpace:'nowrap' }}>{r.requestDate ? fmtDate(r.requestDate) : '—'}</td>
                   <td style={{ textAlign:'center', fontWeight:700, fontSize:13, color: days && days>90 ? '#ef4444' : days && days>30 ? '#f59e0b' : '#64748b' }}>{days !== null && days > 0 ? days : '—'}</td>
                   <td style={{ fontWeight:600, fontSize:12, color: tlc||'#64748b' }}>{r.requiredTimeline||'—'}</td>
                   <td>
-                    <select value={r.currentStatus} onChange={e=>updateStatusDirect(r.id,e.target.value)} style={{ width:'100%', padding:'4px 8px', borderRadius:7, fontSize:11, fontWeight:700, cursor:'pointer', outline:'none', background:sc?.bg||'rgba(255,255,255,0.06)', border:`1px solid ${sc?sc.tc+'55':'rgba(255,255,255,0.15)'}`, color:sc?.tc||'#374151' }}>
+                    <select value={r.currentStatus} onChange={e=>updateStatusDirect(r.id,e.target.value)} style={{ width:'100%', padding:'4px 8px', borderRadius:7, fontSize:11, fontWeight:700, cursor:'pointer', outline:'none', background:sc?.bg||'#F3F4F6', border:`1px solid ${sc?sc.tc+'55':'#D1D5DB'}`, color:sc?.tc||'#6B7280' }}>
                       {STATUSES.map(s=><option key={s} value={s} style={{ background:'#FFFFFF', color:STATUS_WEB[s]?.tc||'#374151' }}>{s||'— Not set —'}</option>)}
                     </select>
                   </td>
                   <td style={{ fontSize:12, color:'#60a5fa', fontFamily:'monospace' }}>{r.prNumber||'—'}</td>
-                  <td style={{ fontSize:11, color:'#94a3b8', whiteSpace:'nowrap' }}>{r.reqDate ? fmtMonYear(r.reqDate) : '—'}</td>
+                  <td style={{ fontSize:11, color:'#374151', whiteSpace:'nowrap' }}>{r.reqDate ? fmtMonYear(r.reqDate) : '—'}</td>
                   <td style={{ textAlign:'right', fontSize:12, color:'#22c55e', fontWeight:600 }}>{r.budget ? r.budget.toLocaleString() : '—'}</td>
-                  <td style={{ fontSize:12, color:'#94a3b8', whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis', textAlign:'center' }} title={r.leadTime}>{r.leadTime||'—'}</td>
-                  <td style={{ fontSize:12, color:'#94a3b8', whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis', textAlign:'center' }} title={r.workingTime}>{r.workingTime||'—'}</td>
+                  <td style={{ fontSize:12, color:'#374151', whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis', textAlign:'center' }} title={r.leadTime}>{r.leadTime||'—'}</td>
+                  <td style={{ fontSize:12, color:'#374151', whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis', textAlign:'center' }} title={r.workingTime}>{r.workingTime||'—'}</td>
                   <td style={{ position:'sticky', right:0, background:'#FFFFFF', zIndex:2, boxShadow:'-1px 0 0 #E5E7EB', padding:'4px', textAlign:'center' }}>
                     <button onClick={e=>openMenu(e,r)} style={{ width:30, height:28, borderRadius:6, background:'#F8FAFC', border:'1px solid #E5E7EB', color:'#94a3b8', cursor:'pointer', fontSize:16, lineHeight:1, display:'flex', alignItems:'center', justifyContent:'center' }} title="Actions">⋮</button>
                   </td>
