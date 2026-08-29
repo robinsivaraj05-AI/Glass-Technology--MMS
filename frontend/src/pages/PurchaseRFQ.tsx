@@ -414,7 +414,7 @@ export default function PurchaseRFQ() {
       </div>
 
       {/* Pending / Completed tabs */}
-      <div style={{ display:'flex', gap:0, borderBottom:'2px solid rgba(255,255,255,0.07)' }}>
+      <div style={{ display:'flex', gap:0, borderBottom:'2px solid #E5E7EB' }}>
         {([
           { key:'pending',   label:'Pending RFQ',   count: rfqs.filter(r => PENDING_STATUSES.has(r.status)).length,   color:'#f59e0b' },
           { key:'completed', label:'Completed RFQ',  count: rfqs.filter(r => COMPLETED_STATUSES.has(r.status)).length, color:'#22c55e' },
@@ -427,7 +427,7 @@ export default function PurchaseRFQ() {
           }}>
             {t.label}
             <span style={{ padding:'1px 8px', borderRadius:20, fontSize:11, fontWeight:700,
-              background: listTab===t.key ? `${t.color}22` : 'rgba(255,255,255,0.05)',
+              background: listTab===t.key ? `${t.color}22` : '#F1F5F9',
               color: listTab===t.key ? t.color : '#475569',
             }}>{t.count}</span>
           </button>
@@ -448,7 +448,7 @@ export default function PurchaseRFQ() {
             <tr>
               <th>RFQ No.</th><th>Date</th><th>Subject</th><th>Est. Budget</th>
               <th>Items</th><th>Required By</th><th>Status</th>
-              <th style={{ position:'sticky', right:0, background:'#0b0b18', zIndex:3 }}>Actions</th>
+              <th style={{ position:'sticky', right:0, background:'#F9FAFB', zIndex:3, borderLeft:'1px solid #E5E7EB' }}>Actions</th>
             </tr>
           </thead>
           <tbody>
@@ -464,7 +464,7 @@ export default function PurchaseRFQ() {
                 <tr key={r.id}>
                   <td style={{ color:'#60a5fa', fontFamily:'monospace', fontWeight:700, fontSize:12 }}>{r.rfqNo}</td>
                   <td style={{ fontSize:12, color:'#64748b' }}>{r.date}</td>
-                  <td style={{ fontWeight:600, color:'#e2e8f0', maxWidth:200 }}>{r.subject}</td>
+                  <td style={{ fontWeight:600, color:'#111827', maxWidth:200 }}>{r.subject}</td>
                   <td style={{ fontSize:12, color:'#22c55e', fontWeight:600, whiteSpace:'nowrap' }}>
                     {r.estimatedBudget ? `AED ${r.estimatedBudget.toLocaleString()}` : '—'}
                   </td>
@@ -484,11 +484,11 @@ export default function PurchaseRFQ() {
                       }}
                     >
                       {Object.entries(STATUS_CFG).map(([k,v]) => (
-                        <option key={k} value={k} style={{ background:'#0b0b18', color: v.color }}>{v.label}</option>
+                        <option key={k} value={k} style={{ background:'white', color: v.color }}>{v.label}</option>
                       ))}
                     </select>
                   </td>
-                  <td style={{ position:'sticky', right:0, background:'#0b0b18', zIndex:1, boxShadow:'-3px 0 8px rgba(0,0,0,0.5)', whiteSpace:'nowrap' }}>
+                  <td style={{ position:'sticky', right:0, background:'white', zIndex:1, boxShadow:'-2px 0 6px rgba(0,0,0,0.06)', borderLeft:'1px solid #E5E7EB', whiteSpace:'nowrap' }}>
                     <div style={{ display:'flex', gap:5 }}>
                       <button onClick={()=>setViewRFQ(r)} className="btn-secondary" style={{ padding:'4px 7px', fontSize:10 }} title="View"><Eye size={10}/></button>
                       <button onClick={()=>printRFQ(r)} className="btn-secondary" style={{ padding:'4px 7px', fontSize:10 }} title="Print"><Printer size={10}/></button>
