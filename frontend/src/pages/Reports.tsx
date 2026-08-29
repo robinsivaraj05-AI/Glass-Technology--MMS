@@ -27,6 +27,8 @@ const MGMT_SECTIONS = [
   { key: 'po',        label: '📄 Received POs' },
   { key: 'cost',      label: '💰 Purchase Cost Summary' },
   { key: 'projects',  label: '🏗️ Projects' },
+  { key: 'costing',   label: '📊 E&I Costing Report' },
+  { key: 'payment',   label: '💳 E&I Purchase Payment' },
 ];
 
 const OEM_STORES = ['Main Store - OEM Spare', 'Electrical Store - OEM Spare'];
@@ -91,15 +93,16 @@ async function generateManagementReport(dateFrom: string, dateTo: string, sectio
   const need = (k: string) => sections[k] !== false;
 
   // ── Fetch only what's needed ──────────────────────────────────────────
-  const [spareParts, empRes, attRes, outsourceRes, rentalRes, followupRes, poRes, projectRes] = await Promise.all([
-    need('spares')    ? fetch('/api/spare-parts').then(r => r.json()).catch(() => []) : [],
-    need('attendance')? fetch('/api/employees').then(r => r.json()).catch(() => []) : [],
-    need('attendance')? fetch(`/api/attendance?year=${year}&month=${month}`).then(r => r.json()).catch(() => []) : [],
-    need('outsource') ? fetch(`/api/outsource?from=${dateFrom}&to=${dateTo}&limit=500`).then(r => r.json()).catch(() => ({ entries: [] })) : { entries: [] },
-    need('rental')    ? fetch(`/api/equipment-entries?from=${dateFrom}&to=${dateTo}&limit=500`).then(r => r.json()).catch(() => ({ entries: [] })) : { entries: [] },
-    need('purchase')  ? fetch('/api/purchase-followup').then(r => r.json()).catch(() => []) : [],
-    (need('po') || need('cost')) ? fetch('/api/purchase-po').then(r => r.json()).catch(() => []) : [],
-    need('projects')  ? fetch('/api/projects').then(r => r.json()).catch(() => []) : [],
+  const [spareParts, empRes, attRes, outsourceRes, rentalRes, followupRes, poRes, projectRes, accessoriesRes] = await Promise.all([
+    need('spares')                          ? fetch('/api/spare-parts').then(r => r.json()).catch(() => []) : [],
+    need('attendance')                      ? fetch('/api/employees').then(r => r.json()).catch(() => []) : [],
+    need('attendance')                      ? fetch(`/api/attendance?year=${year}&month=${month}`).then(r => r.json()).catch(() => []) : [],
+    (need('outsource') || need('costing'))  ? fetch(`/api/outsource?from=${dateFrom}&to=${dateTo}&limit=2000`).then(r => r.json()).catch(() => ({ entries: [] })) : { entries: [] },
+    (need('rental') || need('costing'))     ? fetch(`/api/equipment-entries?from=${dateFrom}&to=${dateTo}&limit=2000`).then(r => r.json()).catch(() => ({ entries: [] })) : { entries: [] },
+    (need('purchase') || need('payment'))   ? fetch('/api/purchase-followup').then(r => r.json()).catch(() => []) : [],
+    (need('po') || need('cost'))            ? fetch('/api/purchase-po').then(r => r.json()).catch(() => []) : [],
+    need('projects')                        ? fetch('/api/projects').then(r => r.json()).catch(() => []) : [],
+    need('costing')                         ? fetch(`/api/accessories?from=${dateFrom}&to=${dateTo}&limit=2000`).then(r => r.json()).catch(() => ({ entries: [] })) : { entries: [] },
   ]);
 
   const allSpares      = Array.isArray(spareParts) ? spareParts : [];
@@ -110,6 +113,7 @@ async function generateManagementReport(dateFrom: string, dateTo: string, sectio
   const followupRecords = Array.isArray(followupRes) ? followupRes : [];
   const allPOs         = Array.isArray(poRes) ? poRes : [];
   const projects       = Array.isArray(projectRes) ? projectRes : [];
+  const accEntries     = (accessoriesRes?.entries || []) as any[];
 
   // Spare parts — store-wise
   const ALL_REGULAR_STORES = ['Main Store', 'E&I Store', 'IT Store', 'Other Stores'];
@@ -637,6 +641,241 @@ async function generateManagementReport(dateFrom: string, dateTo: string, sectio
     } else {
       doc.setFontSize(9); doc.setTextColor(...GREY);
       doc.text('No projects found.', 10, y + 6);
+    }
+  }
+
+  // ─── 9. E&I COSTING REPORT ───────────────────────────────────────────
+  if (need('costing')) {
+    const outsourceCostT = outsourceEntries.reduce((s: number, e: any) => s + (e.totalCost || 0), 0);
+    const equipmentCostT = rentalEntries.reduce((s: number,   e: any) => s + (e.totalCost || 0), 0);
+    const accessoryCostT = accEntries.reduce((s: number,      e: any) => s + (e.totalCost || 0), 0);
+    const grandCostT     = outsourceCostT + equipmentCostT + accessoryCostT;
+
+    const CG  = [120, 180, 110] as [number,number,number]; // green header
+    const CY  = [255, 243, 176] as [number,number,number]; // yellow totals
+    const CDK = [15,  23,  42]  as [number,number,number]; // dark
+
+    const drawCostHdr = (title: string, sub: string) => {
+      doc.setFillColor(...CG);
+      doc.rect(0, 0, W, 20, 'F');
+      doc.setFontSize(13); doc.setFont('helvetica', 'bold'); doc.setTextColor(255, 255, 255);
+      doc.text(title, 10, 9);
+      doc.setFontSize(8); doc.setFont('helvetica', 'normal');
+      doc.text(sub, 10, 15);
+      doc.setFontSize(7);
+      doc.text(`Period: ${monthLabel}   |   Generated: ${today}`, 10, 20);
+      doc.setTextColor(0, 0, 0);
+    };
+
+    // ── Page 1: Summary ───────────────────────────────────────────────
+    doc.addPage();
+    drawCostHdr('E&I Department — Costing Report', 'Outsource Labour · Rental Equipment · Accessories');
+
+    const cKpis = [
+      { label: 'Outsource Labour', value: `AED ${fmt(outsourceCostT)}`, col: [15, 118, 110] as [number,number,number] },
+      { label: 'Equipment Usage',  value: `AED ${fmt(equipmentCostT)}`, col: [124, 58, 237]  as [number,number,number] },
+      { label: 'Accessories',      value: `AED ${fmt(accessoryCostT)}`, col: [217, 119, 6]   as [number,number,number] },
+      { label: 'Grand Total',      value: `AED ${fmt(grandCostT)}`,     col: [220, 38, 38]   as [number,number,number] },
+    ];
+    const cbw = (W - 20 - 9) / 4;
+    cKpis.forEach((k, i) => {
+      const x = 10 + i * (cbw + 3);
+      doc.setFillColor(248, 250, 252); doc.roundedRect(x, 24, cbw, 22, 2, 2, 'F');
+      doc.setFillColor(...k.col);      doc.roundedRect(x, 24, cbw,  3, 2, 2, 'F');
+      doc.setFontSize(7); doc.setFont('helvetica', 'bold'); doc.setTextColor(...k.col);
+      doc.text(k.label.toUpperCase(), x + 4, 32);
+      doc.setFontSize(11); doc.setTextColor(0, 0, 0);
+      doc.text(k.value, x + 4, 40);
+    });
+    doc.setFontSize(9); doc.setFont('helvetica', 'bold'); doc.setTextColor(0, 0, 0);
+    doc.text('COST SUMMARY', 10, 52);
+    autoTable(doc, {
+      startY: 55, margin: { left: 10, right: 10 },
+      head: [['Category', 'No. Entries', 'Total Cost (AED)', 'Share of Total']],
+      body: [
+        ['Outsource Labour', outsourceEntries.length, `AED ${fmt(outsourceCostT)}`, grandCostT > 0 ? `${Math.round(outsourceCostT / grandCostT * 100)}%` : '—'],
+        ['Equipment Usage',  rentalEntries.length,    `AED ${fmt(equipmentCostT)}`, grandCostT > 0 ? `${Math.round(equipmentCostT / grandCostT * 100)}%` : '—'],
+        ['Accessories',      accEntries.length,        `AED ${fmt(accessoryCostT)}`, grandCostT > 0 ? `${Math.round(accessoryCostT / grandCostT * 100)}%` : '—'],
+        ['GRAND TOTAL',      outsourceEntries.length + rentalEntries.length + accEntries.length, `AED ${fmt(grandCostT)}`, '100%'],
+      ],
+      headStyles: { fillColor: CDK, textColor: WHITE, fontSize: 9, fontStyle: 'bold' },
+      bodyStyles: { fontSize: 9 },
+      columnStyles: { 2: { fontStyle: 'bold' }, 3: { fontStyle: 'bold' } },
+      alternateRowStyles: { fillColor: [248, 250, 252] },
+      didParseCell: (data: any) => {
+        if (data.row.index === 3) { data.cell.styles.fillColor = CY; data.cell.styles.textColor = CDK; data.cell.styles.fontStyle = 'bold'; }
+      },
+    });
+
+    // ── Page 2: Outsource by Contract ────────────────────────────────
+    doc.addPage();
+    drawCostHdr('Outsource Labour — Contract Breakdown', `Total: AED ${fmt(outsourceCostT)}`);
+    const contractMap: Record<string, { company: string; entries: number; cost: number }> = {};
+    outsourceEntries.forEach((r: any) => {
+      const k = r.contractName || 'Unknown';
+      if (!contractMap[k]) contractMap[k] = { company: r.contractorCompany || '—', entries: 0, cost: 0 };
+      contractMap[k].entries++; contractMap[k].cost += r.totalCost || 0;
+    });
+    const contracts = Object.entries(contractMap).sort((a, b) => b[1].cost - a[1].cost);
+    autoTable(doc, {
+      startY: 24, margin: { left: 10, right: 10 },
+      head: [['#', 'Contract Name', 'Contractor Company', 'Entries', 'Total Cost (AED)', 'Share']],
+      body: contracts.length ? contracts.map(([name, d], i) => [
+        i + 1, name, d.company, d.entries, `AED ${fmt(d.cost)}`,
+        outsourceCostT > 0 ? `${Math.round(d.cost / outsourceCostT * 100)}%` : '—',
+      ]) : [['—', 'No outsource data for this period', '', '', '', '']],
+      foot: [['', 'TOTAL', '', outsourceEntries.length, `AED ${fmt(outsourceCostT)}`, '100%']],
+      headStyles: { fillColor: [15, 118, 110], textColor: WHITE, fontSize: 9, fontStyle: 'bold' },
+      footStyles: { fillColor: CY, textColor: CDK, fontSize: 9, fontStyle: 'bold' },
+      bodyStyles: { fontSize: 9 },
+      columnStyles: { 4: { fontStyle: 'bold', textColor: [15, 118, 110] } },
+      alternateRowStyles: { fillColor: [240, 253, 250] },
+    });
+
+    // ── Page 3: Equipment + Accessories ──────────────────────────────
+    doc.addPage();
+    drawCostHdr('Rental Equipment & Accessories — Breakdown', `Equipment: AED ${fmt(equipmentCostT)}   |   Accessories: AED ${fmt(accessoryCostT)}`);
+
+    const equipMap: Record<string, { vendor: string; entries: number; cost: number }> = {};
+    rentalEntries.forEach((r: any) => {
+      const k = r.equipmentName || 'Unknown';
+      if (!equipMap[k]) equipMap[k] = { vendor: r.vendorCompany || '—', entries: 0, cost: 0 };
+      equipMap[k].entries++; equipMap[k].cost += r.totalCost || 0;
+    });
+    const equipList = Object.entries(equipMap).sort((a, b) => b[1].cost - a[1].cost);
+    doc.setFontSize(9); doc.setFont('helvetica', 'bold'); doc.setTextColor(0, 0, 0);
+    doc.text('EQUIPMENT USAGE BY ASSET', 10, 25);
+    autoTable(doc, {
+      startY: 28, margin: { left: 10, right: 10 },
+      head: [['#', 'Equipment Name', 'Vendor / Company', 'Entries', 'Total Cost (AED)', 'Share']],
+      body: equipList.length ? equipList.map(([name, d], i) => [
+        i + 1, name, d.vendor, d.entries, `AED ${fmt(d.cost)}`,
+        equipmentCostT > 0 ? `${Math.round(d.cost / equipmentCostT * 100)}%` : '—',
+      ]) : [['—', 'No equipment data for this period', '', '', '', '']],
+      foot: [['', 'TOTAL', '', rentalEntries.length, `AED ${fmt(equipmentCostT)}`, '100%']],
+      headStyles: { fillColor: [124, 58, 237], textColor: WHITE, fontSize: 8, fontStyle: 'bold' },
+      footStyles: { fillColor: CY, textColor: CDK, fontSize: 8, fontStyle: 'bold' },
+      bodyStyles: { fontSize: 8 },
+      columnStyles: { 4: { fontStyle: 'bold', textColor: [124, 58, 237] } },
+      alternateRowStyles: { fillColor: [245, 243, 255] },
+    });
+
+    const afterEqY = (doc as any).lastAutoTable?.finalY ?? 80;
+    const accCatMap: Record<string, number> = {};
+    accEntries.forEach((r: any) => {
+      (r.items || []).forEach((it: any) => {
+        accCatMap[it.category] = (accCatMap[it.category] || 0) + (it.totalCost || 0);
+      });
+    });
+    const accCats = Object.entries(accCatMap).sort((a, b) => b[1] - a[1]);
+    doc.setFontSize(9); doc.setFont('helvetica', 'bold'); doc.setTextColor(0, 0, 0);
+    doc.text('ACCESSORIES BY CATEGORY', 10, afterEqY + 10);
+    autoTable(doc, {
+      startY: afterEqY + 13, margin: { left: 10, right: 10 },
+      head: [['#', 'Category', 'Total Cost (AED)', 'Share of Accessories']],
+      body: accCats.length ? accCats.map(([cat, cost], i) => [
+        i + 1, cat, `AED ${fmt(cost)}`,
+        accessoryCostT > 0 ? `${Math.round(cost / accessoryCostT * 100)}%` : '—',
+      ]) : [['—', 'No accessories data for this period', '', '']],
+      foot: [['', 'TOTAL', `AED ${fmt(accessoryCostT)}`, '100%']],
+      headStyles: { fillColor: [217, 119, 6], textColor: WHITE, fontSize: 9, fontStyle: 'bold' },
+      footStyles: { fillColor: CY, textColor: CDK, fontSize: 9, fontStyle: 'bold' },
+      bodyStyles: { fontSize: 9 },
+      columnStyles: { 2: { fontStyle: 'bold', textColor: [217, 119, 6] } },
+      alternateRowStyles: { fillColor: [255, 251, 235] },
+    });
+
+    const finalCostY = Math.min(((doc as any).lastAutoTable?.finalY ?? 150) + 8, H - 22);
+    doc.setFillColor(...CY); doc.roundedRect(10, finalCostY, W - 20, 14, 2, 2, 'F');
+    doc.setFontSize(10); doc.setFont('helvetica', 'bold'); doc.setTextColor(...CDK);
+    doc.text('GRAND TOTAL — All Categories', 16, finalCostY + 9);
+    doc.text(`AED ${fmt(grandCostT)}`, W - 16, finalCostY + 9, { align: 'right' });
+  }
+
+  // ─── 10. E&I PURCHASE PAYMENT REPORT ─────────────────────────────────
+  if (need('payment')) {
+    const FULL_PMT    = 'Payment Done';
+    const PARTIAL_PMT = 'Partial Payment Done';
+
+    // Flatten payment transactions for the current month
+    interface PayEntry { desc: string; prNo: string; date: string; amount: number; isFull: boolean; }
+    const payEntries: PayEntry[] = [];
+    followupRecords.forEach((r: any) => {
+      if (r.paymentStatus !== FULL_PMT && r.paymentStatus !== PARTIAL_PMT) return;
+      const isFull = r.paymentStatus === FULL_PMT;
+      const hist   = r.paymentHistory || [];
+      if (hist.length > 0) {
+        hist.forEach((tx: any) => {
+          if (!tx.date) return;
+          const d = new Date(tx.date);
+          if (d.getFullYear() !== year || d.getMonth() + 1 !== month) return;
+          payEntries.push({ desc: r.itemDescription || '—', prNo: r.prNumber || '—', date: tx.date, amount: tx.amount || 0, isFull });
+        });
+      } else {
+        const d = r.receivedDate || r.requestDate || '';
+        if (d) {
+          const dt = new Date(d);
+          if (dt.getFullYear() !== year || dt.getMonth() + 1 !== month) return;
+        }
+        payEntries.push({ desc: r.itemDescription || '—', prNo: r.prNumber || '—', date: d, amount: r.budget || 0, isFull });
+      }
+    });
+
+    const fullEntries    = payEntries.filter(e => e.isFull);
+    const partialEntries = payEntries.filter(e => !e.isFull);
+    const fullTotal      = fullEntries.reduce((s, e) => s + e.amount, 0);
+    const partialTotal   = partialEntries.reduce((s, e) => s + e.amount, 0);
+    const payTotal       = fullTotal + partialTotal;
+    const fmtD           = (d: string) => d ? new Date(d).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: '2-digit' }) : '—';
+    const fmtE           = (n: number) => (n || 0).toLocaleString('en-AE', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+
+    doc.addPage();
+    doc.setFillColor(15, 23, 42); doc.rect(0, 0, W, 20, 'F');
+    doc.setFontSize(13); doc.setFont('helvetica', 'bold'); doc.setTextColor(255, 255, 255);
+    doc.text(`GT-E&I Purchase Report — ${monthLabel}`, W / 2, 9, { align: 'center' });
+    doc.setFontSize(8); doc.setFont('helvetica', 'normal'); doc.setTextColor(148, 163, 184);
+    doc.text(`E&I Payment History — Monthly Report   |   Generated: ${today}`, W / 2, 15, { align: 'center' });
+    doc.setTextColor(0, 0, 0);
+
+    autoTable(doc, {
+      startY: 25, margin: { left: 10, right: 10 },
+      head: [['Payment Type', 'No. of POs', 'Total Value (AED)']],
+      body: [
+        ['Full Payment Done',    String(fullEntries.length),    `AED ${fmtE(fullTotal)}`],
+        ['Partial Payment Done', String(partialEntries.length), `AED ${fmtE(partialTotal)}`],
+        ['GRAND TOTAL PAID',     String(payEntries.length),     `AED ${fmtE(payTotal)}`],
+      ],
+      headStyles: { fillColor: [15, 23, 42], textColor: WHITE, fontStyle: 'bold', fontSize: 9 },
+      bodyStyles: { fontSize: 9 },
+      columnStyles: { 0: { cellWidth: 80 }, 1: { cellWidth: 30, halign: 'center' }, 2: { cellWidth: 50, halign: 'right', fontStyle: 'bold' } },
+      didParseCell: (data: any) => {
+        if (data.row.index === 2) { data.cell.styles.fillColor = [15, 23, 42]; data.cell.styles.textColor = WHITE; data.cell.styles.fontStyle = 'bold'; }
+      },
+    });
+
+    if (payEntries.length > 0) {
+      autoTable(doc, {
+        startY: (doc as any).lastAutoTable.finalY + 6, margin: { left: 10, right: 10 },
+        head: [[
+          { content: `${monthLabel}   —   Total Paid: AED ${fmtE(payTotal)}   (Full: AED ${fmtE(fullTotal)}  |  Partial: AED ${fmtE(partialTotal)})`,
+            colSpan: 6, styles: { fillColor: [30, 58, 138], textColor: [255,255,255], fontStyle: 'bold', fontSize: 10 } },
+        ], ['SL', 'Item Description', 'PO / PR Number', 'Payment Date', 'Amount Paid (AED)', 'Type']],
+        body: payEntries.map((e, i) => [i + 1, e.desc, e.prNo, fmtD(e.date), `AED ${fmtE(e.amount)}`, e.isFull ? 'Full Payment' : 'Partial Payment']),
+        headStyles: { fillColor: [51, 65, 85], textColor: WHITE, fontSize: 8.5 },
+        bodyStyles: { fontSize: 8.5 },
+        columnStyles: { 0: { cellWidth: 10, halign: 'center' }, 2: { cellWidth: 40 }, 3: { cellWidth: 28 }, 4: { cellWidth: 36, halign: 'right', fontStyle: 'bold' }, 5: { cellWidth: 35 } },
+        didParseCell: (data: any) => {
+          if (data.column.index === 5 && data.section === 'body') {
+            data.cell.styles.textColor = data.cell.raw === 'Full Payment' ? [22, 163, 74] : [168, 85, 247];
+            data.cell.styles.fontStyle = 'bold';
+          }
+        },
+        foot: [['', 'Sub-total', '', '', `AED ${fmtE(payTotal)}`, '']],
+        footStyles: { fillColor: [241, 245, 249], textColor: [15, 23, 42], fontStyle: 'bold', fontSize: 9 },
+      });
+    } else {
+      doc.setFontSize(9); doc.setTextColor(...GREY);
+      doc.text(`No payments recorded for ${monthLabel}.`, 10, ((doc as any).lastAutoTable?.finalY || 60) + 10);
     }
   }
 
