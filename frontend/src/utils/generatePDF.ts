@@ -44,7 +44,7 @@ const HEAD_H = 36;              // header block height mm
 const FOOT_Y = PH - 10;        // footer top y
 
 // ── Logo loader (extracts icon portion only — square crop from SVG) ───────────
-async function loadLogo(): Promise<string | null> {
+export async function loadLogo(): Promise<string | null> {
   try {
     const res  = await fetch('/logo.svg');
     const text = await res.text();
@@ -171,7 +171,7 @@ function drawSectionTitle(doc: jsPDF, title: string, y: number) {
 }
 
 // ── Page 1: Attendance Sheet ──────────────────────────────────────────────────
-function addAttendanceSheet(
+export function addAttendanceSheet(
   doc: jsPDF,
   logo: string | null,
   team: PDFTeamMember[],
@@ -366,7 +366,7 @@ function addAttendanceSheet(
 }
 
 // ── Page 2: Work Summary ──────────────────────────────────────────────────────
-function addWorkSummary(
+export function addWorkSummary(
   doc: jsPDF,
   logo: string | null,
   team: PDFTeamMember[],

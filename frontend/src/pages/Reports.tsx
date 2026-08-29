@@ -153,6 +153,8 @@ async function generateManagementReport(dateFrom: string, dateTo: string, sectio
   // ── PDF setup ────────────────────────────────────────────────────────
   const jsPDFmod  = (await import('jspdf')).default;
   const autoTable = (await import('jspdf-autotable')).default;
+  const attPdf    = await import('../utils/generatePDF');
+  const attLogo   = need('attendance') ? await attPdf.loadLogo() : null;
   const doc = new jsPDFmod({ orientation: 'landscape', unit: 'mm', format: 'a4' });
   const W = 297; // landscape A4 width
   const H = 210; // landscape A4 height
@@ -309,71 +311,40 @@ async function generateManagementReport(dateFrom: string, dateTo: string, sectio
     });
   }
 
-  // ─── 2. ATTENDANCE WORK SUMMARY ──────────────────────────────────────
+  // ─── 2. ATTENDANCE — same format as standalone Attendance PDF ────────
   if (need('attendance')) {
-    y = sectionHeader('Employee Attendance — Monthly Work Summary', monthLabel);
+    const empList = Array.isArray(empRes) ? empRes : [];
+    const empMap: Record<string, any> = {};
+    empList.forEach((e: any) => { empMap[e.empId] = e; });
 
-    const empCount     = (Array.isArray(empRes) ? empRes : []).length || attSummary.length;
-    const totalPresent = attSummary.reduce((s, r) => s + r.present, 0);
-    const totalAbsent  = attSummary.reduce((s, r) => s + r.absent, 0);
-    const totalManDays = totalPresent; // manpower days = sum of all present
-    const avgPresent   = attSummary.length ? (totalPresent / attSummary.length).toFixed(1) : '0';
-    const attPct       = daysInMonth > 0 && attSummary.length > 0
-      ? ((totalPresent / (attSummary.length * daysInMonth)) * 100).toFixed(1) : '0';
+    const attTeam = attRecords.length > 0
+      ? attRecords.map((r: any) => ({
+          empId:   r.empId,
+          empName: r.empName || empMap[r.empId]?.empName || r.empId,
+          role:    empMap[r.empId]?.designation || empMap[r.empId]?.role || '',
+        }))
+      : empList.map((e: any) => ({
+          empId:   e.empId,
+          empName: e.empName || e.name || e.empId,
+          role:    e.designation || e.role || '',
+        }));
 
-    // 6 KPI summary boxes
-    const aKpis = [
-      { label: 'Total Employees',    value: fmt(empCount),       color: BLUE },
-      { label: 'Working Days / Month',value: fmt(daysInMonth),   color: DARK },
-      { label: 'Total Manpower Days', value: fmt(totalManDays),  color: GREEN },
-      { label: 'Total Absent Days',   value: fmt(totalAbsent),   color: RED },
-      { label: 'Avg Present / Person',value: `${avgPresent} days`,color: TEAL },
-      { label: 'Avg Attendance %',    value: `${attPct}%`,       color: Number(attPct) >= 90 ? GREEN : ORANGE },
-    ];
-    const aW = 42, aH = 20;
-    aKpis.forEach((k, i) => {
-      const kx = 10 + i * (aW + 5);
-      doc.setFillColor(248, 250, 252); doc.setDrawColor(226, 232, 240); doc.setLineWidth(0.3);
-      doc.roundedRect(kx, y, aW, aH, 3, 3, 'FD');
-      doc.setFont('helvetica', 'bold'); doc.setFontSize(12); doc.setTextColor(...k.color);
-      doc.text(k.value, kx + aW / 2, y + 10, { align: 'center' });
-      doc.setFont('helvetica', 'normal'); doc.setFontSize(6.5); doc.setTextColor(...GREY);
-      doc.text(k.label, kx + aW / 2, y + 17, { align: 'center' });
+    const attEntries: Record<string, Record<number, string>> = {};
+    attRecords.forEach((rec: any) => {
+      attEntries[rec.empId] = {};
+      (rec.entries || []).forEach((e: any) => { attEntries[rec.empId][e.day] = e.code; });
     });
-    y += aH + 10;
 
-    if (attSummary.length > 0) {
-      y = subHeader(y, 'Employee-wise Monthly Attendance Summary');
-      autoTable(doc, {
-        startY: y,
-        head: [['#', 'Employee Name', 'Present Days', 'Absent Days', 'Leave / Others', 'Attendance %', 'Remarks']],
-        body: attSummary.map((r, i) => {
-          const other  = r.total - r.present - r.absent;
-          const pct    = r.total > 0 ? ((r.present / daysInMonth) * 100).toFixed(1) : '—';
-          const status = Number(pct) >= 95 ? 'Good' : Number(pct) >= 85 ? 'Average' : 'Low';
-          return [i + 1, r.name, r.present, r.absent, other > 0 ? other : '—', `${pct}%`, status];
-        }),
-        foot: [['', 'TOTAL', totalPresent, totalAbsent, '—', `${attPct}%`, '']],
-        styles: { fontSize: 9, cellPadding: 3.5 },
-        headStyles: { fillColor: BLUE, textColor: WHITE, fontStyle: 'bold' },
-        footStyles: { fillColor: [219, 234, 254], textColor: BLUE, fontStyle: 'bold' },
-        columnStyles: {
-          0: { halign: 'center', cellWidth: 10 },
-          2: { halign: 'center' }, 3: { halign: 'center' },
-          4: { halign: 'center' }, 5: { halign: 'center' },
-          6: { halign: 'center' },
-        },
-        alternateRowStyles: { fillColor: [248, 250, 252] },
-        didParseCell: (data: any) => {
-          if (data.section === 'body' && data.column.index === 6) {
-            const v = data.cell.raw;
-            if (v === 'Good')    { data.cell.styles.textColor = GREEN; data.cell.styles.fontStyle = 'bold'; }
-            if (v === 'Low')     { data.cell.styles.textColor = RED;   data.cell.styles.fontStyle = 'bold'; }
-            if (v === 'Average') { data.cell.styles.textColor = ORANGE; }
-          }
-        },
-      });
+    if (attTeam.length > 0) {
+      // Attendance Sheet page (orange header, daily grid with colour-coded codes)
+      doc.addPage();
+      attPdf.addAttendanceSheet(doc, attLogo, attTeam, attEntries, year, month);
+
+      // Work Summary page (code counts, totals row, monthly overview box)
+      doc.addPage();
+      attPdf.addWorkSummary(doc, attLogo, attTeam, attEntries, year, month);
     } else {
+      y = sectionHeader('Employee Attendance', monthLabel);
       doc.setFontSize(9); doc.setTextColor(...GREY);
       doc.text(`No attendance records found for ${monthLabel}.`, 10, y + 8);
     }
