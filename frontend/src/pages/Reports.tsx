@@ -208,21 +208,8 @@ async function generateManagementReport(dateFrom: string, dateTo: string, sectio
     doc.text(b.label, bx + bW / 2, bY0 + 18, { align: 'center' });
   });
 
-  // Sections included
-  let y = bY0 + bH + 10;
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(9);
-  doc.setTextColor(...DARK);
-  doc.text('Sections Included:', 15, y); y += 5;
-  const includedSections = MGMT_SECTIONS.filter(s => need(s.key));
-  doc.setFont('helvetica', 'normal');
-  doc.setFontSize(8);
-  doc.setTextColor(...GREY);
-  includedSections.forEach((s, i) => {
-    doc.text(`• ${s.label}`, 15 + (i % 4) * 68, y + Math.floor(i / 4) * 5);
-  });
-
   // ── helper: section header ──
+  let y = 0;
   let sectionNum = 0;
   const sectionHeader = (title: string, subtitle = '') => {
     sectionNum++;
