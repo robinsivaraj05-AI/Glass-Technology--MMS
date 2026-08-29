@@ -241,27 +241,7 @@ async function generateManagementReport(dateFrom: string, dateTo: string, sectio
 
   // ─── 1. SPARE PARTS STORE-WISE SUMMARY ────────────────────────────────
   if (need('spares')) {
-    y = sectionHeader('Spare Parts Inventory — Store-Wise Cost Summary', `As of ${today}`);
-
-    // KPI boxes: Total Items + Total Value
-    const sKpis = [
-      { label: 'Total Regular Items', value: fmt(regularCount),  color: BLUE },
-      { label: 'Total Stock Value',   value: fmtAED(regularTotal), color: GREEN },
-      { label: 'OEM Spare Items',     value: fmt(oemCount),      color: [20, 184, 166] },
-    ];
-    sKpis.forEach((k, i) => {
-      const kx = 10 + i * 70;
-      doc.setFillColor(248, 250, 252); doc.setDrawColor(226, 232, 240); doc.setLineWidth(0.3);
-      doc.roundedRect(kx, y, 64, 18, 3, 3, 'FD');
-      doc.setFont('helvetica', 'bold'); doc.setFontSize(12); doc.setTextColor(...k.color);
-      doc.text(k.value, kx + 32, y + 9, { align: 'center' });
-      doc.setFont('helvetica', 'normal'); doc.setFontSize(7); doc.setTextColor(...GREY);
-      doc.text(k.label, kx + 32, y + 15, { align: 'center' });
-    });
-    y += 26;
-
-    // Regular stores table with colored dot indicator
-    y = subHeader(y, 'Store-Wise Inventory');
+    y = sectionHeader('Spare Parts — Store-Wise Cost Summary', `As of ${today}`);
     const allStoreRows = [
       ...regularStores.map(s => ({ store: s.store, count: s.count, value: s.value, isOEM: false, isTotalRow: false })),
       { store: 'Total (Regular Stores)', count: regularCount, value: regularTotal, isOEM: false, isTotalRow: true },
