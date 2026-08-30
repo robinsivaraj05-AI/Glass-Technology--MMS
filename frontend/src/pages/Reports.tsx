@@ -1,34 +1,34 @@
-// @ts-nocheck
+﻿// @ts-nocheck
 import { useState } from 'react';
 import { Download, Calendar } from 'lucide-react';
 import { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import { monthlyBreakdowns, pmComplianceData, mockKPIs, departmentEnergyData } from '../data/mockData';
 
 const REPORT_TYPES = [
-  { id: 'monthly',    label: 'Monthly Maintenance Report',   icon: '📋', color: '#3b82f6', desc: 'Complete maintenance summary for the month' },
-  { id: 'breakdown',  label: 'Breakdown Analysis Report',    icon: '⚠️', color: '#ef4444', desc: 'Detailed breakdown statistics and RCA' },
-  { id: 'pm',         label: 'PM Compliance Report',         icon: '✅', color: '#22c55e', desc: 'Preventive maintenance completion report' },
-  { id: 'energy',     label: 'Energy Consumption Report',    icon: '⚡', color: '#f59e0b', desc: 'Electricity, DG, and utility usage report' },
-  { id: 'kpi',        label: 'KPI Dashboard Report',         icon: '📊', color: '#8b5cf6', desc: 'Key performance indicators and trends' },
-  { id: 'cost',       label: 'Maintenance Cost Report',      icon: '💰', color: '#06b6d4', desc: 'Cost analysis by machine, department' },
-  { id: 'spare',      label: 'Spare Parts Report',           icon: '🔩', color: '#f59e0b', desc: 'Inventory, consumption, and purchase report' },
-  { id: 'calibration',label: 'Calibration Status Report',   icon: '🔬', color: '#22c55e', desc: 'Instrument calibration compliance report' },
-  { id: 'safety',     label: 'Safety & Incident Report',     icon: '🦺', color: '#ef4444', desc: 'Incidents, near misses, and LOTO report' },
-  { id: 'yearly',     label: 'Annual Performance Report',    icon: '📅', color: '#6366f1', desc: 'Complete yearly performance summary' },
-  { id: 'management', label: 'Monthly Management Report',    icon: '📑', color: '#0ea5e9', desc: 'Combined management report — select sections below' },
+  { id: 'monthly',    label: 'Monthly Maintenance Report',   icon: 'ðŸ“‹', color: '#3b82f6', desc: 'Complete maintenance summary for the month' },
+  { id: 'breakdown',  label: 'Breakdown Analysis Report',    icon: 'âš ï¸', color: '#ef4444', desc: 'Detailed breakdown statistics and RCA' },
+  { id: 'pm',         label: 'PM Compliance Report',         icon: 'âœ…', color: '#22c55e', desc: 'Preventive maintenance completion report' },
+  { id: 'energy',     label: 'Energy Consumption Report',    icon: 'âš¡', color: '#f59e0b', desc: 'Electricity, DG, and utility usage report' },
+  { id: 'kpi',        label: 'KPI Dashboard Report',         icon: 'ðŸ“Š', color: '#8b5cf6', desc: 'Key performance indicators and trends' },
+  { id: 'cost',       label: 'Maintenance Cost Report',      icon: 'ðŸ’°', color: '#06b6d4', desc: 'Cost analysis by machine, department' },
+  { id: 'spare',      label: 'Spare Parts Report',           icon: 'ðŸ”©', color: '#f59e0b', desc: 'Inventory, consumption, and purchase report' },
+  { id: 'calibration',label: 'Calibration Status Report',   icon: 'ðŸ”¬', color: '#22c55e', desc: 'Instrument calibration compliance report' },
+  { id: 'safety',     label: 'Safety & Incident Report',     icon: 'ðŸ¦º', color: '#ef4444', desc: 'Incidents, near misses, and LOTO report' },
+  { id: 'yearly',     label: 'Annual Performance Report',    icon: 'ðŸ“…', color: '#6366f1', desc: 'Complete yearly performance summary' },
+  { id: 'management', label: 'Monthly Management Report',    icon: 'ðŸ“‘', color: '#0ea5e9', desc: 'Combined management report â€” select sections below' },
 ];
 
 const MGMT_SECTIONS = [
-  { key: 'spares',    label: '📦 Spare Parts Store Summary' },
-  { key: 'attendance',label: '👥 Employee Attendance' },
-  { key: 'outsource', label: '🔧 Outsource Details' },
-  { key: 'rental',    label: '🚜 Rental Equipment' },
-  { key: 'purchase',  label: '🛒 E&I Purchase Status' },
-  { key: 'po',        label: '📄 Received POs' },
-  { key: 'cost',      label: '💰 Purchase Cost Summary' },
-  { key: 'projects',  label: '🏗️ Projects' },
-  { key: 'costing',   label: '📊 E&I Costing Report' },
-  { key: 'payment',   label: '💳 E&I Purchase Payment' },
+  { key: 'spares',    label: 'ðŸ“¦ Spare Parts Store Summary' },
+  { key: 'attendance',label: 'ðŸ‘¥ Employee Attendance' },
+  { key: 'outsource', label: 'ðŸ”§ Outsource Details' },
+  { key: 'rental',    label: 'ðŸšœ Rental Equipment' },
+  { key: 'purchase',  label: 'ðŸ›’ E&I Purchase Status' },
+  { key: 'po',        label: 'ðŸ“„ Received POs' },
+  { key: 'cost',      label: 'ðŸ’° Purchase Cost Summary' },
+  { key: 'projects',  label: 'ðŸ—ï¸ Projects' },
+  { key: 'costing',   label: 'ðŸ“Š E&I Costing Report' },
+  { key: 'payment',   label: 'ðŸ’³ E&I Purchase Payment' },
 ];
 
 const OEM_STORES = ['Main Store - OEM Spare', 'Electrical Store - OEM Spare'];
@@ -81,7 +81,7 @@ const CustomTooltip = ({ active, payload, label }: any) => {
   );
 };
 
-// ─── PDF GENERATION ────────────────────────────────────────────────────────────
+// â”€â”€â”€ PDF GENERATION â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 async function generateManagementReport(dateFrom: string, dateTo: string, sections: Record<string, boolean>) {
   const from       = new Date(dateFrom);
   const year       = from.getFullYear();
@@ -92,7 +92,7 @@ async function generateManagementReport(dateFrom: string, dateTo: string, sectio
 
   const need = (k: string) => sections[k] !== false;
 
-  // ── Fetch only what's needed ──────────────────────────────────────────
+  // â”€â”€ Fetch only what's needed â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const [spareParts, empRes, attRes, outsourceRes, rentalRes, followupRes, poRes, projectRes, accessoriesRes] = await Promise.all([
     need('spares')                          ? fetch('/api/spare-parts?limit=5000').then(r => r.json()).catch(() => ({ items: [] })) : { items: [] },
     need('attendance')                      ? fetch('/api/employees').then(r => r.json()).catch(() => []) : [],
@@ -115,7 +115,7 @@ async function generateManagementReport(dateFrom: string, dateTo: string, sectio
   const projects       = Array.isArray(projectRes) ? projectRes : [];
   const accEntries     = (accessoriesRes?.entries || []) as any[];
 
-  // Spare parts — store-wise
+  // Spare parts â€” store-wise
   const ALL_REGULAR_STORES = ['Main Store', 'E&I Store', 'IT Store', 'Other Stores'];
   const ALL_OEM_STORES     = ['Main Store - OEM Spare', 'Electrical Store - OEM Spare'];
   const storeMap: Record<string, { count: number; value: number }> = {};
@@ -154,7 +154,7 @@ async function generateManagementReport(dateFrom: string, dateTo: string, sectio
   const allPOTotal     = allPOs.reduce((s: number, p: any) => s + (p.totalValue || 0), 0);
   const pendingBudget  = pendingItems.reduce((s: number, r: any) => s + (r.budget || 0), 0);
 
-  // ── PDF setup ────────────────────────────────────────────────────────
+  // â”€â”€ PDF setup â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const jsPDFmod  = (await import('jspdf')).default;
   const autoTable = (await import('jspdf-autotable')).default;
   const attPdf    = await import('../utils/generatePDF');
@@ -182,156 +182,109 @@ async function generateManagementReport(dateFrom: string, dateTo: string, sectio
   const tblHead = { fillColor: PRIMARY, textColor: WHITE, fontStyle: 'bold' as const, fontSize: 9 };
   const tblAlt  = { fillColor: ALT_ROW };
 
-  // ── KPI card helper ──────────────────────────────────────────────────
-  const drawKPICard = (x: number, y: number, w: number, h: number, label: string, value: string, color: [number,number,number]) => {
+  // â”€â”€ Layout constants â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  const HDR_H  = 10;   // header band height (mm)
+  const FOOT_H = 10;   // footer strip height
+  const ML     = 10;   // left margin
+  const USABLE = H - FOOT_H - 4; // lowest y content can reach
+
+  // â”€â”€ KPI card helper â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  const drawKPICard = (x: number, ky: number, w: number, h: number, label: string, value: string, color: [number,number,number]) => {
     doc.setFillColor(210, 218, 226);
-    doc.roundedRect(x + 1, y + 1, w, h, 3, 3, 'F');
+    doc.roundedRect(x + 1, ky + 1, w, h, 2, 2, 'F');
     doc.setFillColor(...WHITE);
-    doc.roundedRect(x, y, w, h, 3, 3, 'F');
+    doc.roundedRect(x, ky, w, h, 2, 2, 'F');
     doc.setFillColor(...color);
-    doc.roundedRect(x, y, w, 3.5, 2, 2, 'F');
-    doc.rect(x, y + 2, w, 1.5, 'F');
+    doc.roundedRect(x, ky, w, 3, 1.5, 1.5, 'F');
+    doc.rect(x, ky + 1.5, w, 1.5, 'F');
     doc.setFont('helvetica', 'bold');
-    doc.setFontSize(11);
+    doc.setFontSize(10);
     doc.setTextColor(...color);
-    doc.text(value, x + w / 2, y + h / 2 + 2.5, { align: 'center' });
+    doc.text(value, x + w / 2, ky + h / 2 + 2, { align: 'center' });
     doc.setFont('helvetica', 'normal');
-    doc.setFontSize(6.5);
+    doc.setFontSize(6);
     doc.setTextColor(...NEUTRAL);
-    doc.text(label, x + w / 2, y + h - 3.5, { align: 'center' });
+    doc.text(label, x + w / 2, ky + h - 2.5, { align: 'center' });
   };
 
-  // ── Section header helpers ────────────────────────────────────────────
+  // â”€â”€ Section header helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   let y = 0;
   let sectionNum = 0;
-  const drawHdrBand = (title: string, subtitle: string, num: number) => {
-    doc.setFillColor(...BG);
-    doc.rect(0, 0, W, H, 'F');
+
+  // Draw compact header band at any vertical position
+  const drawHdrBand = (title: string, subtitle: string, num: number, atY: number) => {
     doc.setFillColor(...PRIMARY);
-    doc.rect(0, 0, W, 15, 'F');
+    doc.rect(0, atY, W, HDR_H, 'F');
     doc.setFillColor(...SECOND);
-    doc.rect(W * 0.55, 0, W * 0.45, 15, 'F');
+    doc.rect(W * 0.6, atY, W * 0.4, HDR_H, 'F');
     doc.setFillColor(...SECOND);
-    doc.rect(0, 15, W, 0.8, 'F');
+    doc.rect(0, atY + HDR_H, W, 0.5, 'F');
     doc.setFont('helvetica', 'bold');
-    doc.setFontSize(12);
+    doc.setFontSize(10);
     doc.setTextColor(...WHITE);
-    doc.text(num > 0 ? `${num}. ${title}` : title, 10, 10);
+    doc.text(num > 0 ? `${num}. ${title}` : title, ML, atY + 7);
     if (subtitle) {
       doc.setFont('helvetica', 'normal');
-      doc.setFontSize(7);
+      doc.setFontSize(6.5);
       doc.setTextColor(186, 230, 253);
-      doc.text(subtitle, W - 10, 10, { align: 'right' });
+      doc.text(subtitle, W - ML, atY + 7, { align: 'right' });
     }
   };
-  const sectionHeader = (title: string, subtitle = '') => {
+
+  // Returns the y where content should start after the header
+  const sectionHeader = (title: string, subtitle = '', minH = 50) => {
     sectionNum++;
-    doc.addPage();
-    drawHdrBand(title, subtitle, sectionNum);
-    return 23;
-  };
-  const contHeader = (title: string, subtitle = '') => {
-    doc.addPage();
-    drawHdrBand(title, subtitle, 0);
-    return 23;
+    const lastY = (doc as any).lastAutoTable?.finalY;
+    const curY  = (lastY != null ? lastY : y);
+    const isVeryFirst = doc.getNumberOfPages() === 1 && curY === 0;
+    let headerY: number;
+    if (isVeryFirst) {
+      headerY = 0;
+    } else if (curY + 8 + HDR_H + minH > USABLE) {
+      doc.addPage();
+      headerY = 0;
+    } else {
+      headerY = curY + 8;
+    }
+    drawHdrBand(title, subtitle, sectionNum, headerY);
+    return headerY + HDR_H + 3;
   };
 
-  const subHeader = (y: number, text: string) => {
+  // Continuation header (no section number â€” for costing sub-pages)
+  const contHeader = (title: string, subtitle = '', minH = 50) => {
+    const lastY = (doc as any).lastAutoTable?.finalY;
+    const curY  = (lastY != null ? lastY : y);
+    let headerY: number;
+    if (curY + 8 + HDR_H + minH > USABLE) {
+      doc.addPage();
+      headerY = 0;
+    } else {
+      headerY = curY + 8;
+    }
+    drawHdrBand(title, subtitle, 0, headerY);
+    return headerY + HDR_H + 3;
+  };
+
+  const subHeader = (sy: number, text: string) => {
     doc.setFillColor(...SECOND);
-    doc.rect(10, y, 2.5, 6, 'F');
+    doc.rect(ML, sy, 2, 5, 'F');
     doc.setFont('helvetica', 'bold');
-    doc.setFontSize(8.5);
+    doc.setFontSize(8);
     doc.setTextColor(...DARK);
-    doc.text(text, 14.5, y + 4.5);
+    doc.text(text, ML + 4, sy + 3.8);
     doc.setDrawColor(226, 232, 240);
     doc.setLineWidth(0.2);
-    doc.line(14.5, y + 6, W - 10, y + 6);
-    return y + 11;
+    doc.line(ML + 4, sy + 5, W - ML, sy + 5);
+    return sy + 9;
   };
 
-  // ─── COVER PAGE ──────────────────────────────────────────────────────
-  doc.setFillColor(...BG);
-  doc.rect(0, 0, W, H, 'F');
-
-  // Header: primary left, secondary right
-  doc.setFillColor(...PRIMARY);
-  doc.rect(0, 0, W, 58, 'F');
-  doc.setFillColor(...SECOND);
-  doc.rect(W * 0.5, 0, W * 0.5, 58, 'F');
-  doc.setFillColor(...WHITE);
-  doc.rect(0, 58, W, 0.8, 'F');
-
-  // Company label
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(7.5);
-  doc.setTextColor(186, 230, 253);
-  doc.text('GLASS TECHNOLOGY — E&I DEPARTMENT', 10, 10);
-
-  // Report title
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(22);
-  doc.setTextColor(...WHITE);
-  doc.text(reportTitle, 10, 30);
-
-  // Period
-  doc.setFont('helvetica', 'normal');
-  doc.setFontSize(9);
-  doc.setTextColor(186, 230, 253);
-  doc.text(`Period: ${dateFrom}  –  ${dateTo}     |     Generated: ${today}`, 10, 43);
-
-  // Right side label
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(8.5);
-  doc.setTextColor(...WHITE);
-  doc.text('MONTHLY MANAGEMENT REPORT', W - 10, 28, { align: 'right' });
-  doc.setFont('helvetica', 'normal');
-  doc.setFontSize(7);
-  doc.setTextColor(186, 230, 253);
-  doc.text('Electrical & Instrumentation Division', W - 10, 37, { align: 'right' });
-
-  // KPI cards
-  const coverKPIs: Array<{ label: string; value: string; color: [number,number,number] }> = [
-    { label: 'Regular Spare Items', value: fmt(regularCount),        color: [14, 165, 233] },
-    { label: 'Spare Stock Value',   value: fmtAED(regularTotal),     color: SUCCESS },
-    { label: 'OEM Spare Items',     value: fmt(oemCount),            color: PURPLE },
-    { label: 'Pending Purchase',    value: fmt(pendingItems.length), color: WARNING },
-    { label: 'POs in Period',       value: fmt(receivedPOs.length),  color: SECOND },
-    { label: 'Total PO Value',      value: fmtAED(totalPOValue),     color: DANGER },
-  ];
-  const bW = 42, bH = 34, bX0 = 10, bY0 = 65;
-  coverKPIs.forEach((b, i) => drawKPICard(bX0 + i * (bW + 5), bY0, bW, bH, b.label, b.value, b.color));
-
-  // Section list (two columns)
-  const cleanLabel = (lbl: string) => lbl.replace(/[^\x20-\x7E]/g, '').trim();
-  const activeLabels = MGMT_SECTIONS.filter(s => sections[s.key] !== false).map(s => cleanLabel(s.label));
-  if (activeLabels.length > 0) {
-    const listY0 = bY0 + bH + 10;
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(7.5);
-    doc.setTextColor(...NEUTRAL);
-    doc.text('REPORT CONTENTS:', 10, listY0);
-    const half = Math.ceil(activeLabels.length / 2);
-    activeLabels.forEach((lbl, i) => {
-      const col = i < half ? 0 : 1;
-      const row = col === 0 ? i : i - half;
-      const lx = 10 + col * 135;
-      const ly = listY0 + 8 + row * 6.5;
-      doc.setFillColor(...SECOND);
-      doc.roundedRect(lx, ly - 2.5, 2, 2, 0.5, 0.5, 'F');
-      doc.setFont('helvetica', 'normal');
-      doc.setFontSize(7);
-      doc.setTextColor(...DARK);
-      doc.text(`${i + 1}. ${lbl}`, lx + 4, ly);
-    });
-  }
-
-  // ─── 1. SPARE PARTS STORE-WISE SUMMARY ────────────────────────────────
+  // â”€â”€â”€ 1. SPARE PARTS STORE-WISE SUMMARY â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   if (need('spares')) {
-    y = sectionHeader('Spare Parts — Store-Wise Cost Summary', `As of ${today}`);
+    y = sectionHeader('Spare Parts â€” Store-Wise Cost Summary', `As of ${today}`);
     const allStoreRows = [
       ...regularStores.map(s => ({ store: s.store, count: s.count, value: s.value, isOEM: false, isTotalRow: false })),
       { store: 'Total (Regular Stores)', count: regularCount, value: regularTotal, isOEM: false, isTotalRow: true },
-      { store: 'OEM SPARES — COST INCLUDED IN PROJECT', count: null, value: null, isOEM: true, isBanner: true },
+      { store: 'OEM SPARES â€” COST INCLUDED IN PROJECT', count: null, value: null, isOEM: true, isBanner: true },
       ...oemStores.map(s => ({ store: s.store, count: s.count, value: null, isOEM: true, isTotalRow: false })),
     ];
 
@@ -346,11 +299,11 @@ async function generateManagementReport(dateFrom: string, dateTo: string, sectio
           s.isOEM ? 'Free of Cost' : (s.value ? fmtAED(s.value) : 'AED 0'),
         ];
       }),
-      styles: { fontSize: 10, cellPadding: 4 },
+      styles: { fontSize: 9, cellPadding: 3 },
       headStyles: tblHead,
       columnStyles: { 1: { halign: 'center' }, 2: { halign: 'right' } },
       tableWidth: 190,
-      margin: { left: 10 },
+      margin: { left: ML },
       didParseCell: (data: any) => {
         const row = allStoreRows[data.row.index];
         if (!row) return;
@@ -381,21 +334,21 @@ async function generateManagementReport(dateFrom: string, dateTo: string, sectio
             doc.rect(data.cell.x + 2, data.cell.y + (data.cell.height - 3.5) / 2, 3.5, 3.5, 'F');
           }
         }
-        // Banner row: merge-look — print text spanning all columns
+        // Banner row: merge-look â€” print text spanning all columns
         if (data.section === 'body' && data.column.index === 0) {
           const row = allStoreRows[data.row.index];
           if ((row as any).isBanner) {
             doc.setFont('helvetica', 'bold');
             doc.setFontSize(9);
             doc.setTextColor(234, 88, 12);
-            doc.text('OEM SPARES — COST INCLUDED IN PROJECT (FREE OF COST)', data.cell.x + 2, data.cell.y + data.cell.height / 2 + 1.5);
+            doc.text('OEM SPARES â€” COST INCLUDED IN PROJECT (FREE OF COST)', data.cell.x + 2, data.cell.y + data.cell.height / 2 + 1.5);
           }
         }
       },
     });
   }
 
-  // ─── 2. ATTENDANCE — same format as standalone Attendance PDF ────────
+  // â”€â”€â”€ 2. ATTENDANCE â€” same format as standalone Attendance PDF â”€â”€â”€â”€â”€â”€â”€â”€
   if (need('attendance')) {
     const empList = Array.isArray(empRes) ? empRes : [];
     const empMap: Record<string, any> = {};
@@ -420,23 +373,23 @@ async function generateManagementReport(dateFrom: string, dateTo: string, sectio
     });
 
     if (attTeam.length > 0) {
-      // Attendance Sheet page (orange header, daily grid with colour-coded codes)
       doc.addPage();
       attPdf.addAttendanceSheet(doc, attLogo, attTeam, attEntries, year, month);
-
-      // Work Summary page (code counts, totals row, monthly overview box)
       doc.addPage();
       attPdf.addWorkSummary(doc, attLogo, attTeam, attEntries, year, month);
+      // Mark y=H so next sectionHeader always starts on a fresh page
+      y = H;
+      (doc as any).lastAutoTable = null;
     } else {
       y = sectionHeader('Employee Attendance', monthLabel);
       doc.setFontSize(9); doc.setTextColor(...NEUTRAL);
-      doc.text(`No attendance records found for ${monthLabel}.`, 10, y + 8);
+      doc.text(`No attendance records found for ${monthLabel}.`, ML, y + 6);
     }
   }
 
-  // ─── 3. OUTSOURCE ─────────────────────────────────────────────────────
+  // â”€â”€â”€ 3. OUTSOURCE â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   if (need('outsource')) {
-    y = sectionHeader('Outsource Work Details', `${dateFrom} – ${dateTo}`);
+    y = sectionHeader('Outsource Work Details', `${dateFrom} â€“ ${dateTo}`);
 
     const vendorMap: Record<string, { jobs: number; hours: number; cost: number }> = {};
     outsourceEntries.forEach((e: any) => {
@@ -460,19 +413,19 @@ async function generateManagementReport(dateFrom: string, dateTo: string, sectio
         alternateRowStyles: tblAlt,
         didParseCell: (data: any) => { if (data.row.index === sumRows.length) { data.cell.styles.fillColor = NAVY; data.cell.styles.textColor = WHITE; data.cell.styles.fontStyle = 'bold'; } },
       });
-      y = (doc as any).lastAutoTable.finalY + 8;
+      y = (doc as any).lastAutoTable.finalY + 5;
       if (outsourceEntries.length <= 30) {
         y = subHeader(y, 'Work Log');
         autoTable(doc, {
           startY: y,
           head: [['Date', 'Vendor', 'Description', 'Hours', 'Cost (AED)', 'Status']],
           body: outsourceEntries.map((e: any) => [
-            e.workDate ? new Date(e.workDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' }) : '—',
-            e.vendorCompany || '—',
-            (e.workDescription || '—').substring(0, 38),
+            e.workDate ? new Date(e.workDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' }) : 'â€”',
+            e.vendorCompany || 'â€”',
+            (e.workDescription || 'â€”').substring(0, 38),
             e.workingHours || 0,
             fmtAED(e.totalCost),
-            e.completionStatus || '—',
+            e.completionStatus || 'â€”',
           ]),
           styles: { fontSize: 7.5, cellPadding: 2.5 },
           headStyles: tblHead,
@@ -486,9 +439,9 @@ async function generateManagementReport(dateFrom: string, dateTo: string, sectio
     }
   }
 
-  // ─── 4. RENTAL ────────────────────────────────────────────────────────
+  // â”€â”€â”€ 4. RENTAL â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   if (need('rental')) {
-    y = sectionHeader('Rental Equipment Details', `${dateFrom} – ${dateTo}`);
+    y = sectionHeader('Rental Equipment Details', `${dateFrom} â€“ ${dateTo}`);
 
     const rentalMap: Record<string, { days: number; hours: number; cost: number }> = {};
     rentalEntries.forEach((e: any) => {
@@ -518,7 +471,7 @@ async function generateManagementReport(dateFrom: string, dateTo: string, sectio
     }
   }
 
-  // ─── 5. E&I PURCHASE STATUS ───────────────────────────────────────────
+  // â”€â”€â”€ 5. E&I PURCHASE STATUS â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   if (need('purchase')) {
     y = sectionHeader('E&I Purchase Status', `As of ${today}`);
 
@@ -538,7 +491,7 @@ async function generateManagementReport(dateFrom: string, dateTo: string, sectio
       alternateRowStyles: tblAlt,
       didParseCell: (data: any) => { if (data.row.index === statusRows.length) { data.cell.styles.fillColor = NAVY; data.cell.styles.textColor = WHITE; data.cell.styles.fontStyle = 'bold'; } },
     });
-    y = (doc as any).lastAutoTable.finalY + 8;
+    y = (doc as any).lastAutoTable.finalY + 5;
 
     if (pendingItems.length) {
       y = subHeader(y, 'Pending Purchase Items');
@@ -547,20 +500,20 @@ async function generateManagementReport(dateFrom: string, dateTo: string, sectio
         head: [['SL', 'Item Description', 'Request Date', 'Days', 'Required Timeline', 'Current Status', 'PR Number', 'Req. Date', 'Budget', 'Lead Time', 'Working Time']],
         body: pendingItems.map((r: any, i: number) => {
           const reqDt = r.requestDate ? new Date(r.requestDate) : null;
-          const days  = reqDt ? Math.floor((Date.now() - reqDt.getTime()) / 86400000) : '—';
-          const fmtD  = (d: string) => d ? new Date(d).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: '2-digit' }) : '—';
+          const days  = reqDt ? Math.floor((Date.now() - reqDt.getTime()) / 86400000) : 'â€”';
+          const fmtD  = (d: string) => d ? new Date(d).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: '2-digit' }) : 'â€”';
           return [
             i + 1,
-            (r.itemDescription || '—').substring(0, 50),
+            (r.itemDescription || 'â€”').substring(0, 50),
             fmtD(r.requestDate),
             days,
-            r.requiredTimeline || '—',
-            r.currentStatus || '—',
-            r.prNumber || '—',
+            r.requiredTimeline || 'â€”',
+            r.currentStatus || 'â€”',
+            r.prNumber || 'â€”',
             fmtD(r.reqDate),
-            r.budget ? fmtAED(r.budget) : '—',
-            r.leadTime || '—',
-            r.workingTime || '—',
+            r.budget ? fmtAED(r.budget) : 'â€”',
+            r.leadTime || 'â€”',
+            r.workingTime || 'â€”',
           ];
         }),
         styles: { fontSize: 7, cellPadding: 2 },
@@ -598,20 +551,20 @@ async function generateManagementReport(dateFrom: string, dateTo: string, sectio
       const d = new Date(r.receivedDate);
       return d.getFullYear() === year && (d.getMonth() + 1) === month;
     });
-    y = (doc as any).lastAutoTable?.finalY + 10 || y + 10;
+    y = (doc as any).lastAutoTable?.finalY + 5 || y + 5;
     y = subHeader(y, `Materials Received This Month (${receivedThisMonth.length})`);
     if (receivedThisMonth.length > 0) {
-      const fmtDs = (d: string) => d ? new Date(d).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: '2-digit' }) : '—';
+      const fmtDs = (d: string) => d ? new Date(d).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: '2-digit' }) : 'â€”';
       autoTable(doc, {
         startY: y,
         head: [['#', 'Item Description', 'PR Number', 'Request Date', 'Received Date', 'Budget (AED)']],
         body: receivedThisMonth.map((r: any, i: number) => [
           i + 1,
-          (r.itemDescription || '—').substring(0, 60),
-          r.prNumber || '—',
+          (r.itemDescription || 'â€”').substring(0, 60),
+          r.prNumber || 'â€”',
           fmtDs(r.requestDate),
           fmtDs(r.receivedDate),
-          r.budget ? fmtAED(r.budget) : '—',
+          r.budget ? fmtAED(r.budget) : 'â€”',
         ]),
         styles: { fontSize: 8.5, cellPadding: 3 },
         headStyles: { fillColor: SUCCESS, textColor: WHITE, fontStyle: 'bold', fontSize: 9 },
@@ -624,9 +577,9 @@ async function generateManagementReport(dateFrom: string, dateTo: string, sectio
     }
   }
 
-  // ─── 6. RECEIVED POs ──────────────────────────────────────────────────
+  // â”€â”€â”€ 6. RECEIVED POs â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   if (need('po')) {
-    y = sectionHeader('Monthly Received Purchase Orders', `${dateFrom} – ${dateTo}`);
+    y = sectionHeader('Monthly Received Purchase Orders', `${dateFrom} â€“ ${dateTo}`);
 
     if (receivedPOs.length) {
       y = subHeader(y, 'Purchase Orders in Period');
@@ -634,29 +587,29 @@ async function generateManagementReport(dateFrom: string, dateTo: string, sectio
         startY: y,
         head: [['PO No.', 'Date', 'Vendor', 'Dept.', 'Items', 'Total (AED)', 'Status']],
         body: receivedPOs.map((po: any) => [
-          po.poNo || '—',
-          po.poDate || '—',
-          (po.vendor || '—').substring(0, 18),
-          po.department || '—',
+          po.poNo || 'â€”',
+          po.poDate || 'â€”',
+          (po.vendor || 'â€”').substring(0, 18),
+          po.department || 'â€”',
           (po.items || []).length,
           fmtAED(po.totalValue),
-          po.status || '—',
+          po.status || 'â€”',
         ]),
         styles: { fontSize: 8, cellPadding: 2.5 },
         headStyles: tblHead,
         columnStyles: { 4: { halign: 'center' }, 5: { halign: 'right' } },
         alternateRowStyles: tblAlt,
       });
-      y = (doc as any).lastAutoTable.finalY + 6;
+      y = (doc as any).lastAutoTable.finalY + 4;
       doc.setFont('helvetica', 'bold'); doc.setFontSize(9); doc.setTextColor(...PRIMARY);
-      doc.text(`Total PO Value for Period: ${fmtAED(totalPOValue)}`, W - 10, y, { align: 'right' });
+      doc.text(`Total PO Value for Period: ${fmtAED(totalPOValue)}`, W - ML, y, { align: 'right' });
     } else {
       doc.setFontSize(9); doc.setTextColor(...NEUTRAL);
       doc.text('No purchase orders found for this period.', 10, y + 6);
     }
   }
 
-  // ─── 7. PURCHASE COST SUMMARY ─────────────────────────────────────────
+  // â”€â”€â”€ 7. PURCHASE COST SUMMARY â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   if (need('cost')) {
     y = sectionHeader('Purchase Cost Summary', monthLabel);
 
@@ -678,18 +631,18 @@ async function generateManagementReport(dateFrom: string, dateTo: string, sectio
       columnStyles: { 1: { halign: 'right', fontStyle: 'bold' }, 2: { halign: 'center', textColor: NEUTRAL } },
       alternateRowStyles: tblAlt,
     });
-    y = (doc as any).lastAutoTable.finalY + 10;
+    y = (doc as any).lastAutoTable.finalY + 5;
 
     const totalSpend = totalPOValue + outsourceCost + rentalCost;
     doc.setFillColor(...NAVY);
-    doc.roundedRect(10, y, W - 20, 14, 3, 3, 'F');
+    doc.roundedRect(ML, y, W - ML * 2, 12, 2, 2, 'F');
     doc.setFont('helvetica', 'bold');
-    doc.setFontSize(11);
+    doc.setFontSize(10);
     doc.setTextColor(...WHITE);
-    doc.text(`Total Expenditure for Period: ${fmtAED(totalSpend)}`, W / 2, y + 9.5, { align: 'center' });
+    doc.text(`Total Expenditure for Period: ${fmtAED(totalSpend)}`, W / 2, y + 8, { align: 'center' });
   }
 
-  // ─── 8. PROJECTS ──────────────────────────────────────────────────────
+  // â”€â”€â”€ 8. PROJECTS â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   if (need('projects')) {
     y = sectionHeader('Projects Summary', `As of ${today}`);
 
@@ -705,9 +658,9 @@ async function generateManagementReport(dateFrom: string, dateTo: string, sectio
         { label: 'Total Budget',     value: fmtAED(totalBudget),        color: PURPLE },
         { label: 'Total Spent',      value: fmtAED(totalSpent),         color: WARNING },
       ];
-      const pkW = 52, pkH = 28;
-      pKPIs.forEach((k, i) => drawKPICard(10 + i * (pkW + 5), y, pkW, pkH, k.label, k.value, k.color));
-      y += pkH + 10;
+      const pkW = 52, pkH = 24;
+      pKPIs.forEach((k, i) => drawKPICard(ML + i * (pkW + 4), y, pkW, pkH, k.label, k.value, k.color));
+      y += pkH + 6;
 
       y = subHeader(y, 'Project Details');
       autoTable(doc, {
@@ -715,14 +668,14 @@ async function generateManagementReport(dateFrom: string, dateTo: string, sectio
         head: [['#', 'Project No.', 'Name', 'Type', 'Status', 'Progress', 'Budget (AED)', 'Spent (AED)', 'Manager']],
         body: projects.map((p: any, i: number) => [
           i + 1,
-          p.projectNo || '—',
-          (p.name || '—').substring(0, 25),
-          p.type || '—',
-          p.status || '—',
+          p.projectNo || 'â€”',
+          (p.name || 'â€”').substring(0, 25),
+          p.type || 'â€”',
+          p.status || 'â€”',
           `${p.progress || 0}%`,
           fmtAED(p.budget),
           fmtAED(p.spent),
-          (p.projectManager || '—').substring(0, 14),
+          (p.projectManager || 'â€”').substring(0, 14),
         ]),
         styles: { fontSize: 7.5, cellPadding: 2.5 },
         headStyles: tblHead,
@@ -740,7 +693,7 @@ async function generateManagementReport(dateFrom: string, dateTo: string, sectio
     }
   }
 
-  // ─── 9. E&I COSTING REPORT ───────────────────────────────────────────
+  // â”€â”€â”€ 9. E&I COSTING REPORT â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   if (need('costing')) {
     const outsourceCostT = outsourceEntries.reduce((s: number, e: any) => s + (e.totalCost || 0), 0);
     const equipmentCostT = rentalEntries.reduce((s: number,   e: any) => s + (e.totalCost || 0), 0);
@@ -748,7 +701,7 @@ async function generateManagementReport(dateFrom: string, dateTo: string, sectio
     const grandCostT     = outsourceCostT + equipmentCostT + accessoryCostT;
 
     // Page 1: Summary
-    y = sectionHeader('E&I Costing Report — Summary', `Period: ${monthLabel}`);
+    y = sectionHeader('E&I Costing Report â€” Summary', `Period: ${monthLabel}`);
     const cbw = (W - 20 - 9) / 4;
     const cKpis: Array<{ label: string; value: string; color: [number,number,number] }> = [
       { label: 'Outsource Labour', value: fmtAED(outsourceCostT), color: TEAL },
@@ -756,17 +709,17 @@ async function generateManagementReport(dateFrom: string, dateTo: string, sectio
       { label: 'Accessories',      value: fmtAED(accessoryCostT), color: WARNING },
       { label: 'Grand Total',      value: fmtAED(grandCostT),     color: DANGER },
     ];
-    cKpis.forEach((k, i) => drawKPICard(10 + i * (cbw + 3), y, cbw, 28, k.label, k.value, k.color));
-    y += 36;
+    cKpis.forEach((k, i) => drawKPICard(ML + i * (cbw + 3), y, cbw, 24, k.label, k.value, k.color));
+    y += 30;
 
     y = subHeader(y, 'Cost Summary');
     autoTable(doc, {
-      startY: y, margin: { left: 10, right: 10 },
+      startY: y, margin: { left: ML, right: ML },
       head: [['Category', 'No. Entries', 'Total Cost (AED)', 'Share of Total']],
       body: [
-        ['Outsource Labour', outsourceEntries.length, fmtAED(outsourceCostT), grandCostT > 0 ? `${Math.round(outsourceCostT / grandCostT * 100)}%` : '—'],
-        ['Equipment Usage',  rentalEntries.length,    fmtAED(equipmentCostT), grandCostT > 0 ? `${Math.round(equipmentCostT / grandCostT * 100)}%` : '—'],
-        ['Accessories',      accEntries.length,        fmtAED(accessoryCostT), grandCostT > 0 ? `${Math.round(accessoryCostT / grandCostT * 100)}%` : '—'],
+        ['Outsource Labour', outsourceEntries.length, fmtAED(outsourceCostT), grandCostT > 0 ? `${Math.round(outsourceCostT / grandCostT * 100)}%` : 'â€”'],
+        ['Equipment Usage',  rentalEntries.length,    fmtAED(equipmentCostT), grandCostT > 0 ? `${Math.round(equipmentCostT / grandCostT * 100)}%` : 'â€”'],
+        ['Accessories',      accEntries.length,        fmtAED(accessoryCostT), grandCostT > 0 ? `${Math.round(accessoryCostT / grandCostT * 100)}%` : 'â€”'],
         ['GRAND TOTAL',      outsourceEntries.length + rentalEntries.length + accEntries.length, fmtAED(grandCostT), '100%'],
       ],
       headStyles: tblHead,
@@ -779,21 +732,21 @@ async function generateManagementReport(dateFrom: string, dateTo: string, sectio
     });
 
     // Page 2: Outsource by Contract
-    y = contHeader('E&I Costing — Outsource Labour Breakdown', `Total: ${fmtAED(outsourceCostT)}`);
+    y = contHeader('E&I Costing â€” Outsource Labour Breakdown', `Total: ${fmtAED(outsourceCostT)}`);
     const contractMap: Record<string, { company: string; entries: number; cost: number }> = {};
     outsourceEntries.forEach((r: any) => {
       const k = r.contractName || 'Unknown';
-      if (!contractMap[k]) contractMap[k] = { company: r.contractorCompany || '—', entries: 0, cost: 0 };
+      if (!contractMap[k]) contractMap[k] = { company: r.contractorCompany || 'â€”', entries: 0, cost: 0 };
       contractMap[k].entries++; contractMap[k].cost += r.totalCost || 0;
     });
     const contracts = Object.entries(contractMap).sort((a, b) => b[1].cost - a[1].cost);
     autoTable(doc, {
-      startY: y, margin: { left: 10, right: 10 },
+      startY: y, margin: { left: ML, right: ML },
       head: [['#', 'Contract Name', 'Contractor Company', 'Entries', 'Total Cost (AED)', 'Share']],
       body: contracts.length ? contracts.map(([name, d], i) => [
         i + 1, name, d.company, d.entries, fmtAED(d.cost),
-        outsourceCostT > 0 ? `${Math.round(d.cost / outsourceCostT * 100)}%` : '—',
-      ]) : [['—', 'No outsource data for this period', '', '', '', '']],
+        outsourceCostT > 0 ? `${Math.round(d.cost / outsourceCostT * 100)}%` : 'â€”',
+      ]) : [['â€”', 'No outsource data for this period', '', '', '', '']],
       foot: [['', 'TOTAL', '', outsourceEntries.length, fmtAED(outsourceCostT), '100%']],
       headStyles: { fillColor: TEAL, textColor: WHITE, fontSize: 9, fontStyle: 'bold' },
       footStyles: { fillColor: NAVY, textColor: WHITE, fontSize: 9, fontStyle: 'bold' },
@@ -803,22 +756,22 @@ async function generateManagementReport(dateFrom: string, dateTo: string, sectio
     });
 
     // Page 3: Equipment + Accessories
-    y = contHeader('E&I Costing — Equipment & Accessories Breakdown', `Equip: ${fmtAED(equipmentCostT)}  |  Acc: ${fmtAED(accessoryCostT)}`);
+    y = contHeader('E&I Costing â€” Equipment & Accessories Breakdown', `Equip: ${fmtAED(equipmentCostT)}  |  Acc: ${fmtAED(accessoryCostT)}`);
     const equipMap: Record<string, { vendor: string; entries: number; cost: number }> = {};
     rentalEntries.forEach((r: any) => {
       const k = r.equipmentName || 'Unknown';
-      if (!equipMap[k]) equipMap[k] = { vendor: r.vendorCompany || '—', entries: 0, cost: 0 };
+      if (!equipMap[k]) equipMap[k] = { vendor: r.vendorCompany || 'â€”', entries: 0, cost: 0 };
       equipMap[k].entries++; equipMap[k].cost += r.totalCost || 0;
     });
     const equipList = Object.entries(equipMap).sort((a, b) => b[1].cost - a[1].cost);
     y = subHeader(y, 'Equipment Usage by Asset');
     autoTable(doc, {
-      startY: y, margin: { left: 10, right: 10 },
+      startY: y, margin: { left: ML, right: ML },
       head: [['#', 'Equipment Name', 'Vendor / Company', 'Entries', 'Total Cost (AED)', 'Share']],
       body: equipList.length ? equipList.map(([name, d], i) => [
         i + 1, name, d.vendor, d.entries, fmtAED(d.cost),
-        equipmentCostT > 0 ? `${Math.round(d.cost / equipmentCostT * 100)}%` : '—',
-      ]) : [['—', 'No equipment data for this period', '', '', '', '']],
+        equipmentCostT > 0 ? `${Math.round(d.cost / equipmentCostT * 100)}%` : 'â€”',
+      ]) : [['â€”', 'No equipment data for this period', '', '', '', '']],
       foot: [['', 'TOTAL', '', rentalEntries.length, fmtAED(equipmentCostT), '100%']],
       headStyles: { fillColor: PURPLE, textColor: WHITE, fontSize: 8, fontStyle: 'bold' },
       footStyles: { fillColor: NAVY, textColor: WHITE, fontSize: 8, fontStyle: 'bold' },
@@ -835,14 +788,14 @@ async function generateManagementReport(dateFrom: string, dateTo: string, sectio
       });
     });
     const accCats = Object.entries(accCatMap).sort((a, b) => b[1] - a[1]);
-    const accSubY = subHeader(afterEqY + 8, 'Accessories by Category');
+    const accSubY = subHeader(afterEqY + 5, 'Accessories by Category');
     autoTable(doc, {
-      startY: accSubY, margin: { left: 10, right: 10 },
+      startY: accSubY, margin: { left: ML, right: ML },
       head: [['#', 'Category', 'Total Cost (AED)', 'Share of Accessories']],
       body: accCats.length ? accCats.map(([cat, cost], i) => [
         i + 1, cat, fmtAED(cost),
-        accessoryCostT > 0 ? `${Math.round(cost / accessoryCostT * 100)}%` : '—',
-      ]) : [['—', 'No accessories data for this period', '', '']],
+        accessoryCostT > 0 ? `${Math.round(cost / accessoryCostT * 100)}%` : 'â€”',
+      ]) : [['â€”', 'No accessories data for this period', '', '']],
       foot: [['', 'TOTAL', fmtAED(accessoryCostT), '100%']],
       headStyles: { fillColor: WARNING, textColor: WHITE, fontSize: 9, fontStyle: 'bold' },
       footStyles: { fillColor: NAVY, textColor: WHITE, fontSize: 9, fontStyle: 'bold' },
@@ -851,14 +804,14 @@ async function generateManagementReport(dateFrom: string, dateTo: string, sectio
       alternateRowStyles: { fillColor: [255, 251, 235] },
     });
 
-    const finalCostY = Math.min(((doc as any).lastAutoTable?.finalY ?? 150) + 8, H - 22);
-    doc.setFillColor(...NAVY); doc.roundedRect(10, finalCostY, W - 20, 14, 2, 2, 'F');
-    doc.setFontSize(10); doc.setFont('helvetica', 'bold'); doc.setTextColor(...WHITE);
-    doc.text('GRAND TOTAL — All Categories', 16, finalCostY + 9.5);
-    doc.text(fmtAED(grandCostT), W - 16, finalCostY + 9.5, { align: 'right' });
+    const finalCostY = Math.min(((doc as any).lastAutoTable?.finalY ?? 150) + 5, USABLE - 14);
+    doc.setFillColor(...NAVY); doc.roundedRect(ML, finalCostY, W - ML * 2, 12, 2, 2, 'F');
+    doc.setFontSize(9.5); doc.setFont('helvetica', 'bold'); doc.setTextColor(...WHITE);
+    doc.text('GRAND TOTAL — All Categories', ML + 6, finalCostY + 8);
+    doc.text(fmtAED(grandCostT), W - ML - 6, finalCostY + 8, { align: 'right' });
   }
 
-  // ─── 10. E&I PURCHASE PAYMENT REPORT ─────────────────────────────────
+  // â”€â”€â”€ 10. E&I PURCHASE PAYMENT REPORT â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   if (need('payment')) {
     const FULL_PMT    = 'Payment Done';
     const PARTIAL_PMT = 'Partial Payment Done';
@@ -874,7 +827,7 @@ async function generateManagementReport(dateFrom: string, dateTo: string, sectio
           if (!tx.date) return;
           const d = new Date(tx.date);
           if (d.getFullYear() !== year || d.getMonth() + 1 !== month) return;
-          payEntries.push({ desc: r.itemDescription || '—', prNo: r.prNumber || '—', date: tx.date, amount: tx.amount || 0, isFull });
+          payEntries.push({ desc: r.itemDescription || 'â€”', prNo: r.prNumber || 'â€”', date: tx.date, amount: tx.amount || 0, isFull });
         });
       } else {
         const d = r.receivedDate || r.requestDate || '';
@@ -882,7 +835,7 @@ async function generateManagementReport(dateFrom: string, dateTo: string, sectio
           const dt = new Date(d);
           if (dt.getFullYear() !== year || dt.getMonth() + 1 !== month) return;
         }
-        payEntries.push({ desc: r.itemDescription || '—', prNo: r.prNumber || '—', date: d, amount: r.budget || 0, isFull });
+        payEntries.push({ desc: r.itemDescription || 'â€”', prNo: r.prNumber || 'â€”', date: d, amount: r.budget || 0, isFull });
       }
     });
 
@@ -891,13 +844,13 @@ async function generateManagementReport(dateFrom: string, dateTo: string, sectio
     const fullTotal      = fullEntries.reduce((s, e) => s + e.amount, 0);
     const partialTotal   = partialEntries.reduce((s, e) => s + e.amount, 0);
     const payTotal       = fullTotal + partialTotal;
-    const fmtD           = (d: string) => d ? new Date(d).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: '2-digit' }) : '—';
+    const fmtD           = (d: string) => d ? new Date(d).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: '2-digit' }) : 'â€”';
     const fmtE           = (n: number) => (n || 0).toLocaleString('en-AE', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
 
     y = sectionHeader('E&I Purchase Payment Report', monthLabel);
 
     autoTable(doc, {
-      startY: y, margin: { left: 10, right: 10 },
+      startY: y, margin: { left: ML, right: ML },
       head: [['Payment Type', 'No. of Items', 'Total Value (AED)']],
       body: [
         ['Full Payment Done',    String(fullEntries.length),    `AED ${fmtE(fullTotal)}`],
@@ -916,9 +869,9 @@ async function generateManagementReport(dateFrom: string, dateTo: string, sectio
 
     if (payEntries.length > 0) {
       autoTable(doc, {
-        startY: (doc as any).lastAutoTable.finalY + 8, margin: { left: 10, right: 10 },
+        startY: (doc as any).lastAutoTable.finalY + 5, margin: { left: ML, right: ML },
         head: [[
-          { content: `${monthLabel}   —   Total Paid: AED ${fmtE(payTotal)}   (Full: AED ${fmtE(fullTotal)}  |  Partial: AED ${fmtE(partialTotal)})`,
+          { content: `${monthLabel}   â€”   Total Paid: AED ${fmtE(payTotal)}   (Full: AED ${fmtE(fullTotal)}  |  Partial: AED ${fmtE(partialTotal)})`,
             colSpan: 6, styles: { fillColor: NAVY, textColor: WHITE, fontStyle: 'bold', fontSize: 10 } },
         ], ['SL', 'Item Description', 'PO / PR Number', 'Payment Date', 'Amount Paid (AED)', 'Type']],
         body: payEntries.map((e, i) => [i + 1, e.desc, e.prNo, fmtD(e.date), `AED ${fmtE(e.amount)}`, e.isFull ? 'Full Payment' : 'Partial Payment']),
@@ -937,34 +890,34 @@ async function generateManagementReport(dateFrom: string, dateTo: string, sectio
       });
     } else {
       doc.setFontSize(9); doc.setTextColor(...NEUTRAL);
-      doc.text(`No payments recorded for ${monthLabel}.`, 10, ((doc as any).lastAutoTable?.finalY || 60) + 10);
+      doc.text(`No payments recorded for ${monthLabel}.`, ML, ((doc as any).lastAutoTable?.finalY || 60) + 6);
     }
   }
 
-  // ─── Footer on all pages ──────────────────────────────────────────────
+  // â”€â”€â”€ Footer on all pages â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const totalPages = doc.getNumberOfPages();
   for (let i = 1; i <= totalPages; i++) {
     doc.setPage(i);
     doc.setFillColor(...BG);
-    doc.rect(0, H - 10, W, 10, 'F');
+    doc.rect(0, H - FOOT_H, W, FOOT_H, 'F');
     doc.setDrawColor(...PRIMARY);
     doc.setLineWidth(0.4);
-    doc.line(0, H - 10, W, H - 10);
+    doc.line(0, H - FOOT_H, W, H - FOOT_H);
     doc.setFont('helvetica', 'normal');
-    doc.setFontSize(7);
+    doc.setFontSize(6.5);
     doc.setTextColor(...NEUTRAL);
-    doc.text('E&I Department | Glass Technology', 10, H - 3.5);
+    doc.text('E&I Department | Glass Technology', ML, H - 3.5);
     doc.setFont('helvetica', 'bold');
     doc.text('CONFIDENTIAL', W / 2, H - 3.5, { align: 'center' });
     doc.setFont('helvetica', 'normal');
-    doc.text(`Page ${i} of ${totalPages}`, W - 10, H - 3.5, { align: 'right' });
+    doc.text(`Page ${i} of ${totalPages}`, W - ML, H - 3.5, { align: 'right' });
   }
 
-  // ─── Save ─────────────────────────────────────────────────────────────
+  // â”€â”€â”€ Save â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   doc.save(`EI_${monthLabel.replace(/\s+/g, '_')}_Monthly_Report.pdf`);
 }
 
-// ─── COMPONENT ─────────────────────────────────────────────────────────────────
+// â”€â”€â”€ COMPONENT â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 export default function Reports() {
   const [selectedReport, setSelectedReport] = useState<string | null>(null);
   const [dateFrom, setDateFrom] = useState(() => { const d = new Date(); d.setDate(1); return d.toISOString().slice(0, 10); });
@@ -1110,7 +1063,7 @@ export default function Reports() {
           ))}
         </div>
 
-        {/* Monthly Management Report — special full-width card */}
+        {/* Monthly Management Report â€” special full-width card */}
         {(() => {
           const r = REPORT_TYPES.find(x => x.id === 'management')!;
           const isSelected = selectedReport === 'management';
@@ -1122,10 +1075,10 @@ export default function Reports() {
               cursor: 'pointer', transition: 'all 0.2s',
             }} onClick={() => setSelectedReport('management')}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
-                <span style={{ fontSize: 24 }}>📑</span>
+                <span style={{ fontSize: 24 }}>ðŸ“‘</span>
                 <div style={{ flex: 1 }}>
                   <div style={{ fontSize: 13, fontWeight: 700, color: '#1e40af' }}>Monthly Management Report</div>
-                  <div style={{ fontSize: 10, color: '#64748b' }}>Select the sections to include — only ticked sections will appear in the PDF</div>
+                  <div style={{ fontSize: 10, color: '#64748b' }}>Select the sections to include â€” only ticked sections will appear in the PDF</div>
                 </div>
                 {/* Month picker */}
                 <div onClick={e => e.stopPropagation()} style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 2 }}>
@@ -1200,12 +1153,12 @@ export default function Reports() {
               disabled={generating || (selectedReport === 'management' && !anySelected)}
             >
               <Download size={13} />
-              {generating ? 'Generating PDF…' : selectedReport === 'management' ? 'Generate Management PDF' : `Generate ${format.toUpperCase()} Report`}
+              {generating ? 'Generating PDFâ€¦' : selectedReport === 'management' ? 'Generate Management PDF' : `Generate ${format.toUpperCase()} Report`}
             </button>
             <button className="btn-secondary" style={{ fontSize: 12, display: 'flex', alignItems: 'center', gap: 6 }}>
               <Calendar size={13} /> Schedule Auto Report
             </button>
-            {generating && <span style={{ fontSize: 11, color: '#64748b' }}>Fetching live data from all modules…</span>}
+            {generating && <span style={{ fontSize: 11, color: '#64748b' }}>Fetching live data from all modulesâ€¦</span>}
           </div>
         )}
       </div>
