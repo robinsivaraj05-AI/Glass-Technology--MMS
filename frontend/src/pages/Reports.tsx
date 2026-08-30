@@ -160,90 +160,170 @@ async function generateManagementReport(dateFrom: string, dateTo: string, sectio
   const attPdf    = await import('../utils/generatePDF');
   const attLogo   = need('attendance') ? await attPdf.loadLogo() : null;
   const doc = new jsPDFmod({ orientation: 'landscape', unit: 'mm', format: 'a4' });
-  const W = 297; // landscape A4 width
-  const H = 210; // landscape A4 height
+  const W = 297;
+  const H = 210;
 
-  const BLUE   = [37, 99, 235];
-  const GREY   = [100, 116, 139];
-  const DARK   = [30, 41, 59];
-  const WHITE  = [255, 255, 255];
-  const GREEN  = [22, 163, 74];
-  const ORANGE = [234, 88, 12];
-  const TEAL   = [14, 165, 233];
-  const PURPLE = [109, 40, 217];
-  const RED    = [220, 38, 38];
+  // Design tokens
+  const PRIMARY : [number,number,number] = [15,  76,  129];
+  const SECOND  : [number,number,number] = [37,  99,  235];
+  const BG      : [number,number,number] = [248, 250, 252];
+  const SUCCESS : [number,number,number] = [22,  163, 74 ];
+  const WARNING : [number,number,number] = [245, 158, 11 ];
+  const DANGER  : [number,number,number] = [220, 38,  38 ];
+  const NEUTRAL : [number,number,number] = [71,  85,  105];
+  const DARK    : [number,number,number] = [15,  23,  42 ];
+  const WHITE   : [number,number,number] = [255, 255, 255];
+  const NAVY    : [number,number,number] = [30,  58,  138];
+  const TEAL    : [number,number,number] = [15,  118, 110];
+  const PURPLE  : [number,number,number] = [124, 58,  237];
+  const ORANGE  : [number,number,number] = [234, 88,  12 ];
+  const ALT_ROW : [number,number,number] = [248, 250, 252];
 
-  // ─── Cover page ──────────────────────────────────────────────────────
-  doc.setFillColor(...BLUE);
-  doc.rect(0, 0, W, 80, 'F');
+  const tblHead = { fillColor: PRIMARY, textColor: WHITE, fontStyle: 'bold' as const, fontSize: 9 };
+  const tblAlt  = { fillColor: ALT_ROW };
 
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(26);
-  doc.setTextColor(...WHITE);
-  doc.text(reportTitle, W / 2, 32, { align: 'center' });
-  doc.setFontSize(12);
-  doc.setFont('helvetica', 'normal');
-  doc.setTextColor(200, 220, 255);
-  doc.text(`Period: ${dateFrom}  →  ${dateTo}     ·     Generated: ${today}     ·     E&I Department — Glass Technology`, W / 2, 46, { align: 'center' });
-
-  // KPI cover boxes
-  const coverBoxes = [
-    { label: 'Regular Spare Items',  value: fmt(regularCount),            color: TEAL },
-    { label: 'Spare Stock Value',    value: fmtAED(regularTotal),         color: GREEN },
-    { label: 'OEM Spare Items',      value: fmt(oemCount),                color: PURPLE },
-    { label: 'Pending Purchase',     value: fmt(pendingItems.length),     color: ORANGE },
-    { label: 'POs in Period',        value: fmt(receivedPOs.length),      color: BLUE },
-    { label: 'Total PO Value',       value: fmtAED(totalPOValue),         color: [220, 38, 38] },
-  ].filter((_, i) => i < 6);
-
-  // 6 KPI boxes in a single row (landscape fits them nicely)
-  const bW = 42, bH = 22, bGap = 5, bX0 = 15, bY0 = 90;
-  coverBoxes.forEach((b, i) => {
-    const bx = bX0 + i * (bW + bGap);
-    doc.setFillColor(248, 250, 252);
-    doc.setDrawColor(226, 232, 240);
-    doc.setLineWidth(0.3);
-    doc.roundedRect(bx, bY0, bW, bH, 3, 3, 'FD');
+  // ── KPI card helper ──────────────────────────────────────────────────
+  const drawKPICard = (x: number, y: number, w: number, h: number, label: string, value: string, color: [number,number,number]) => {
+    doc.setFillColor(210, 218, 226);
+    doc.roundedRect(x + 1, y + 1, w, h, 3, 3, 'F');
+    doc.setFillColor(...WHITE);
+    doc.roundedRect(x, y, w, h, 3, 3, 'F');
+    doc.setFillColor(...color);
+    doc.roundedRect(x, y, w, 3.5, 2, 2, 'F');
+    doc.rect(x, y + 2, w, 1.5, 'F');
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(11);
-    doc.setTextColor(...b.color);
-    doc.text(b.value, bx + bW / 2, bY0 + 10, { align: 'center' });
+    doc.setTextColor(...color);
+    doc.text(value, x + w / 2, y + h / 2 + 2.5, { align: 'center' });
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(6.5);
-    doc.setTextColor(...GREY);
-    doc.text(b.label, bx + bW / 2, bY0 + 18, { align: 'center' });
-  });
+    doc.setTextColor(...NEUTRAL);
+    doc.text(label, x + w / 2, y + h - 3.5, { align: 'center' });
+  };
 
-  // ── helper: section header ──
+  // ── Section header helpers ────────────────────────────────────────────
   let y = 0;
   let sectionNum = 0;
-  const sectionHeader = (title: string, subtitle = '') => {
-    sectionNum++;
-    doc.addPage();
-    doc.setFillColor(...BLUE);
-    doc.rect(0, 0, W, 18, 'F');
+  const drawHdrBand = (title: string, subtitle: string, num: number) => {
+    doc.setFillColor(...BG);
+    doc.rect(0, 0, W, H, 'F');
+    doc.setFillColor(...PRIMARY);
+    doc.rect(0, 0, W, 15, 'F');
+    doc.setFillColor(...SECOND);
+    doc.rect(W * 0.55, 0, W * 0.45, 15, 'F');
+    doc.setFillColor(...SECOND);
+    doc.rect(0, 15, W, 0.8, 'F');
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(12);
     doc.setTextColor(...WHITE);
-    doc.text(`${sectionNum}. ${title}`, 10, 11.5);
+    doc.text(num > 0 ? `${num}. ${title}` : title, 10, 10);
     if (subtitle) {
-      doc.setFontSize(8);
       doc.setFont('helvetica', 'normal');
-      doc.text(subtitle, W - 10, 11.5, { align: 'right' });
+      doc.setFontSize(7);
+      doc.setTextColor(186, 230, 253);
+      doc.text(subtitle, W - 10, 10, { align: 'right' });
     }
-    return 26;
+  };
+  const sectionHeader = (title: string, subtitle = '') => {
+    sectionNum++;
+    doc.addPage();
+    drawHdrBand(title, subtitle, sectionNum);
+    return 23;
+  };
+  const contHeader = (title: string, subtitle = '') => {
+    doc.addPage();
+    drawHdrBand(title, subtitle, 0);
+    return 23;
   };
 
   const subHeader = (y: number, text: string) => {
+    doc.setFillColor(...SECOND);
+    doc.rect(10, y, 2.5, 6, 'F');
     doc.setFont('helvetica', 'bold');
-    doc.setFontSize(9);
+    doc.setFontSize(8.5);
     doc.setTextColor(...DARK);
-    doc.text(text, 10, y);
-    doc.setDrawColor(...BLUE);
-    doc.setLineWidth(0.3);
-    doc.line(10, y + 1.5, W - 10, y + 1.5);
-    return y + 7;
+    doc.text(text, 14.5, y + 4.5);
+    doc.setDrawColor(226, 232, 240);
+    doc.setLineWidth(0.2);
+    doc.line(14.5, y + 6, W - 10, y + 6);
+    return y + 11;
   };
+
+  // ─── COVER PAGE ──────────────────────────────────────────────────────
+  doc.setFillColor(...BG);
+  doc.rect(0, 0, W, H, 'F');
+
+  // Header: primary left, secondary right
+  doc.setFillColor(...PRIMARY);
+  doc.rect(0, 0, W, 58, 'F');
+  doc.setFillColor(...SECOND);
+  doc.rect(W * 0.5, 0, W * 0.5, 58, 'F');
+  doc.setFillColor(...WHITE);
+  doc.rect(0, 58, W, 0.8, 'F');
+
+  // Company label
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(7.5);
+  doc.setTextColor(186, 230, 253);
+  doc.text('GLASS TECHNOLOGY — E&I DEPARTMENT', 10, 10);
+
+  // Report title
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(22);
+  doc.setTextColor(...WHITE);
+  doc.text(reportTitle, 10, 30);
+
+  // Period
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(9);
+  doc.setTextColor(186, 230, 253);
+  doc.text(`Period: ${dateFrom}  –  ${dateTo}     |     Generated: ${today}`, 10, 43);
+
+  // Right side label
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(8.5);
+  doc.setTextColor(...WHITE);
+  doc.text('MONTHLY MANAGEMENT REPORT', W - 10, 28, { align: 'right' });
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(7);
+  doc.setTextColor(186, 230, 253);
+  doc.text('Electrical & Instrumentation Division', W - 10, 37, { align: 'right' });
+
+  // KPI cards
+  const coverKPIs: Array<{ label: string; value: string; color: [number,number,number] }> = [
+    { label: 'Regular Spare Items', value: fmt(regularCount),        color: [14, 165, 233] },
+    { label: 'Spare Stock Value',   value: fmtAED(regularTotal),     color: SUCCESS },
+    { label: 'OEM Spare Items',     value: fmt(oemCount),            color: PURPLE },
+    { label: 'Pending Purchase',    value: fmt(pendingItems.length), color: WARNING },
+    { label: 'POs in Period',       value: fmt(receivedPOs.length),  color: SECOND },
+    { label: 'Total PO Value',      value: fmtAED(totalPOValue),     color: DANGER },
+  ];
+  const bW = 42, bH = 34, bX0 = 10, bY0 = 65;
+  coverKPIs.forEach((b, i) => drawKPICard(bX0 + i * (bW + 5), bY0, bW, bH, b.label, b.value, b.color));
+
+  // Section list (two columns)
+  const cleanLabel = (lbl: string) => lbl.replace(/[^\x20-\x7E]/g, '').trim();
+  const activeLabels = MGMT_SECTIONS.filter(s => sections[s.key] !== false).map(s => cleanLabel(s.label));
+  if (activeLabels.length > 0) {
+    const listY0 = bY0 + bH + 10;
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(7.5);
+    doc.setTextColor(...NEUTRAL);
+    doc.text('REPORT CONTENTS:', 10, listY0);
+    const half = Math.ceil(activeLabels.length / 2);
+    activeLabels.forEach((lbl, i) => {
+      const col = i < half ? 0 : 1;
+      const row = col === 0 ? i : i - half;
+      const lx = 10 + col * 135;
+      const ly = listY0 + 8 + row * 6.5;
+      doc.setFillColor(...SECOND);
+      doc.roundedRect(lx, ly - 2.5, 2, 2, 0.5, 0.5, 'F');
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(7);
+      doc.setTextColor(...DARK);
+      doc.text(`${i + 1}. ${lbl}`, lx + 4, ly);
+    });
+  }
 
   // ─── 1. SPARE PARTS STORE-WISE SUMMARY ────────────────────────────────
   if (need('spares')) {
@@ -267,27 +347,27 @@ async function generateManagementReport(dateFrom: string, dateTo: string, sectio
         ];
       }),
       styles: { fontSize: 10, cellPadding: 4 },
-      headStyles: { fillColor: BLUE, textColor: WHITE, fontStyle: 'bold', fontSize: 10 },
+      headStyles: tblHead,
       columnStyles: { 1: { halign: 'center' }, 2: { halign: 'right' } },
-      tableWidth: 180,
+      tableWidth: 190,
       margin: { left: 10 },
       didParseCell: (data: any) => {
         const row = allStoreRows[data.row.index];
         if (!row) return;
         if ((row as any).isBanner) {
           data.cell.styles.fillColor = [255, 247, 237];
-          data.cell.styles.textColor = [234, 88, 12];
+          data.cell.styles.textColor = [180, 60, 10];
           data.cell.styles.fontStyle = 'bold';
           data.cell.styles.fontSize = 9;
         } else if (row.isTotalRow) {
-          data.cell.styles.fillColor = [219, 234, 254];
-          data.cell.styles.textColor = BLUE;
+          data.cell.styles.fillColor = NAVY;
+          data.cell.styles.textColor = WHITE;
           data.cell.styles.fontStyle = 'bold';
         } else if (row.isOEM) {
           data.cell.styles.fillColor = [255, 251, 235];
-          if (data.column.index === 2) { data.cell.styles.textColor = GREEN; data.cell.styles.fontStyle = 'bold'; }
+          if (data.column.index === 2) { data.cell.styles.textColor = SUCCESS; data.cell.styles.fontStyle = 'bold'; }
         } else {
-          data.cell.styles.fillColor = data.row.index % 2 === 0 ? WHITE : [248, 250, 252];
+          data.cell.styles.fillColor = data.row.index % 2 === 0 ? WHITE : ALT_ROW;
         }
       },
       didDrawCell: (data: any) => {
@@ -349,7 +429,7 @@ async function generateManagementReport(dateFrom: string, dateTo: string, sectio
       attPdf.addWorkSummary(doc, attLogo, attTeam, attEntries, year, month);
     } else {
       y = sectionHeader('Employee Attendance', monthLabel);
-      doc.setFontSize(9); doc.setTextColor(...GREY);
+      doc.setFontSize(9); doc.setTextColor(...NEUTRAL);
       doc.text(`No attendance records found for ${monthLabel}.`, 10, y + 8);
     }
   }
@@ -375,10 +455,10 @@ async function generateManagementReport(dateFrom: string, dateTo: string, sectio
         head: [['Vendor / Company', 'Jobs', 'Total Hours', 'Total Cost (AED)']],
         body: [...sumRows, ['TOTAL', fmt(outsourceEntries.length), `${outsourceEntries.reduce((s: number, e: any) => s + (e.workingHours || 0), 0).toFixed(1)} hrs`, fmtAED(outsourceCost)]],
         styles: { fontSize: 9, cellPadding: 3 },
-        headStyles: { fillColor: BLUE, textColor: WHITE, fontStyle: 'bold' },
+        headStyles: tblHead,
         columnStyles: { 1: { halign: 'center' }, 2: { halign: 'center' }, 3: { halign: 'right' } },
-        alternateRowStyles: { fillColor: [248, 250, 252] },
-        didParseCell: (data: any) => { if (data.row.index === sumRows.length) { data.cell.styles.fontStyle = 'bold'; data.cell.styles.fillColor = [219, 234, 254]; } },
+        alternateRowStyles: tblAlt,
+        didParseCell: (data: any) => { if (data.row.index === sumRows.length) { data.cell.styles.fillColor = NAVY; data.cell.styles.textColor = WHITE; data.cell.styles.fontStyle = 'bold'; } },
       });
       y = (doc as any).lastAutoTable.finalY + 8;
       if (outsourceEntries.length <= 30) {
@@ -395,13 +475,13 @@ async function generateManagementReport(dateFrom: string, dateTo: string, sectio
             e.completionStatus || '—',
           ]),
           styles: { fontSize: 7.5, cellPadding: 2.5 },
-          headStyles: { fillColor: BLUE, textColor: WHITE, fontStyle: 'bold' },
+          headStyles: tblHead,
           columnStyles: { 3: { halign: 'center' }, 4: { halign: 'right' } },
-          alternateRowStyles: { fillColor: [248, 250, 252] },
+          alternateRowStyles: tblAlt,
         });
       }
     } else {
-      doc.setFontSize(9); doc.setTextColor(...GREY);
+      doc.setFontSize(9); doc.setTextColor(...NEUTRAL);
       doc.text('No outsource entries found for this period.', 10, y + 6);
     }
   }
@@ -427,13 +507,13 @@ async function generateManagementReport(dateFrom: string, dateTo: string, sectio
         head: [['Equipment', 'Days Used', 'Total Hours', 'Total Cost (AED)']],
         body: [...sumRows, ['TOTAL', fmt(rentalEntries.length), `${rentalEntries.reduce((s: number, e: any) => s + (e.workingHours || 0), 0).toFixed(1)} hrs`, fmtAED(rentalCost)]],
         styles: { fontSize: 9, cellPadding: 3 },
-        headStyles: { fillColor: BLUE, textColor: WHITE, fontStyle: 'bold' },
+        headStyles: tblHead,
         columnStyles: { 1: { halign: 'center' }, 2: { halign: 'center' }, 3: { halign: 'right' } },
-        alternateRowStyles: { fillColor: [248, 250, 252] },
-        didParseCell: (data: any) => { if (data.row.index === sumRows.length) { data.cell.styles.fontStyle = 'bold'; data.cell.styles.fillColor = [219, 234, 254]; } },
+        alternateRowStyles: tblAlt,
+        didParseCell: (data: any) => { if (data.row.index === sumRows.length) { data.cell.styles.fillColor = NAVY; data.cell.styles.textColor = WHITE; data.cell.styles.fontStyle = 'bold'; } },
       });
     } else {
-      doc.setFontSize(9); doc.setTextColor(...GREY);
+      doc.setFontSize(9); doc.setTextColor(...NEUTRAL);
       doc.text('No rental equipment entries found for this period.', 10, y + 6);
     }
   }
@@ -452,11 +532,11 @@ async function generateManagementReport(dateFrom: string, dateTo: string, sectio
       head: [['Status', 'Count']],
       body: [...statusRows, ['TOTAL', fmt(followupRecords.length)]],
       styles: { fontSize: 9, cellPadding: 3 },
-      headStyles: { fillColor: BLUE, textColor: WHITE, fontStyle: 'bold' },
+      headStyles: tblHead,
       columnStyles: { 1: { halign: 'center' } },
-      tableWidth: 80,
-      alternateRowStyles: { fillColor: [248, 250, 252] },
-      didParseCell: (data: any) => { if (data.row.index === statusRows.length) { data.cell.styles.fontStyle = 'bold'; data.cell.styles.fillColor = [219, 234, 254]; } },
+      tableWidth: 90,
+      alternateRowStyles: tblAlt,
+      didParseCell: (data: any) => { if (data.row.index === statusRows.length) { data.cell.styles.fillColor = NAVY; data.cell.styles.textColor = WHITE; data.cell.styles.fontStyle = 'bold'; } },
     });
     y = (doc as any).lastAutoTable.finalY + 8;
 
@@ -484,7 +564,7 @@ async function generateManagementReport(dateFrom: string, dateTo: string, sectio
           ];
         }),
         styles: { fontSize: 7, cellPadding: 2 },
-        headStyles: { fillColor: BLUE, textColor: WHITE, fontStyle: 'bold', fontSize: 7 },
+        headStyles: { ...tblHead, fontSize: 7 },
         columnStyles: {
           0:  { halign: 'center', cellWidth: 7 },
           1:  { cellWidth: 58 },
@@ -498,13 +578,13 @@ async function generateManagementReport(dateFrom: string, dateTo: string, sectio
           9:  { halign: 'center', cellWidth: 20 },
           10: { halign: 'center', cellWidth: 20 },
         },
-        alternateRowStyles: { fillColor: [248, 250, 252] },
+        alternateRowStyles: tblAlt,
         didParseCell: (data: any) => {
           if (data.column.index === 3 && data.section === 'body') {
             const d = Number(data.cell.text[0]);
             if (!isNaN(d)) {
-              if (d > 90)      data.cell.styles.textColor = RED;
-              else if (d > 30) data.cell.styles.textColor = ORANGE;
+              if (d > 90)      data.cell.styles.textColor = DANGER;
+              else if (d > 30) data.cell.styles.textColor = WARNING;
             }
           }
         },
@@ -534,12 +614,12 @@ async function generateManagementReport(dateFrom: string, dateTo: string, sectio
           r.budget ? fmtAED(r.budget) : '—',
         ]),
         styles: { fontSize: 8.5, cellPadding: 3 },
-        headStyles: { fillColor: GREEN, textColor: WHITE, fontStyle: 'bold' },
+        headStyles: { fillColor: SUCCESS, textColor: WHITE, fontStyle: 'bold', fontSize: 9 },
         columnStyles: { 0: { halign: 'center', cellWidth: 8 }, 2: { halign: 'center', cellWidth: 30 }, 3: { halign: 'center', cellWidth: 28 }, 4: { halign: 'center', cellWidth: 28 }, 5: { halign: 'right', cellWidth: 28 } },
         alternateRowStyles: { fillColor: [240, 253, 244] },
       });
     } else {
-      doc.setFontSize(9); doc.setTextColor(...GREY);
+      doc.setFontSize(9); doc.setTextColor(...NEUTRAL);
       doc.text(`No materials received in ${monthLabel}.`, 10, y + 6);
     }
   }
@@ -563,15 +643,15 @@ async function generateManagementReport(dateFrom: string, dateTo: string, sectio
           po.status || '—',
         ]),
         styles: { fontSize: 8, cellPadding: 2.5 },
-        headStyles: { fillColor: BLUE, textColor: WHITE, fontStyle: 'bold' },
+        headStyles: tblHead,
         columnStyles: { 4: { halign: 'center' }, 5: { halign: 'right' } },
-        alternateRowStyles: { fillColor: [248, 250, 252] },
+        alternateRowStyles: tblAlt,
       });
       y = (doc as any).lastAutoTable.finalY + 6;
-      doc.setFont('helvetica', 'bold'); doc.setFontSize(9); doc.setTextColor(...BLUE);
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(9); doc.setTextColor(...PRIMARY);
       doc.text(`Total PO Value for Period: ${fmtAED(totalPOValue)}`, W - 10, y, { align: 'right' });
     } else {
-      doc.setFontSize(9); doc.setTextColor(...GREY);
+      doc.setFontSize(9); doc.setTextColor(...NEUTRAL);
       doc.text('No purchase orders found for this period.', 10, y + 6);
     }
   }
@@ -582,33 +662,31 @@ async function generateManagementReport(dateFrom: string, dateTo: string, sectio
 
     y = subHeader(y, 'Cost Breakdown');
     const costRows = [
-      ['POs Received (Period)',       fmtAED(totalPOValue),     `${receivedPOs.length} POs`],
-      ['All POs (All Time Total)',    fmtAED(allPOTotal),        `${allPOs.length} POs`],
-      ['Outsource Cost (Period)',     fmtAED(outsourceCost),     `${outsourceEntries.length} jobs`],
-      ['Rental Equipment (Period)',   fmtAED(rentalCost),        `${rentalEntries.length} entries`],
-      ['Pending Purchase Budget',    fmtAED(pendingBudget),     `${pendingItems.length} pending items`],
-      ['Spare Stock Value (Regular)',fmtAED(regularTotal),      `${fmt(regularCount)} items`],
+      ['POs Received (Period)',        fmtAED(totalPOValue),  `${receivedPOs.length} POs`],
+      ['All POs (All Time Total)',     fmtAED(allPOTotal),    `${allPOs.length} POs`],
+      ['Outsource Cost (Period)',      fmtAED(outsourceCost), `${outsourceEntries.length} jobs`],
+      ['Rental Equipment (Period)',    fmtAED(rentalCost),    `${rentalEntries.length} entries`],
+      ['Pending Purchase Budget',      fmtAED(pendingBudget), `${pendingItems.length} pending items`],
+      ['Spare Stock Value (Regular)', fmtAED(regularTotal),  `${fmt(regularCount)} items`],
     ];
     autoTable(doc, {
       startY: y,
       head: [['Category', 'Amount (AED)', 'Remarks']],
       body: costRows,
       styles: { fontSize: 9, cellPadding: 3.5 },
-      headStyles: { fillColor: BLUE, textColor: WHITE, fontStyle: 'bold' },
-      columnStyles: { 1: { halign: 'right', fontStyle: 'bold' }, 2: { halign: 'center', textColor: GREY } },
-      alternateRowStyles: { fillColor: [248, 250, 252] },
+      headStyles: tblHead,
+      columnStyles: { 1: { halign: 'right', fontStyle: 'bold' }, 2: { halign: 'center', textColor: NEUTRAL } },
+      alternateRowStyles: tblAlt,
     });
     y = (doc as any).lastAutoTable.finalY + 10;
 
     const totalSpend = totalPOValue + outsourceCost + rentalCost;
-    doc.setFillColor(219, 234, 254);
-    doc.setDrawColor(...BLUE);
-    doc.setLineWidth(0.5);
-    doc.roundedRect(10, y, W - 20, 16, 3, 3, 'FD');
+    doc.setFillColor(...NAVY);
+    doc.roundedRect(10, y, W - 20, 14, 3, 3, 'F');
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(11);
-    doc.setTextColor(...BLUE);
-    doc.text(`Total Expenditure for Period: ${fmtAED(totalSpend)}`, W / 2, y + 10, { align: 'center' });
+    doc.setTextColor(...WHITE);
+    doc.text(`Total Expenditure for Period: ${fmtAED(totalSpend)}`, W / 2, y + 9.5, { align: 'center' });
   }
 
   // ─── 8. PROJECTS ──────────────────────────────────────────────────────
@@ -620,30 +698,16 @@ async function generateManagementReport(dateFrom: string, dateTo: string, sectio
       const totalBudget     = projects.reduce((s: number, p: any) => s + (p.budget || 0), 0);
       const totalSpent      = projects.reduce((s: number, p: any) => s + (p.spent || 0), 0);
 
-      // Project KPI boxes
-      const pKPIs = [
-        { label: 'Total Projects',  value: fmt(projects.length),        color: BLUE },
-        { label: 'Active / In-Prog',value: fmt(activeProjects.length),  color: GREEN },
-        { label: 'Total Budget',    value: fmtAED(totalBudget),         color: PURPLE },
-        { label: 'Total Spent',     value: fmtAED(totalSpent),          color: ORANGE },
+      // Project KPI cards
+      const pKPIs: Array<{ label: string; value: string; color: [number,number,number] }> = [
+        { label: 'Total Projects',   value: fmt(projects.length),       color: PRIMARY },
+        { label: 'Active / In-Prog', value: fmt(activeProjects.length), color: SUCCESS },
+        { label: 'Total Budget',     value: fmtAED(totalBudget),        color: PURPLE },
+        { label: 'Total Spent',      value: fmtAED(totalSpent),         color: WARNING },
       ];
-      const pkW = 42, pkH = 16, pkX0 = 10;
-      pKPIs.forEach((k, i) => {
-        const kx = pkX0 + i * (pkW + 5);
-        doc.setFillColor(248, 250, 252);
-        doc.setDrawColor(226, 232, 240);
-        doc.setLineWidth(0.3);
-        doc.roundedRect(kx, y, pkW, pkH, 2, 2, 'FD');
-        doc.setFont('helvetica', 'bold');
-        doc.setFontSize(10);
-        doc.setTextColor(...k.color);
-        doc.text(k.value, kx + pkW / 2, y + 8, { align: 'center' });
-        doc.setFont('helvetica', 'normal');
-        doc.setFontSize(6.5);
-        doc.setTextColor(...GREY);
-        doc.text(k.label, kx + pkW / 2, y + 13.5, { align: 'center' });
-      });
-      y += pkH + 8;
+      const pkW = 52, pkH = 28;
+      pKPIs.forEach((k, i) => drawKPICard(10 + i * (pkW + 5), y, pkW, pkH, k.label, k.value, k.color));
+      y += pkH + 10;
 
       y = subHeader(y, 'Project Details');
       autoTable(doc, {
@@ -661,17 +725,17 @@ async function generateManagementReport(dateFrom: string, dateTo: string, sectio
           (p.projectManager || '—').substring(0, 14),
         ]),
         styles: { fontSize: 7.5, cellPadding: 2.5 },
-        headStyles: { fillColor: BLUE, textColor: WHITE, fontStyle: 'bold' },
+        headStyles: tblHead,
         columnStyles: {
           0: { halign: 'center', cellWidth: 7 },
           5: { halign: 'center' },
           6: { halign: 'right' },
           7: { halign: 'right' },
         },
-        alternateRowStyles: { fillColor: [248, 250, 252] },
+        alternateRowStyles: tblAlt,
       });
     } else {
-      doc.setFontSize(9); doc.setTextColor(...GREY);
+      doc.setFontSize(9); doc.setTextColor(...NEUTRAL);
       doc.text('No projects found.', 10, y + 6);
     }
   }
@@ -683,65 +747,39 @@ async function generateManagementReport(dateFrom: string, dateTo: string, sectio
     const accessoryCostT = accEntries.reduce((s: number,      e: any) => s + (e.totalCost || 0), 0);
     const grandCostT     = outsourceCostT + equipmentCostT + accessoryCostT;
 
-    const CG  = [120, 180, 110] as [number,number,number]; // green header
-    const CY  = [255, 243, 176] as [number,number,number]; // yellow totals
-    const CDK = [15,  23,  42]  as [number,number,number]; // dark
-
-    const drawCostHdr = (title: string, sub: string) => {
-      doc.setFillColor(...CG);
-      doc.rect(0, 0, W, 20, 'F');
-      doc.setFontSize(13); doc.setFont('helvetica', 'bold'); doc.setTextColor(255, 255, 255);
-      doc.text(title, 10, 9);
-      doc.setFontSize(8); doc.setFont('helvetica', 'normal');
-      doc.text(sub, 10, 15);
-      doc.setFontSize(7);
-      doc.text(`Period: ${monthLabel}   |   Generated: ${today}`, 10, 20);
-      doc.setTextColor(0, 0, 0);
-    };
-
-    // ── Page 1: Summary ───────────────────────────────────────────────
-    doc.addPage();
-    drawCostHdr('E&I Department — Costing Report', 'Outsource Labour · Rental Equipment · Accessories');
-
-    const cKpis = [
-      { label: 'Outsource Labour', value: `AED ${fmt(outsourceCostT)}`, col: [15, 118, 110] as [number,number,number] },
-      { label: 'Equipment Usage',  value: `AED ${fmt(equipmentCostT)}`, col: [124, 58, 237]  as [number,number,number] },
-      { label: 'Accessories',      value: `AED ${fmt(accessoryCostT)}`, col: [217, 119, 6]   as [number,number,number] },
-      { label: 'Grand Total',      value: `AED ${fmt(grandCostT)}`,     col: [220, 38, 38]   as [number,number,number] },
-    ];
+    // Page 1: Summary
+    y = sectionHeader('E&I Costing Report — Summary', `Period: ${monthLabel}`);
     const cbw = (W - 20 - 9) / 4;
-    cKpis.forEach((k, i) => {
-      const x = 10 + i * (cbw + 3);
-      doc.setFillColor(248, 250, 252); doc.roundedRect(x, 24, cbw, 22, 2, 2, 'F');
-      doc.setFillColor(...k.col);      doc.roundedRect(x, 24, cbw,  3, 2, 2, 'F');
-      doc.setFontSize(7); doc.setFont('helvetica', 'bold'); doc.setTextColor(...k.col);
-      doc.text(k.label.toUpperCase(), x + 4, 32);
-      doc.setFontSize(11); doc.setTextColor(0, 0, 0);
-      doc.text(k.value, x + 4, 40);
-    });
-    doc.setFontSize(9); doc.setFont('helvetica', 'bold'); doc.setTextColor(0, 0, 0);
-    doc.text('COST SUMMARY', 10, 52);
+    const cKpis: Array<{ label: string; value: string; color: [number,number,number] }> = [
+      { label: 'Outsource Labour', value: fmtAED(outsourceCostT), color: TEAL },
+      { label: 'Equipment Usage',  value: fmtAED(equipmentCostT), color: PURPLE },
+      { label: 'Accessories',      value: fmtAED(accessoryCostT), color: WARNING },
+      { label: 'Grand Total',      value: fmtAED(grandCostT),     color: DANGER },
+    ];
+    cKpis.forEach((k, i) => drawKPICard(10 + i * (cbw + 3), y, cbw, 28, k.label, k.value, k.color));
+    y += 36;
+
+    y = subHeader(y, 'Cost Summary');
     autoTable(doc, {
-      startY: 55, margin: { left: 10, right: 10 },
+      startY: y, margin: { left: 10, right: 10 },
       head: [['Category', 'No. Entries', 'Total Cost (AED)', 'Share of Total']],
       body: [
-        ['Outsource Labour', outsourceEntries.length, `AED ${fmt(outsourceCostT)}`, grandCostT > 0 ? `${Math.round(outsourceCostT / grandCostT * 100)}%` : '—'],
-        ['Equipment Usage',  rentalEntries.length,    `AED ${fmt(equipmentCostT)}`, grandCostT > 0 ? `${Math.round(equipmentCostT / grandCostT * 100)}%` : '—'],
-        ['Accessories',      accEntries.length,        `AED ${fmt(accessoryCostT)}`, grandCostT > 0 ? `${Math.round(accessoryCostT / grandCostT * 100)}%` : '—'],
-        ['GRAND TOTAL',      outsourceEntries.length + rentalEntries.length + accEntries.length, `AED ${fmt(grandCostT)}`, '100%'],
+        ['Outsource Labour', outsourceEntries.length, fmtAED(outsourceCostT), grandCostT > 0 ? `${Math.round(outsourceCostT / grandCostT * 100)}%` : '—'],
+        ['Equipment Usage',  rentalEntries.length,    fmtAED(equipmentCostT), grandCostT > 0 ? `${Math.round(equipmentCostT / grandCostT * 100)}%` : '—'],
+        ['Accessories',      accEntries.length,        fmtAED(accessoryCostT), grandCostT > 0 ? `${Math.round(accessoryCostT / grandCostT * 100)}%` : '—'],
+        ['GRAND TOTAL',      outsourceEntries.length + rentalEntries.length + accEntries.length, fmtAED(grandCostT), '100%'],
       ],
-      headStyles: { fillColor: CDK, textColor: WHITE, fontSize: 9, fontStyle: 'bold' },
+      headStyles: tblHead,
       bodyStyles: { fontSize: 9 },
-      columnStyles: { 2: { fontStyle: 'bold' }, 3: { fontStyle: 'bold' } },
-      alternateRowStyles: { fillColor: [248, 250, 252] },
+      columnStyles: { 1: { halign: 'center' }, 2: { fontStyle: 'bold', halign: 'right' }, 3: { fontStyle: 'bold', halign: 'center' } },
+      alternateRowStyles: tblAlt,
       didParseCell: (data: any) => {
-        if (data.row.index === 3) { data.cell.styles.fillColor = CY; data.cell.styles.textColor = CDK; data.cell.styles.fontStyle = 'bold'; }
+        if (data.row.index === 3) { data.cell.styles.fillColor = NAVY; data.cell.styles.textColor = WHITE; data.cell.styles.fontStyle = 'bold'; }
       },
     });
 
-    // ── Page 2: Outsource by Contract ────────────────────────────────
-    doc.addPage();
-    drawCostHdr('Outsource Labour — Contract Breakdown', `Total: AED ${fmt(outsourceCostT)}`);
+    // Page 2: Outsource by Contract
+    y = contHeader('E&I Costing — Outsource Labour Breakdown', `Total: ${fmtAED(outsourceCostT)}`);
     const contractMap: Record<string, { company: string; entries: number; cost: number }> = {};
     outsourceEntries.forEach((r: any) => {
       const k = r.contractName || 'Unknown';
@@ -750,24 +788,22 @@ async function generateManagementReport(dateFrom: string, dateTo: string, sectio
     });
     const contracts = Object.entries(contractMap).sort((a, b) => b[1].cost - a[1].cost);
     autoTable(doc, {
-      startY: 24, margin: { left: 10, right: 10 },
+      startY: y, margin: { left: 10, right: 10 },
       head: [['#', 'Contract Name', 'Contractor Company', 'Entries', 'Total Cost (AED)', 'Share']],
       body: contracts.length ? contracts.map(([name, d], i) => [
-        i + 1, name, d.company, d.entries, `AED ${fmt(d.cost)}`,
+        i + 1, name, d.company, d.entries, fmtAED(d.cost),
         outsourceCostT > 0 ? `${Math.round(d.cost / outsourceCostT * 100)}%` : '—',
       ]) : [['—', 'No outsource data for this period', '', '', '', '']],
-      foot: [['', 'TOTAL', '', outsourceEntries.length, `AED ${fmt(outsourceCostT)}`, '100%']],
-      headStyles: { fillColor: [15, 118, 110], textColor: WHITE, fontSize: 9, fontStyle: 'bold' },
-      footStyles: { fillColor: CY, textColor: CDK, fontSize: 9, fontStyle: 'bold' },
+      foot: [['', 'TOTAL', '', outsourceEntries.length, fmtAED(outsourceCostT), '100%']],
+      headStyles: { fillColor: TEAL, textColor: WHITE, fontSize: 9, fontStyle: 'bold' },
+      footStyles: { fillColor: NAVY, textColor: WHITE, fontSize: 9, fontStyle: 'bold' },
       bodyStyles: { fontSize: 9 },
-      columnStyles: { 4: { fontStyle: 'bold', textColor: [15, 118, 110] } },
+      columnStyles: { 4: { fontStyle: 'bold', textColor: TEAL, halign: 'right' }, 5: { halign: 'center' } },
       alternateRowStyles: { fillColor: [240, 253, 250] },
     });
 
-    // ── Page 3: Equipment + Accessories ──────────────────────────────
-    doc.addPage();
-    drawCostHdr('Rental Equipment & Accessories — Breakdown', `Equipment: AED ${fmt(equipmentCostT)}   |   Accessories: AED ${fmt(accessoryCostT)}`);
-
+    // Page 3: Equipment + Accessories
+    y = contHeader('E&I Costing — Equipment & Accessories Breakdown', `Equip: ${fmtAED(equipmentCostT)}  |  Acc: ${fmtAED(accessoryCostT)}`);
     const equipMap: Record<string, { vendor: string; entries: number; cost: number }> = {};
     rentalEntries.forEach((r: any) => {
       const k = r.equipmentName || 'Unknown';
@@ -775,20 +811,19 @@ async function generateManagementReport(dateFrom: string, dateTo: string, sectio
       equipMap[k].entries++; equipMap[k].cost += r.totalCost || 0;
     });
     const equipList = Object.entries(equipMap).sort((a, b) => b[1].cost - a[1].cost);
-    doc.setFontSize(9); doc.setFont('helvetica', 'bold'); doc.setTextColor(0, 0, 0);
-    doc.text('EQUIPMENT USAGE BY ASSET', 10, 25);
+    y = subHeader(y, 'Equipment Usage by Asset');
     autoTable(doc, {
-      startY: 28, margin: { left: 10, right: 10 },
+      startY: y, margin: { left: 10, right: 10 },
       head: [['#', 'Equipment Name', 'Vendor / Company', 'Entries', 'Total Cost (AED)', 'Share']],
       body: equipList.length ? equipList.map(([name, d], i) => [
-        i + 1, name, d.vendor, d.entries, `AED ${fmt(d.cost)}`,
+        i + 1, name, d.vendor, d.entries, fmtAED(d.cost),
         equipmentCostT > 0 ? `${Math.round(d.cost / equipmentCostT * 100)}%` : '—',
       ]) : [['—', 'No equipment data for this period', '', '', '', '']],
-      foot: [['', 'TOTAL', '', rentalEntries.length, `AED ${fmt(equipmentCostT)}`, '100%']],
-      headStyles: { fillColor: [124, 58, 237], textColor: WHITE, fontSize: 8, fontStyle: 'bold' },
-      footStyles: { fillColor: CY, textColor: CDK, fontSize: 8, fontStyle: 'bold' },
+      foot: [['', 'TOTAL', '', rentalEntries.length, fmtAED(equipmentCostT), '100%']],
+      headStyles: { fillColor: PURPLE, textColor: WHITE, fontSize: 8, fontStyle: 'bold' },
+      footStyles: { fillColor: NAVY, textColor: WHITE, fontSize: 8, fontStyle: 'bold' },
       bodyStyles: { fontSize: 8 },
-      columnStyles: { 4: { fontStyle: 'bold', textColor: [124, 58, 237] } },
+      columnStyles: { 4: { fontStyle: 'bold', textColor: PURPLE, halign: 'right' }, 5: { halign: 'center' } },
       alternateRowStyles: { fillColor: [245, 243, 255] },
     });
 
@@ -800,28 +835,27 @@ async function generateManagementReport(dateFrom: string, dateTo: string, sectio
       });
     });
     const accCats = Object.entries(accCatMap).sort((a, b) => b[1] - a[1]);
-    doc.setFontSize(9); doc.setFont('helvetica', 'bold'); doc.setTextColor(0, 0, 0);
-    doc.text('ACCESSORIES BY CATEGORY', 10, afterEqY + 10);
+    const accSubY = subHeader(afterEqY + 8, 'Accessories by Category');
     autoTable(doc, {
-      startY: afterEqY + 13, margin: { left: 10, right: 10 },
+      startY: accSubY, margin: { left: 10, right: 10 },
       head: [['#', 'Category', 'Total Cost (AED)', 'Share of Accessories']],
       body: accCats.length ? accCats.map(([cat, cost], i) => [
-        i + 1, cat, `AED ${fmt(cost)}`,
+        i + 1, cat, fmtAED(cost),
         accessoryCostT > 0 ? `${Math.round(cost / accessoryCostT * 100)}%` : '—',
       ]) : [['—', 'No accessories data for this period', '', '']],
-      foot: [['', 'TOTAL', `AED ${fmt(accessoryCostT)}`, '100%']],
-      headStyles: { fillColor: [217, 119, 6], textColor: WHITE, fontSize: 9, fontStyle: 'bold' },
-      footStyles: { fillColor: CY, textColor: CDK, fontSize: 9, fontStyle: 'bold' },
+      foot: [['', 'TOTAL', fmtAED(accessoryCostT), '100%']],
+      headStyles: { fillColor: WARNING, textColor: WHITE, fontSize: 9, fontStyle: 'bold' },
+      footStyles: { fillColor: NAVY, textColor: WHITE, fontSize: 9, fontStyle: 'bold' },
       bodyStyles: { fontSize: 9 },
-      columnStyles: { 2: { fontStyle: 'bold', textColor: [217, 119, 6] } },
+      columnStyles: { 2: { fontStyle: 'bold', textColor: WARNING, halign: 'right' }, 3: { halign: 'center' } },
       alternateRowStyles: { fillColor: [255, 251, 235] },
     });
 
     const finalCostY = Math.min(((doc as any).lastAutoTable?.finalY ?? 150) + 8, H - 22);
-    doc.setFillColor(...CY); doc.roundedRect(10, finalCostY, W - 20, 14, 2, 2, 'F');
-    doc.setFontSize(10); doc.setFont('helvetica', 'bold'); doc.setTextColor(...CDK);
-    doc.text('GRAND TOTAL — All Categories', 16, finalCostY + 9);
-    doc.text(`AED ${fmt(grandCostT)}`, W - 16, finalCostY + 9, { align: 'right' });
+    doc.setFillColor(...NAVY); doc.roundedRect(10, finalCostY, W - 20, 14, 2, 2, 'F');
+    doc.setFontSize(10); doc.setFont('helvetica', 'bold'); doc.setTextColor(...WHITE);
+    doc.text('GRAND TOTAL — All Categories', 16, finalCostY + 9.5);
+    doc.text(fmtAED(grandCostT), W - 16, finalCostY + 9.5, { align: 'right' });
   }
 
   // ─── 10. E&I PURCHASE PAYMENT REPORT ─────────────────────────────────
@@ -829,7 +863,6 @@ async function generateManagementReport(dateFrom: string, dateTo: string, sectio
     const FULL_PMT    = 'Payment Done';
     const PARTIAL_PMT = 'Partial Payment Done';
 
-    // Flatten payment transactions for the current month
     interface PayEntry { desc: string; prNo: string; date: string; amount: number; isFull: boolean; }
     const payEntries: PayEntry[] = [];
     followupRecords.forEach((r: any) => {
@@ -861,52 +894,49 @@ async function generateManagementReport(dateFrom: string, dateTo: string, sectio
     const fmtD           = (d: string) => d ? new Date(d).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: '2-digit' }) : '—';
     const fmtE           = (n: number) => (n || 0).toLocaleString('en-AE', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
 
-    doc.addPage();
-    doc.setFillColor(15, 23, 42); doc.rect(0, 0, W, 20, 'F');
-    doc.setFontSize(13); doc.setFont('helvetica', 'bold'); doc.setTextColor(255, 255, 255);
-    doc.text(`GT-E&I Purchase Report — ${monthLabel}`, W / 2, 9, { align: 'center' });
-    doc.setFontSize(8); doc.setFont('helvetica', 'normal'); doc.setTextColor(148, 163, 184);
-    doc.text(`E&I Payment History — Monthly Report   |   Generated: ${today}`, W / 2, 15, { align: 'center' });
-    doc.setTextColor(0, 0, 0);
+    y = sectionHeader('E&I Purchase Payment Report', monthLabel);
 
     autoTable(doc, {
-      startY: 25, margin: { left: 10, right: 10 },
-      head: [['Payment Type', 'No. of POs', 'Total Value (AED)']],
+      startY: y, margin: { left: 10, right: 10 },
+      head: [['Payment Type', 'No. of Items', 'Total Value (AED)']],
       body: [
         ['Full Payment Done',    String(fullEntries.length),    `AED ${fmtE(fullTotal)}`],
         ['Partial Payment Done', String(partialEntries.length), `AED ${fmtE(partialTotal)}`],
         ['GRAND TOTAL PAID',     String(payEntries.length),     `AED ${fmtE(payTotal)}`],
       ],
-      headStyles: { fillColor: [15, 23, 42], textColor: WHITE, fontStyle: 'bold', fontSize: 9 },
+      headStyles: tblHead,
       bodyStyles: { fontSize: 9 },
       columnStyles: { 0: { cellWidth: 80 }, 1: { cellWidth: 30, halign: 'center' }, 2: { cellWidth: 50, halign: 'right', fontStyle: 'bold' } },
+      tableWidth: 165,
+      alternateRowStyles: tblAlt,
       didParseCell: (data: any) => {
-        if (data.row.index === 2) { data.cell.styles.fillColor = [15, 23, 42]; data.cell.styles.textColor = WHITE; data.cell.styles.fontStyle = 'bold'; }
+        if (data.row.index === 2) { data.cell.styles.fillColor = NAVY; data.cell.styles.textColor = WHITE; data.cell.styles.fontStyle = 'bold'; }
       },
     });
 
     if (payEntries.length > 0) {
       autoTable(doc, {
-        startY: (doc as any).lastAutoTable.finalY + 6, margin: { left: 10, right: 10 },
+        startY: (doc as any).lastAutoTable.finalY + 8, margin: { left: 10, right: 10 },
         head: [[
           { content: `${monthLabel}   —   Total Paid: AED ${fmtE(payTotal)}   (Full: AED ${fmtE(fullTotal)}  |  Partial: AED ${fmtE(partialTotal)})`,
-            colSpan: 6, styles: { fillColor: [30, 58, 138], textColor: [255,255,255], fontStyle: 'bold', fontSize: 10 } },
+            colSpan: 6, styles: { fillColor: NAVY, textColor: WHITE, fontStyle: 'bold', fontSize: 10 } },
         ], ['SL', 'Item Description', 'PO / PR Number', 'Payment Date', 'Amount Paid (AED)', 'Type']],
         body: payEntries.map((e, i) => [i + 1, e.desc, e.prNo, fmtD(e.date), `AED ${fmtE(e.amount)}`, e.isFull ? 'Full Payment' : 'Partial Payment']),
-        headStyles: { fillColor: [51, 65, 85], textColor: WHITE, fontSize: 8.5 },
+        headStyles: tblHead,
         bodyStyles: { fontSize: 8.5 },
         columnStyles: { 0: { cellWidth: 10, halign: 'center' }, 2: { cellWidth: 40 }, 3: { cellWidth: 28 }, 4: { cellWidth: 36, halign: 'right', fontStyle: 'bold' }, 5: { cellWidth: 35 } },
+        alternateRowStyles: tblAlt,
         didParseCell: (data: any) => {
           if (data.column.index === 5 && data.section === 'body') {
-            data.cell.styles.textColor = data.cell.raw === 'Full Payment' ? [22, 163, 74] : [168, 85, 247];
+            data.cell.styles.textColor = data.cell.raw === 'Full Payment' ? SUCCESS : PURPLE;
             data.cell.styles.fontStyle = 'bold';
           }
         },
         foot: [['', 'Sub-total', '', '', `AED ${fmtE(payTotal)}`, '']],
-        footStyles: { fillColor: [241, 245, 249], textColor: [15, 23, 42], fontStyle: 'bold', fontSize: 9 },
+        footStyles: { fillColor: NAVY, textColor: WHITE, fontStyle: 'bold', fontSize: 9 },
       });
     } else {
-      doc.setFontSize(9); doc.setTextColor(...GREY);
+      doc.setFontSize(9); doc.setTextColor(...NEUTRAL);
       doc.text(`No payments recorded for ${monthLabel}.`, 10, ((doc as any).lastAutoTable?.finalY || 60) + 10);
     }
   }
@@ -915,14 +945,19 @@ async function generateManagementReport(dateFrom: string, dateTo: string, sectio
   const totalPages = doc.getNumberOfPages();
   for (let i = 1; i <= totalPages; i++) {
     doc.setPage(i);
-    doc.setFillColor(248, 250, 252);
-    doc.rect(0, H - 12, W, 12, 'F');
+    doc.setFillColor(...BG);
+    doc.rect(0, H - 10, W, 10, 'F');
+    doc.setDrawColor(...PRIMARY);
+    doc.setLineWidth(0.4);
+    doc.line(0, H - 10, W, H - 10);
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(7);
-    doc.setTextColor(...GREY);
-    doc.text('E&I Department — Glass Technology | Confidential', 10, H - 5);
-    doc.text(`Page ${i} of ${totalPages}`, W - 10, H - 5, { align: 'right' });
-    doc.text(today, W / 2, H - 5, { align: 'center' });
+    doc.setTextColor(...NEUTRAL);
+    doc.text('E&I Department | Glass Technology', 10, H - 3.5);
+    doc.setFont('helvetica', 'bold');
+    doc.text('CONFIDENTIAL', W / 2, H - 3.5, { align: 'center' });
+    doc.setFont('helvetica', 'normal');
+    doc.text(`Page ${i} of ${totalPages}`, W - 10, H - 3.5, { align: 'right' });
   }
 
   // ─── Save ─────────────────────────────────────────────────────────────
