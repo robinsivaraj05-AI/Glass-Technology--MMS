@@ -26,7 +26,7 @@ const MGMT_SECTIONS = [
   { key: 'purchase',  label: 'ðŸ›’ E&I Purchase Status' },
   { key: 'po',        label: 'ðŸ“„ Received POs' },
   { key: 'cost',      label: 'ðŸ’° Purchase Cost Summary' },
-  { key: 'projects',  label: 'ðŸ—ï¸ Projects' },
+  { key: 'projects',  label: 'ðŸ - ï¸ Projects' },
   { key: 'costing',   label: 'ðŸ“Š E&I Costing Report' },
   { key: 'payment',   label: 'ðŸ’³ E&I Purchase Payment' },
 ];
@@ -209,10 +209,9 @@ async function generateManagementReport(dateFrom: string, dateTo: string, sectio
 
   // â”€â”€ Section header helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   let y = 0;
-  let sectionNum = 0;
 
   // Draw compact header band at any vertical position
-  const drawHdrBand = (title: string, subtitle: string, num: number, atY: number) => {
+  const drawHdrBand = (title: string, subtitle: string, atY: number) => {
     doc.setFillColor(...PRIMARY);
     doc.rect(0, atY, W, HDR_H, 'F');
     doc.setFillColor(...SECOND);
@@ -222,7 +221,7 @@ async function generateManagementReport(dateFrom: string, dateTo: string, sectio
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(10);
     doc.setTextColor(...WHITE);
-    doc.text(num > 0 ? `${num}. ${title}` : title, ML, atY + 7);
+    doc.text(title, ML, atY + 7);
     if (subtitle) {
       doc.setFont('helvetica', 'normal');
       doc.setFontSize(6.5);
@@ -231,11 +230,11 @@ async function generateManagementReport(dateFrom: string, dateTo: string, sectio
     }
   };
 
-  // Returns the y where content should start after the header
+  const getLastY = () => { const v = (doc as any).lastAutoTable?.finalY; return v != null ? v : y; };
+
+  // Smart section header: only adds a new page when not enough space remains
   const sectionHeader = (title: string, subtitle = '', minH = 50) => {
-    sectionNum++;
-    const lastY = (doc as any).lastAutoTable?.finalY;
-    const curY  = (lastY != null ? lastY : y);
+    const curY = getLastY();
     const isVeryFirst = doc.getNumberOfPages() === 1 && curY === 0;
     let headerY: number;
     if (isVeryFirst) {
@@ -246,14 +245,13 @@ async function generateManagementReport(dateFrom: string, dateTo: string, sectio
     } else {
       headerY = curY + 8;
     }
-    drawHdrBand(title, subtitle, sectionNum, headerY);
+    drawHdrBand(title, subtitle, headerY);
     return headerY + HDR_H + 3;
   };
 
-  // Continuation header (no section number â€” for costing sub-pages)
+  // Continuation header for costing sub-sections
   const contHeader = (title: string, subtitle = '', minH = 50) => {
-    const lastY = (doc as any).lastAutoTable?.finalY;
-    const curY  = (lastY != null ? lastY : y);
+    const curY = getLastY();
     let headerY: number;
     if (curY + 8 + HDR_H + minH > USABLE) {
       doc.addPage();
@@ -261,7 +259,7 @@ async function generateManagementReport(dateFrom: string, dateTo: string, sectio
     } else {
       headerY = curY + 8;
     }
-    drawHdrBand(title, subtitle, 0, headerY);
+    drawHdrBand(title, subtitle, headerY);
     return headerY + HDR_H + 3;
   };
 
@@ -301,7 +299,11 @@ async function generateManagementReport(dateFrom: string, dateTo: string, sectio
       }),
       styles: { fontSize: 9, cellPadding: 3 },
       headStyles: tblHead,
-      columnStyles: { 1: { halign: 'center' }, 2: { halign: 'right' } },
+      columnStyles: {
+        0: { cellPadding: { top: 3, right: 3, bottom: 3, left: 9 } },
+        1: { halign: 'center' },
+        2: { halign: 'right' },
+      },
       tableWidth: 190,
       margin: { left: ML },
       didParseCell: (data: any) => {
@@ -348,44 +350,7 @@ async function generateManagementReport(dateFrom: string, dateTo: string, sectio
     });
   }
 
-  // â”€â”€â”€ 2. ATTENDANCE â€” same format as standalone Attendance PDF â”€â”€â”€â”€â”€â”€â”€â”€
-  if (need('attendance')) {
-    const empList = Array.isArray(empRes) ? empRes : [];
-    const empMap: Record<string, any> = {};
-    empList.forEach((e: any) => { empMap[e.empId] = e; });
-
-    const attTeam = attRecords.length > 0
-      ? attRecords.map((r: any) => ({
-          empId:   r.empId,
-          empName: r.empName || empMap[r.empId]?.empName || r.empId,
-          role:    empMap[r.empId]?.designation || empMap[r.empId]?.role || '',
-        }))
-      : empList.map((e: any) => ({
-          empId:   e.empId,
-          empName: e.empName || e.name || e.empId,
-          role:    e.designation || e.role || '',
-        }));
-
-    const attEntries: Record<string, Record<number, string>> = {};
-    attRecords.forEach((rec: any) => {
-      attEntries[rec.empId] = {};
-      (rec.entries || []).forEach((e: any) => { attEntries[rec.empId][e.day] = e.code; });
-    });
-
-    if (attTeam.length > 0) {
-      doc.addPage();
-      attPdf.addAttendanceSheet(doc, attLogo, attTeam, attEntries, year, month);
-      doc.addPage();
-      attPdf.addWorkSummary(doc, attLogo, attTeam, attEntries, year, month);
-      // Mark y=H so next sectionHeader always starts on a fresh page
-      y = H;
-      (doc as any).lastAutoTable = null;
-    } else {
-      y = sectionHeader('Employee Attendance', monthLabel);
-      doc.setFontSize(9); doc.setTextColor(...NEUTRAL);
-      doc.text(`No attendance records found for ${monthLabel}.`, ML, y + 6);
-    }
-  }
+  // Attendance data prepared here for later rendering
 
   // â”€â”€â”€ 3. OUTSOURCE â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   if (need('outsource')) {
@@ -807,7 +772,7 @@ async function generateManagementReport(dateFrom: string, dateTo: string, sectio
     const finalCostY = Math.min(((doc as any).lastAutoTable?.finalY ?? 150) + 5, USABLE - 14);
     doc.setFillColor(...NAVY); doc.roundedRect(ML, finalCostY, W - ML * 2, 12, 2, 2, 'F');
     doc.setFontSize(9.5); doc.setFont('helvetica', 'bold'); doc.setTextColor(...WHITE);
-    doc.text('GRAND TOTAL — All Categories', ML + 6, finalCostY + 8);
+    doc.text('GRAND TOTAL  -  All Categories', ML + 6, finalCostY + 8);
     doc.text(fmtAED(grandCostT), W - ML - 6, finalCostY + 8, { align: 'right' });
   }
 
@@ -894,7 +859,40 @@ async function generateManagementReport(dateFrom: string, dateTo: string, sectio
     }
   }
 
-  // â”€â”€â”€ Footer on all pages â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // --- Attendance (rendered last so other sections flow together) -----------
+  if (need('attendance')) {
+    const empList = Array.isArray(empRes) ? empRes : [];
+    const empMap: Record<string, any> = {};
+    empList.forEach((e: any) => { empMap[e.empId] = e; });
+    const attTeam = attRecords.length > 0
+      ? attRecords.map((r: any) => ({
+          empId:   r.empId,
+          empName: r.empName || empMap[r.empId]?.empName || r.empId,
+          role:    empMap[r.empId]?.designation || empMap[r.empId]?.role || '',
+        }))
+      : empList.map((e: any) => ({
+          empId:   e.empId,
+          empName: e.empName || e.name || e.empId,
+          role:    e.designation || e.role || '',
+        }));
+    const attEntries: Record<string, Record<number, string>> = {};
+    attRecords.forEach((rec: any) => {
+      attEntries[rec.empId] = {};
+      (rec.entries || []).forEach((e: any) => { attEntries[rec.empId][e.day] = e.code; });
+    });
+    if (attTeam.length > 0) {
+      doc.addPage();
+      attPdf.addAttendanceSheet(doc, attLogo, attTeam, attEntries, year, month);
+      doc.addPage();
+      attPdf.addWorkSummary(doc, attLogo, attTeam, attEntries, year, month);
+    } else {
+      y = sectionHeader('Employee Attendance', monthLabel);
+      doc.setFontSize(9); doc.setTextColor(...NEUTRAL);
+      doc.text(`No attendance records found for ${monthLabel}.`, ML, y + 6);
+    }
+  }
+
+  // --- Footer on all pages -------------------------------------------------
   const totalPages = doc.getNumberOfPages();
   for (let i = 1; i <= totalPages; i++) {
     doc.setPage(i);
