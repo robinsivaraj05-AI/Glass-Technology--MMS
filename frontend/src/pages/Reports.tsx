@@ -658,94 +658,30 @@ async function generateManagementReport(dateFrom: string, dateTo: string, sectio
     }
   }
 
-  // â”€â”€â”€ 9. E&I COSTING REPORT â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // --- 9. E&I COSTING REPORT -------------------------------------------
   if (need('costing')) {
     const outsourceCostT = outsourceEntries.reduce((s: number, e: any) => s + (e.totalCost || 0), 0);
     const equipmentCostT = rentalEntries.reduce((s: number,   e: any) => s + (e.totalCost || 0), 0);
     const accessoryCostT = accEntries.reduce((s: number,      e: any) => s + (e.totalCost || 0), 0);
     const grandCostT     = outsourceCostT + equipmentCostT + accessoryCostT;
 
-    // Page 1: Summary
-    y = sectionHeader('E&I Costing Report â€” Summary', `Period: ${monthLabel}`);
-    const cbw = (W - 20 - 9) / 4;
-    const cKpis: Array<{ label: string; value: string; color: [number,number,number] }> = [
-      { label: 'Outsource Labour', value: fmtAED(outsourceCostT), color: TEAL },
-      { label: 'Equipment Usage',  value: fmtAED(equipmentCostT), color: PURPLE },
-      { label: 'Accessories',      value: fmtAED(accessoryCostT), color: WARNING },
-      { label: 'Grand Total',      value: fmtAED(grandCostT),     color: DANGER },
-    ];
-    cKpis.forEach((k, i) => drawKPICard(ML + i * (cbw + 3), y, cbw, 24, k.label, k.value, k.color));
-    y += 30;
-
-    y = subHeader(y, 'Cost Summary');
-    autoTable(doc, {
-      startY: y, margin: { left: ML, right: ML },
-      head: [['Category', 'No. Entries', 'Total Cost (AED)', 'Share of Total']],
-      body: [
-        ['Outsource Labour', outsourceEntries.length, fmtAED(outsourceCostT), grandCostT > 0 ? `${Math.round(outsourceCostT / grandCostT * 100)}%` : 'â€”'],
-        ['Equipment Usage',  rentalEntries.length,    fmtAED(equipmentCostT), grandCostT > 0 ? `${Math.round(equipmentCostT / grandCostT * 100)}%` : 'â€”'],
-        ['Accessories',      accEntries.length,        fmtAED(accessoryCostT), grandCostT > 0 ? `${Math.round(accessoryCostT / grandCostT * 100)}%` : 'â€”'],
-        ['GRAND TOTAL',      outsourceEntries.length + rentalEntries.length + accEntries.length, fmtAED(grandCostT), '100%'],
-      ],
-      headStyles: tblHead,
-      bodyStyles: { fontSize: 9 },
-      columnStyles: { 1: { halign: 'center' }, 2: { fontStyle: 'bold', halign: 'right' }, 3: { fontStyle: 'bold', halign: 'center' } },
-      alternateRowStyles: tblAlt,
-      didParseCell: (data: any) => {
-        if (data.row.index === 3) { data.cell.styles.fillColor = NAVY; data.cell.styles.textColor = WHITE; data.cell.styles.fontStyle = 'bold'; }
-      },
-    });
-
-    // Page 2: Outsource by Contract
-    y = contHeader('E&I Costing â€” Outsource Labour Breakdown', `Total: ${fmtAED(outsourceCostT)}`);
+    // Pre-build breakdowns
     const contractMap: Record<string, { company: string; entries: number; cost: number }> = {};
     outsourceEntries.forEach((r: any) => {
       const k = r.contractName || 'Unknown';
-      if (!contractMap[k]) contractMap[k] = { company: r.contractorCompany || 'â€”', entries: 0, cost: 0 };
+      if (!contractMap[k]) contractMap[k] = { company: r.contractorCompany || '-', entries: 0, cost: 0 };
       contractMap[k].entries++; contractMap[k].cost += r.totalCost || 0;
     });
-    const contracts = Object.entries(contractMap).sort((a, b) => b[1].cost - a[1].cost);
-    autoTable(doc, {
-      startY: y, margin: { left: ML, right: ML },
-      head: [['#', 'Contract Name', 'Contractor Company', 'Entries', 'Total Cost (AED)', 'Share']],
-      body: contracts.length ? contracts.map(([name, d], i) => [
-        i + 1, name, d.company, d.entries, fmtAED(d.cost),
-        outsourceCostT > 0 ? `${Math.round(d.cost / outsourceCostT * 100)}%` : 'â€”',
-      ]) : [['â€”', 'No outsource data for this period', '', '', '', '']],
-      foot: [['', 'TOTAL', '', outsourceEntries.length, fmtAED(outsourceCostT), '100%']],
-      headStyles: { fillColor: TEAL, textColor: WHITE, fontSize: 9, fontStyle: 'bold' },
-      footStyles: { fillColor: NAVY, textColor: WHITE, fontSize: 9, fontStyle: 'bold' },
-      bodyStyles: { fontSize: 9 },
-      columnStyles: { 4: { fontStyle: 'bold', textColor: TEAL, halign: 'right' }, 5: { halign: 'center' } },
-      alternateRowStyles: { fillColor: [240, 253, 250] },
-    });
+    const contractList = Object.entries(contractMap).sort((a, b) => b[1].cost - a[1].cost);
 
-    // Page 3: Equipment + Accessories
-    y = contHeader('E&I Costing â€” Equipment & Accessories Breakdown', `Equip: ${fmtAED(equipmentCostT)}  |  Acc: ${fmtAED(accessoryCostT)}`);
     const equipMap: Record<string, { vendor: string; entries: number; cost: number }> = {};
     rentalEntries.forEach((r: any) => {
       const k = r.equipmentName || 'Unknown';
-      if (!equipMap[k]) equipMap[k] = { vendor: r.vendorCompany || 'â€”', entries: 0, cost: 0 };
+      if (!equipMap[k]) equipMap[k] = { vendor: r.vendorCompany || '-', entries: 0, cost: 0 };
       equipMap[k].entries++; equipMap[k].cost += r.totalCost || 0;
     });
     const equipList = Object.entries(equipMap).sort((a, b) => b[1].cost - a[1].cost);
-    y = subHeader(y, 'Equipment Usage by Asset');
-    autoTable(doc, {
-      startY: y, margin: { left: ML, right: ML },
-      head: [['#', 'Equipment Name', 'Vendor / Company', 'Entries', 'Total Cost (AED)', 'Share']],
-      body: equipList.length ? equipList.map(([name, d], i) => [
-        i + 1, name, d.vendor, d.entries, fmtAED(d.cost),
-        equipmentCostT > 0 ? `${Math.round(d.cost / equipmentCostT * 100)}%` : 'â€”',
-      ]) : [['â€”', 'No equipment data for this period', '', '', '', '']],
-      foot: [['', 'TOTAL', '', rentalEntries.length, fmtAED(equipmentCostT), '100%']],
-      headStyles: { fillColor: PURPLE, textColor: WHITE, fontSize: 8, fontStyle: 'bold' },
-      footStyles: { fillColor: NAVY, textColor: WHITE, fontSize: 8, fontStyle: 'bold' },
-      bodyStyles: { fontSize: 8 },
-      columnStyles: { 4: { fontStyle: 'bold', textColor: PURPLE, halign: 'right' }, 5: { halign: 'center' } },
-      alternateRowStyles: { fillColor: [245, 243, 255] },
-    });
 
-    const afterEqY = (doc as any).lastAutoTable?.finalY ?? 80;
     const accCatMap: Record<string, number> = {};
     accEntries.forEach((r: any) => {
       (r.items || []).forEach((it: any) => {
@@ -753,26 +689,301 @@ async function generateManagementReport(dateFrom: string, dateTo: string, sectio
       });
     });
     const accCats = Object.entries(accCatMap).sort((a, b) => b[1] - a[1]);
-    const accSubY = subHeader(afterEqY + 5, 'Accessories by Category');
+
+    // Draw a pie slice as a filled polygon (arc approximation)
+    const drawPieSlice = (cx: number, cy: number, r: number, startDeg: number, endDeg: number, color: [number, number, number]) => {
+      const toRad = (d: number) => (d - 90) * Math.PI / 180;
+      const s = toRad(startDeg);
+      const e = toRad(endDeg);
+      const steps = Math.max(6, Math.ceil(Math.abs(endDeg - startDeg) / 10));
+      const arcPts: [number, number][] = [];
+      for (let si = 0; si <= steps; si++) {
+        const a = s + (e - s) * (si / steps);
+        arcPts.push([cx + r * Math.cos(a), cy + r * Math.sin(a)]);
+      }
+      const lines: [number, number][] = [[arcPts[0][0] - cx, arcPts[0][1] - cy]];
+      for (let si = 1; si < arcPts.length; si++) {
+        lines.push([arcPts[si][0] - arcPts[si - 1][0], arcPts[si][1] - arcPts[si - 1][1]]);
+      }
+      doc.setFillColor(...color);
+      doc.lines(lines, cx, cy, [1, 1], 'F', true);
+    };
+
+    // ── PAGE 1: DASHBOARD ──────────────────────────────────────────────────
+    y = sectionHeader('E&I Costing Report', `Period: ${monthLabel}`);
+
+    // Subtitle info bar
+    doc.setFillColor(248, 250, 252);
+    doc.rect(ML, y, W - ML * 2, 7, 'F');
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(8); doc.setTextColor(...PRIMARY);
+    doc.text(`Period: ${monthLabel}`, ML + 4, y + 4.5);
+    doc.setFont('helvetica', 'normal'); doc.setTextColor(...NEUTRAL);
+    doc.text(
+      `${outsourceEntries.length} outsource entries  |  ${rentalEntries.length} equipment entries  |  ${accEntries.length} accessory entries`,
+      W - ML - 4, y + 4.5, { align: 'right' }
+    );
+    y += 9;
+
+    // KPI cards (4 across)
+    const kpiCBW = (W - ML * 2 - 9) / 4;
+    const kpiH = 26;
+    const kpiDefs = [
+      { label: 'OUTSOURCE LABOUR', value: `AED ${fmtAED(outsourceCostT)}`, sub: `${outsourceEntries.length} entries`, color: TEAL as [number, number, number] },
+      { label: 'EQUIPMENT USAGE',  value: `AED ${fmtAED(equipmentCostT)}`, sub: `${rentalEntries.length} entries`,   color: PURPLE as [number, number, number] },
+      { label: 'ACCESSORIES',      value: `AED ${fmtAED(accessoryCostT)}`, sub: `${accEntries.length} entries`,      color: WARNING as [number, number, number] },
+      { label: 'GRAND TOTAL',      value: `AED ${fmtAED(grandCostT)}`,     sub: `${outsourceEntries.length + rentalEntries.length + accEntries.length} total entries`, color: DANGER as [number, number, number] },
+    ];
+    kpiDefs.forEach((k, i) => {
+      const kx = ML + i * (kpiCBW + 3);
+      doc.setFillColor(210, 218, 226); doc.roundedRect(kx + 1, y + 1, kpiCBW, kpiH, 2, 2, 'F');
+      doc.setFillColor(...WHITE);      doc.roundedRect(kx, y, kpiCBW, kpiH, 2, 2, 'F');
+      doc.setFillColor(...k.color);    doc.roundedRect(kx, y, kpiCBW, 3, 1.5, 1.5, 'F');
+      doc.rect(kx, y + 1.5, kpiCBW, 1.5, 'F');
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(10); doc.setTextColor(...k.color);
+      doc.text(k.value, kx + kpiCBW / 2, y + kpiH / 2 + 2, { align: 'center' });
+      doc.setFont('helvetica', 'normal'); doc.setFontSize(5.5); doc.setTextColor(...NEUTRAL);
+      doc.text(k.label, kx + kpiCBW / 2, y + kpiH / 2 + 7, { align: 'center' });
+      doc.setFontSize(5); doc.setTextColor(185, 200, 215);
+      doc.text(k.sub, kx + kpiCBW / 2, y + kpiH - 2.5, { align: 'center' });
+    });
+    y += kpiH + 5;
+
+    // Charts row
+    const chartY  = y;
+    const chartH  = 56;
+    const barPanW = 185;
+    const dnutX   = ML + barPanW + 5;
+    const dnutW   = W - ML - dnutX;
+
+    // Bar chart panel
+    doc.setFillColor(...WHITE); doc.setDrawColor(226, 232, 240); doc.setLineWidth(0.3);
+    doc.roundedRect(ML, chartY, barPanW, chartH, 2, 2, 'FD');
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(7.5); doc.setTextColor(...DARK);
+    doc.text('Cost Breakdown by Category', ML + barPanW / 2, chartY + 6, { align: 'center' });
+
+    const bPlot = { x: ML + 20, y: chartY + 12, w: barPanW - 28, h: chartH - 23 };
+    const barsD = [
+      { val: outsourceCostT, color: TEAL as [number, number, number],    label: 'Outsource Labour' },
+      { val: equipmentCostT, color: PURPLE as [number, number, number],  label: 'Equipment Usage' },
+      { val: accessoryCostT, color: WARNING as [number, number, number], label: 'Accessories' },
+    ];
+    const maxBV  = Math.max(...barsD.map(b => b.val), 1);
+    const barW   = Math.floor(bPlot.w / 5);
+    const bSpace = (bPlot.w - barW * 3) / 4;
+
+    // Grid + axes
+    doc.setDrawColor(240, 244, 248); doc.setLineWidth(0.15);
+    for (let gi = 1; gi <= 4; gi++) {
+      const gy = bPlot.y + bPlot.h - (gi / 4) * bPlot.h;
+      doc.line(bPlot.x, gy, bPlot.x + bPlot.w, gy);
+      const gv = (gi / 4) * maxBV;
+      doc.setFont('helvetica', 'normal'); doc.setFontSize(4.5); doc.setTextColor(...NEUTRAL);
+      doc.text(gv >= 1000 ? `${Math.round(gv / 1000)}k` : String(Math.round(gv)), bPlot.x - 1, gy + 1.5, { align: 'right' });
+    }
+    doc.setDrawColor(210, 218, 226); doc.setLineWidth(0.2);
+    doc.line(bPlot.x, bPlot.y, bPlot.x, bPlot.y + bPlot.h);
+    doc.line(bPlot.x, bPlot.y + bPlot.h, bPlot.x + bPlot.w, bPlot.y + bPlot.h);
+
+    barsD.forEach((bar, i) => {
+      const bx = bPlot.x + bSpace + i * (barW + bSpace);
+      const bh = (bar.val / maxBV) * bPlot.h;
+      const by = bPlot.y + bPlot.h - bh;
+      doc.setFillColor(...bar.color);
+      if (bh > 0) doc.roundedRect(bx, by, barW, bh, 1, 1, 'F');
+      doc.setFont('helvetica', 'normal'); doc.setFontSize(5); doc.setTextColor(...NEUTRAL);
+      const words = bar.label.split(' ');
+      words.forEach((word, wi) => doc.text(word, bx + barW / 2, bPlot.y + bPlot.h + 4 + wi * 3.5, { align: 'center' }));
+    });
+
+    // Donut chart panel
+    doc.setFillColor(...WHITE); doc.setDrawColor(226, 232, 240); doc.setLineWidth(0.3);
+    doc.roundedRect(dnutX, chartY, dnutW, chartH, 2, 2, 'FD');
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(7.5); doc.setTextColor(...DARK);
+    doc.text('Cost Split', dnutX + dnutW * 0.38, chartY + 6, { align: 'center' });
+
+    const dCx = dnutX + Math.round(dnutW * 0.35);
+    const dCy = chartY + Math.round(chartH / 2) + 5;
+    const dR  = 17;
+    const dIR = 10;
+    const dSegs = [
+      { val: outsourceCostT, color: PURPLE as [number, number, number], label: 'Outsource Labour' },
+      { val: equipmentCostT, color: TEAL   as [number, number, number], label: 'Equipment Usage' },
+      { val: accessoryCostT, color: WARNING as [number, number, number], label: 'Accessories' },
+    ];
+
+    doc.setFillColor(238, 242, 246); doc.circle(dCx, dCy, dR, 'F');
+    let dAngle = 0;
+    dSegs.forEach(seg => {
+      if (grandCostT > 0 && seg.val > 0) {
+        const sweep = (seg.val / grandCostT) * 360;
+        drawPieSlice(dCx, dCy, dR, dAngle, dAngle + sweep, seg.color);
+        dAngle += sweep;
+      }
+    });
+    doc.setFillColor(...WHITE); doc.circle(dCx, dCy, dIR, 'F');
+
+    const lgX = dnutX + Math.round(dnutW * 0.6);
+    dSegs.forEach((seg, i) => {
+      const ly = chartY + 15 + i * 14;
+      doc.setFillColor(...seg.color); doc.roundedRect(lgX, ly, 3.5, 3.5, 0.8, 0.8, 'F');
+      doc.setFont('helvetica', 'normal'); doc.setFontSize(5.5); doc.setTextColor(...DARK);
+      doc.text(seg.label, lgX + 5.5, ly + 3);
+      const pct = grandCostT > 0 ? Math.round(seg.val / grandCostT * 100) : 0;
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(6.5); doc.setTextColor(...seg.color);
+      doc.text(`${pct}%`, dnutX + dnutW - 3, ly + 3, { align: 'right' });
+    });
+
+    y = chartY + chartH + 5;
+
+    // 3 side-by-side summary tables
+    const tGap = 4;
+    const tW1  = 89;
+    const tW2  = 89;
+    const tW3  = W - ML - (ML + tW1 + tGap + tW2 + tGap);
+    const t1X  = ML;
+    const t2X  = t1X + tW1 + tGap;
+    const t3X  = t2X + tW2 + tGap;
+    const tLblY = y + 3;
+    const tStartY = y + 7;
+    let maxTFY = tStartY;
+
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(7);
+    doc.setTextColor(...TEAL);   doc.text('Outsource by Contract',   t1X + 2, tLblY);
+    doc.setTextColor(...PURPLE); doc.text('Equipment Usage',          t2X + 2, tLblY);
+    doc.setTextColor(...WARNING); doc.text('Accessories by Category', t3X + 2, tLblY);
+
     autoTable(doc, {
-      startY: accSubY, margin: { left: ML, right: ML },
+      startY: tStartY, margin: { left: t1X, right: W - (t1X + tW1) },
+      head: [['Contract', 'Entries', 'Cost (AED)']],
+      body: contractList.length
+        ? contractList.map(([name, d]) => [name, d.entries, fmtAED(d.cost)])
+        : [['No data', '-', '-']],
+      foot: [['TOTAL', outsourceEntries.length, fmtAED(outsourceCostT)]],
+      headStyles: { fillColor: TEAL, textColor: WHITE, fontSize: 7.5, fontStyle: 'bold', cellPadding: 2 },
+      footStyles: { fillColor: NAVY, textColor: WHITE, fontSize: 7.5, fontStyle: 'bold', cellPadding: 2 },
+      bodyStyles: { fontSize: 7.5, cellPadding: 2 },
+      columnStyles: { 1: { halign: 'center' as const }, 2: { halign: 'right' as const, fontStyle: 'bold' as const } },
+      alternateRowStyles: { fillColor: [240, 253, 250] },
+      tableWidth: tW1,
+    });
+    maxTFY = Math.max(maxTFY, (doc as any).lastAutoTable?.finalY ?? tStartY);
+
+    autoTable(doc, {
+      startY: tStartY, margin: { left: t2X, right: W - (t2X + tW2) },
+      head: [['Equipment', 'Entries', 'Cost (AED)']],
+      body: equipList.length
+        ? equipList.map(([name, d]) => [name, d.entries, fmtAED(d.cost)])
+        : [['No data', '-', '-']],
+      foot: [['TOTAL', rentalEntries.length, fmtAED(equipmentCostT)]],
+      headStyles: { fillColor: PURPLE, textColor: WHITE, fontSize: 7.5, fontStyle: 'bold', cellPadding: 2 },
+      footStyles: { fillColor: NAVY, textColor: WHITE, fontSize: 7.5, fontStyle: 'bold', cellPadding: 2 },
+      bodyStyles: { fontSize: 7.5, cellPadding: 2 },
+      columnStyles: { 1: { halign: 'center' as const }, 2: { halign: 'right' as const, fontStyle: 'bold' as const } },
+      alternateRowStyles: { fillColor: [245, 243, 255] },
+      tableWidth: tW2,
+    });
+    maxTFY = Math.max(maxTFY, (doc as any).lastAutoTable?.finalY ?? tStartY);
+
+    autoTable(doc, {
+      startY: tStartY, margin: { left: t3X, right: ML },
+      head: [['Category', 'Cost (AED)', 'Share']],
+      body: accCats.length
+        ? accCats.map(([cat, cost]) => [cat, fmtAED(cost as number), accessoryCostT > 0 ? `${Math.round((cost as number) / accessoryCostT * 100)}%` : '-'])
+        : [['No data', '-', '-']],
+      foot: [['TOTAL', fmtAED(accessoryCostT), '100%']],
+      headStyles: { fillColor: WARNING, textColor: WHITE, fontSize: 7.5, fontStyle: 'bold', cellPadding: 2 },
+      footStyles: { fillColor: NAVY, textColor: WHITE, fontSize: 7.5, fontStyle: 'bold', cellPadding: 2 },
+      bodyStyles: { fontSize: 7.5, cellPadding: 2 },
+      columnStyles: { 1: { halign: 'right' as const, fontStyle: 'bold' as const }, 2: { halign: 'center' as const } },
+      alternateRowStyles: { fillColor: [255, 251, 235] },
+      tableWidth: tW3,
+    });
+    maxTFY = Math.max(maxTFY, (doc as any).lastAutoTable?.finalY ?? tStartY);
+
+    // Grand total footer bar
+    const gtBarY = Math.min(maxTFY + 5, USABLE - 15);
+    doc.setFillColor(...DARK); doc.roundedRect(ML, gtBarY, W - ML * 2, 13, 2, 2, 'F');
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(8); doc.setTextColor(...WHITE);
+    doc.text('GRAND TOTAL  -  ALL CATEGORIES COMBINED', ML + 5, gtBarY + 8.5);
+    const gtAmts = [
+      { label: 'OUTSOURCE', val: outsourceCostT, color: TEAL    as [number, number, number], rx: W - ML - 168 },
+      { label: 'EQUIPMENT', val: equipmentCostT, color: PURPLE  as [number, number, number], rx: W - ML - 102 },
+      { label: 'ACCESSORIES', val: accessoryCostT, color: WARNING as [number, number, number], rx: W - ML - 28 },
+    ];
+    gtAmts.forEach(a => {
+      doc.setFont('helvetica', 'normal'); doc.setFontSize(5.5); doc.setTextColor(186, 230, 253);
+      doc.text(a.label, a.rx, gtBarY + 4, { align: 'right' });
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(7.5); doc.setTextColor(...a.color);
+      doc.text(`AED ${fmtAED(a.val)}`, a.rx, gtBarY + 10.5, { align: 'right' });
+    });
+    // Highlight box for grand total
+    const gtHlX = ML + (W - ML * 2) * 0.54;
+    doc.setFillColor(...PRIMARY); doc.roundedRect(gtHlX, gtBarY + 0.5, 52, 12, 1.5, 1.5, 'F');
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(9); doc.setTextColor(...WHITE);
+    doc.text(`AED ${fmtAED(grandCostT)}`, gtHlX + 26, gtBarY + 8.5, { align: 'center' });
+
+    // ── PAGES 2+: DETAILED BREAKDOWN ────────────────────────────────────────
+    // Outsource labour detail
+    y = contHeader('E&I Costing - Outsource Labour Breakdown', `Total: AED ${fmtAED(outsourceCostT)}`);
+    autoTable(doc, {
+      startY: y, margin: { left: ML, right: ML },
+      head: [['#', 'Contract Name', 'Contractor Company', 'Entries', 'Total Cost (AED)', 'Share']],
+      body: contractList.length ? contractList.map(([name, d], i) => [
+        i + 1, name, d.company, d.entries, fmtAED(d.cost),
+        outsourceCostT > 0 ? `${Math.round(d.cost / outsourceCostT * 100)}%` : '-',
+      ]) : [['-', 'No outsource data for this period', '', '', '', '']],
+      foot: [['', 'TOTAL', '', outsourceEntries.length, fmtAED(outsourceCostT), '100%']],
+      headStyles: { fillColor: TEAL, textColor: WHITE, fontSize: 9, fontStyle: 'bold' },
+      footStyles: { fillColor: NAVY, textColor: WHITE, fontSize: 9, fontStyle: 'bold' },
+      bodyStyles: { fontSize: 9 },
+      columnStyles: { 4: { fontStyle: 'bold', textColor: TEAL, halign: 'right' as const }, 5: { halign: 'center' as const } },
+      alternateRowStyles: { fillColor: [240, 253, 250] },
+    });
+
+    // Equipment breakdown (on same page if space allows)
+    const afterOutY = (doc as any).lastAutoTable?.finalY ?? 60;
+    const eqSubY = afterOutY + 8 + 9 + 35 > USABLE
+      ? (() => { doc.addPage(); return subHeader(5, 'Equipment Usage by Asset'); })()
+      : subHeader(afterOutY + 8, 'Equipment Usage by Asset');
+    autoTable(doc, {
+      startY: eqSubY, margin: { left: ML, right: ML },
+      head: [['#', 'Equipment Name', 'Vendor / Company', 'Entries', 'Total Cost (AED)', 'Share']],
+      body: equipList.length ? equipList.map(([name, d], i) => [
+        i + 1, name, d.vendor, d.entries, fmtAED(d.cost),
+        equipmentCostT > 0 ? `${Math.round(d.cost / equipmentCostT * 100)}%` : '-',
+      ]) : [['-', 'No equipment data for this period', '', '', '', '']],
+      foot: [['', 'TOTAL', '', rentalEntries.length, fmtAED(equipmentCostT), '100%']],
+      headStyles: { fillColor: PURPLE, textColor: WHITE, fontSize: 9, fontStyle: 'bold' },
+      footStyles: { fillColor: NAVY, textColor: WHITE, fontSize: 9, fontStyle: 'bold' },
+      bodyStyles: { fontSize: 9 },
+      columnStyles: { 4: { fontStyle: 'bold', textColor: PURPLE, halign: 'right' as const }, 5: { halign: 'center' as const } },
+      alternateRowStyles: { fillColor: [245, 243, 255] },
+    });
+
+    // Accessories breakdown (on same page if space allows)
+    const afterEqY2 = (doc as any).lastAutoTable?.finalY ?? 100;
+    const accSubY2 = afterEqY2 + 8 + 9 + 35 > USABLE
+      ? (() => { doc.addPage(); return subHeader(5, 'Accessories by Category'); })()
+      : subHeader(afterEqY2 + 8, 'Accessories by Category');
+    autoTable(doc, {
+      startY: accSubY2, margin: { left: ML, right: ML },
       head: [['#', 'Category', 'Total Cost (AED)', 'Share of Accessories']],
       body: accCats.length ? accCats.map(([cat, cost], i) => [
-        i + 1, cat, fmtAED(cost),
-        accessoryCostT > 0 ? `${Math.round(cost / accessoryCostT * 100)}%` : 'â€”',
-      ]) : [['â€”', 'No accessories data for this period', '', '']],
+        i + 1, cat, fmtAED(cost as number),
+        accessoryCostT > 0 ? `${Math.round((cost as number) / accessoryCostT * 100)}%` : '-',
+      ]) : [['-', 'No accessories data for this period', '', '']],
       foot: [['', 'TOTAL', fmtAED(accessoryCostT), '100%']],
       headStyles: { fillColor: WARNING, textColor: WHITE, fontSize: 9, fontStyle: 'bold' },
       footStyles: { fillColor: NAVY, textColor: WHITE, fontSize: 9, fontStyle: 'bold' },
       bodyStyles: { fontSize: 9 },
-      columnStyles: { 2: { fontStyle: 'bold', textColor: WARNING, halign: 'right' }, 3: { halign: 'center' } },
+      columnStyles: { 2: { fontStyle: 'bold', textColor: WARNING, halign: 'right' as const }, 3: { halign: 'center' as const } },
       alternateRowStyles: { fillColor: [255, 251, 235] },
     });
 
     const finalCostY = Math.min(((doc as any).lastAutoTable?.finalY ?? 150) + 5, USABLE - 14);
     doc.setFillColor(...NAVY); doc.roundedRect(ML, finalCostY, W - ML * 2, 12, 2, 2, 'F');
     doc.setFontSize(9.5); doc.setFont('helvetica', 'bold'); doc.setTextColor(...WHITE);
-    doc.text('GRAND TOTAL  -  All Categories', ML + 6, finalCostY + 8);
+    doc.text('GRAND TOTAL  -  All Categories Combined', ML + 6, finalCostY + 8);
     doc.text(fmtAED(grandCostT), W - ML - 6, finalCostY + 8, { align: 'right' });
   }
 
