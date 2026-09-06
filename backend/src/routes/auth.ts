@@ -40,4 +40,17 @@ router.post('/register', async (req: Request, res: Response) => {
   }
 });
 
+// Returns managers and deputy managers for OT approval dropdown
+router.get('/approvers', async (_req: Request, res: Response) => {
+  try {
+    const approvers = await User.find(
+      { role: { $in: ['manager', 'deputy_manager'] }, isActive: true },
+      { name: 1, role: 1, employeeId: 1, _id: 0 }
+    ).sort({ role: 1, name: 1 });
+    res.json(approvers);
+  } catch (err) {
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
 export default router;

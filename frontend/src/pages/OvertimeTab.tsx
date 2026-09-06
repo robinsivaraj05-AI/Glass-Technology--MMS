@@ -37,6 +37,8 @@ const fmtHrs = (h: number) => `${Math.floor(h)}h ${Math.round((h % 1) * 60)}m`;
 
 const emptyForm = (): FormState => ({ empId:'', empName:'', dateStr:'', startTime:'', endTime:'', reason:'', approvedBy:'' });
 
+interface Approver { name: string; role: string; employeeId: string; }
+
 // ── Main Component ────────────────────────────────────────────────────────────
 interface Props {
   year: number; month: number; team: TeamMember[]; canEdit: boolean;
@@ -50,11 +52,19 @@ export default function OvertimeTab({ year, month, team, canEdit }: Props) {
   const [records, setRecords] = useState<OTRecord[]>([]);
   const [loading, setLoading] = useState(false);
 
-  const [showModal, setShowModal] = useState(false);
-  const [editId,    setEditId]    = useState<string|null>(null);
-  const [form,      setForm]      = useState<FormState>(emptyForm());
-  const [formErr,   setFormErr]   = useState('');
-  const [saving,    setSaving]    = useState(false);
+  const [showModal,  setShowModal]  = useState(false);
+  const [editId,     setEditId]     = useState<string|null>(null);
+  const [form,       setForm]       = useState<FormState>(emptyForm());
+  const [formErr,    setFormErr]    = useState('');
+  const [saving,     setSaving]     = useState(false);
+  const [approvers,  setApprovers]  = useState<Approver[]>([]);
+
+  useEffect(() => {
+    fetch('/api/auth/approvers')
+      .then(r => r.json())
+      .then((data: Approver[]) => setApprovers(data))
+      .catch(() => {});
+  }, []);
 
   // ── Load ───────────────────────────────────────────────────────────────────
   const load = useCallback(async () => {
@@ -250,7 +260,14 @@ export default function OvertimeTab({ year, month, team, canEdit }: Props) {
 
             {/* Approved By */}
             <label style={labelS}>Approved By</label>
-            <input value={form.approvedBy} onChange={e => setForm(f => ({...f, approvedBy: e.target.value}))} placeholder="e.g. Mr. Rabin Sivaraj" style={inputS}/>
+            <select value={form.approvedBy} onChange={e => setForm(f => ({...f, approvedBy: e.target.value}))} style={inputS}>
+              <option value="">— Select Approver —</option>
+              {approvers.map(a => (
+                <option key={a.employeeId} value={a.name}>
+                  {a.name} ({a.role === 'manager' ? 'Manager' : 'Deputy Manager'})
+                </option>
+              ))}
+            </select>
 
             {formErr && <div style={{ color:'#dc2626', fontSize:12, marginBottom:12, background:'#fef2f2', padding:'6px 10px', borderRadius:6 }}>{formErr}</div>}
 
