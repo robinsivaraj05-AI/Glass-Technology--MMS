@@ -433,25 +433,7 @@ async function generateManagementReport(dateFrom: string, dateTo: string, sectio
 
   // â”€â”€â”€ 5. E&I PURCHASE STATUS â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   if (need('purchase')) {
-    y = sectionHeader('E&I Purchase Status', `As of ${today}`);
-
-    const statusGroups: Record<string, number> = {};
-    followupRecords.forEach((r: any) => { const k = r.currentStatus || 'No Status'; statusGroups[k] = (statusGroups[k] || 0) + 1; });
-    const statusRows = Object.entries(statusGroups).map(([s, c]) => [s, fmt(c)]);
-
-    y = subHeader(y, 'Status Summary');
-    autoTable(doc, {
-      startY: y,
-      head: [['Status', 'Count']],
-      body: [...statusRows, ['TOTAL', fmt(followupRecords.length)]],
-      styles: { fontSize: 9, cellPadding: 3 },
-      headStyles: tblHead,
-      columnStyles: { 1: { halign: 'center' } },
-      tableWidth: 90,
-      alternateRowStyles: tblAlt,
-      didParseCell: (data: any) => { if (data.row.index === statusRows.length) { data.cell.styles.fillColor = NAVY; data.cell.styles.textColor = WHITE; data.cell.styles.fontStyle = 'bold'; } },
-    });
-    y = (doc as any).lastAutoTable.finalY + 5;
+    y = sectionHeader('E&I Pending Purchase Items Report', `As of ${today}`);
 
     if (pendingItems.length) {
       y = subHeader(y, 'Pending Purchase Items');
