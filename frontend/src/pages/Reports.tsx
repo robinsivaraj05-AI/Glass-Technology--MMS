@@ -319,7 +319,7 @@ async function generateManagementReport(dateFrom: string, dateTo: string, sectio
   };
 
   // ── FIRST PAGE COVER HEADER ────────────────────────────────────────────────
-  const cvH = 44;
+  const cvH = 32;
   // Background
   drawPageBg();
   // Navy left panel (65% width)
@@ -331,47 +331,40 @@ async function generateManagementReport(dateFrom: string, dateTo: string, sectio
   // Left amber stripe
   doc.setFillColor(...ORANGE);
   doc.rect(0, 0, 5, cvH, 'F');
-  // Subtle blueprint grid lines on left panel
-  doc.setDrawColor(255, 255, 255);
-  doc.setLineWidth(0.06);
-  for (let gli = 0; gli < 8; gli++) doc.line(5, 5 + gli * 5.5, W * 0.65, 5 + gli * 5.5);
-  for (let gli = 0; gli < 12; gli++) doc.line(5 + gli * 18, 0, 5 + gli * 18, cvH);
   // Bottom accent line
   doc.setFillColor(...ORANGE);
   doc.rect(0, cvH, W, 1.5, 'F');
 
   // Logo
   if (attLogo) {
-    doc.addImage(attLogo, 'PNG', 10, 9, 26, 26);
+    doc.addImage(attLogo, 'PNG', 10, 5, 22, 22);
   } else {
-    doc.setFillColor(...WHITE); doc.roundedRect(10, 9, 26, 26, 3, 3, 'F');
-    doc.setFont('helvetica', 'bold'); doc.setFontSize(13); doc.setTextColor(...PRIMARY);
-    doc.text('GT', 23, 24, { align: 'center' });
+    doc.setFillColor(...WHITE); doc.roundedRect(10, 5, 22, 22, 3, 3, 'F');
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(11); doc.setTextColor(...PRIMARY);
+    doc.text('GT', 21, 18, { align: 'center' });
   }
 
   // Company name
-  doc.setFont('helvetica', 'bold'); doc.setFontSize(20); doc.setTextColor(...WHITE);
-  doc.text('Glass Technology', 42, 18);
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(16); doc.setTextColor(...WHITE);
+  doc.text('Glass Technology', 37, 13);
   // Department subtitle
-  doc.setFont('helvetica', 'normal'); doc.setFontSize(9); doc.setTextColor(186, 230, 253);
-  doc.text('Electrical & Instrumentation Department  —  Maintenance Management System', 42, 27);
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(8); doc.setTextColor(186, 230, 253);
+  doc.text('Electrical & Instrumentation Department  —  Maintenance Management System', 37, 21);
   // Report type badge
   doc.setFillColor(...ORANGE);
-  doc.roundedRect(42, 31, 85, 8, 1.5, 1.5, 'F');
-  doc.setFont('helvetica', 'bold'); doc.setFontSize(8); doc.setTextColor(...SECOND);
-  doc.text('MONTHLY MANAGEMENT REPORT  •  PLANT DIRECTOR COPY', 84.5, 36.5, { align: 'center' });
+  doc.roundedRect(37, 24, 78, 6.5, 1.5, 1.5, 'F');
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(7); doc.setTextColor(...SECOND);
+  doc.text('MONTHLY MANAGEMENT REPORT  •  PLANT DIRECTOR COPY', 76, 28.5, { align: 'center' });
 
   // Right panel — period info
-  doc.setFont('helvetica', 'bold'); doc.setFontSize(8); doc.setTextColor(160, 180, 210);
-  doc.text('REPORT PERIOD', W - 8, 13, { align: 'right' });
-  doc.setFont('helvetica', 'bold'); doc.setFontSize(16); doc.setTextColor(...WHITE);
-  doc.text(monthLabel, W - 8, 26, { align: 'right' });
-  doc.setFont('helvetica', 'normal'); doc.setFontSize(7.5); doc.setTextColor(160, 180, 210);
-  doc.text(`Prepared by: E&I Department`, W - 8, 34, { align: 'right' });
-  doc.setFont('helvetica', 'normal'); doc.setFontSize(7); doc.setTextColor(140, 165, 200);
-  doc.text(`Generated: ${today}`, W - 8, 40, { align: 'right' });
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(7.5); doc.setTextColor(160, 180, 210);
+  doc.text('REPORT PERIOD', W - 8, 10, { align: 'right' });
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(14); doc.setTextColor(...WHITE);
+  doc.text(monthLabel, W - 8, 21, { align: 'right' });
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(7); doc.setTextColor(160, 180, 210);
+  doc.text(`Prepared by: E&I Dept.  |  Generated: ${today}`, W - 8, 29, { align: 'right' });
 
-  y = cvH + 6;
+  y = cvH + 5;
 
   // â”€â”€â”€ 1. SPARE PARTS STORE-WISE SUMMARY â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   if (need('spares')) {
