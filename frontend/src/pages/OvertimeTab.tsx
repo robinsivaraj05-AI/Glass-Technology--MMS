@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Plus, Pencil, Trash2, Save, X, Calendar, CalendarRange, Clock, CheckCircle2, AlertCircle } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 export interface TeamMember { empId: string; empName: string; role: string; sortOrder: number; }
@@ -45,6 +46,7 @@ interface Props {
 }
 
 export default function OvertimeTab({ year, month, team, canEdit }: Props) {
+  const { user } = useAuth();
   const eligibleTeam = team.filter(m => isEligible(m.role));
 
   const [mode,    setMode]    = useState<'monthly'|'yearly'>('monthly');
@@ -60,11 +62,31 @@ export default function OvertimeTab({ year, month, team, canEdit }: Props) {
   const [approvers,  setApprovers]  = useState<Approver[]>([]);
 
   useEffect(() => {
+    // Fixed approvers for this organisation — always shown
+    const DEFAULT_APPROVERS: Approver[] = [
+      { name: 'Senthil Babu', role: 'manager',         employeeId: 'EMP-000' },
+      { name: 'Rajesh Kumar', role: 'deputy_manager',  employeeId: 'EMP-001' },
+    ];
+
+    const buildList = (fromApi: Approver[]) => {
+      const merged = [...DEFAULT_APPROVERS];
+      // Merge API results that aren't already in the default list
+      fromApi.forEach(a => {
+        if (!merged.some(m => m.name === a.name)) merged.push(a);
+      });
+      // Add current logged-in user if manager/deputy and not already listed
+      if (user?.name && (user.role === 'manager' || user.role === 'deputy_manager')) {
+        if (!merged.some(m => m.name === user.name))
+          merged.unshift({ name: user.name, role: user.role, employeeId: user.employeeId ?? '' });
+      }
+      setApprovers(merged);
+    };
+
     fetch('/api/auth/approvers')
-      .then(r => r.json())
-      .then((data: Approver[]) => setApprovers(data))
-      .catch(() => {});
-  }, []);
+      .then(r => r.ok ? r.json() : [])
+      .then((data: Approver[]) => buildList(data))
+      .catch(() => buildList([]));
+  }, [user]);
 
   // ── Load ───────────────────────────────────────────────────────────────────
   const load = useCallback(async () => {
