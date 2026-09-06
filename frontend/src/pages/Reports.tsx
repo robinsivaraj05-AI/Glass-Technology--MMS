@@ -1300,11 +1300,9 @@ async function generateManagementReport(dateFrom: string, dateTo: string, sectio
     // Left: company
     doc.setFont('helvetica', 'normal'); doc.setFontSize(7); doc.setTextColor(160, 180, 210);
     doc.text('Glass Technology  |  E&I Department  |  Maintenance Management System', 7, H - 3.8);
-    // Center: CONFIDENTIAL badge
-    doc.setFillColor(...ORANGE);
-    doc.roundedRect(W / 2 - 20, footY + 3, 40, 6.5, 1.5, 1.5, 'F');
-    doc.setFont('helvetica', 'bold'); doc.setFontSize(6.5); doc.setTextColor(...SECOND);
-    doc.text('CONFIDENTIAL', W / 2, H - 3.5, { align: 'center' });
+    // Center: report title
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(7); doc.setTextColor(160, 180, 210);
+    doc.text(`Monthly Management Report  |  ${monthLabel}`, W / 2, H - 3.8, { align: 'center' });
     // Right: page number
     doc.setFont('helvetica', 'bold'); doc.setFontSize(7.5); doc.setTextColor(255, 200, 100);
     doc.text(`${i}`, W - ML - 18, H - 3.5);
