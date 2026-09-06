@@ -187,6 +187,13 @@ export function addAttendanceSheet(
 
   const tableStartY = HEAD_H + 7;
 
+  // Dynamic row height — fill page leaving room for legend + footer
+  const legendBlockH  = 21;  // 15mm box + 6mm gap above it
+  const headerBlockH  = 11;  // 2 header rows
+  const availBodyH    = FOOT_Y - tableStartY - legendBlockH - headerBlockH;
+  const targetRowH    = Math.max(6, Math.min(22, availBodyH / team.length));
+  const rowPad        = Math.max(1.5, (targetRowH - 5) / 2);
+
   // Column widths
   const slW   = 8;
   const nameW = 52;
@@ -233,7 +240,7 @@ export function addAttendanceSheet(
     bodyStyles: {
       fontSize:    8,
       valign:      'middle',
-      cellPadding: { top: 2, bottom: 2, left: 1, right: 1 },
+      cellPadding: { top: rowPad, bottom: rowPad, left: 1, right: 1 },
       lineColor:   [226, 232, 240],
       lineWidth:   0.15,
       textColor:   [30, 41, 59],
@@ -325,9 +332,9 @@ export function addAttendanceSheet(
     });
   }
 
-  // Legend
-  const legendY = (doc as any).lastAutoTable.finalY + 5;
-  if (legendY < FOOT_Y - 22) {
+  // Legend — pinned just above footer
+  const legendY = FOOT_Y - 19;
+  {
     doc.setFillColor(255, 247, 237);
     doc.roundedRect(ML, legendY, UW, 15, 1.5, 1.5, 'F');
     doc.setDrawColor(251, 146, 60);
