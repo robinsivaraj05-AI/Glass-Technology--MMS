@@ -44,7 +44,7 @@ router.post('/register', async (req: Request, res: Response) => {
 router.get('/approvers', async (_req: Request, res: Response) => {
   try {
     const approvers = await User.find(
-      { role: { $in: ['manager', 'deputy_manager'] }, isActive: true },
+      { role: { $in: ['manager', 'deputy_manager'] }, isActive: { $ne: false } },
       { name: 1, role: 1, employeeId: 1, _id: 0 }
     ).sort({ role: 1, name: 1 });
     res.json(approvers);
