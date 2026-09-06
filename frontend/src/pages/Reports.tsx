@@ -86,7 +86,7 @@ async function generateManagementReport(dateFrom: string, dateTo: string, sectio
   const reportTitle = `E&I ${monthLabel} Monthly Report`;
   const today      = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
 
-  const need = (k: string) => sections[k] !== false;
+  const need = (k: string) => sections[k] === true;
 
   // â”€â”€ Fetch only what's needed â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const [spareParts, empRes, attRes, outsourceRes, rentalRes, followupRes, poRes, projectRes, accessoriesRes] = await Promise.all([
