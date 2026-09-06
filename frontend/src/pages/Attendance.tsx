@@ -557,10 +557,12 @@ function EntryTab({ year, month, days, team, entries, dirty, canEdit, selCells, 
                           {code || (canEdit ? <span style={{ fontSize:14, color:'#e2e8f0' }}>·</span> : '')}
                           {remark && (
                             <span style={{
-                              position:'absolute', top:2, right:2,
-                              width:6, height:6, borderRadius:'50%',
-                              background:'#f59e0b', border:'1px solid #d97706',
-                              display:'block', flexShrink:0,
+                              position:'absolute', top:0, right:0,
+                              width:0, height:0,
+                              borderStyle:'solid',
+                              borderWidth:'0 10px 10px 0',
+                              borderColor:`transparent #f59e0b transparent transparent`,
+                              display:'block',
                             }}/>
                           )}
                         </td>

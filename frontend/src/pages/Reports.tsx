@@ -96,7 +96,7 @@ async function generateManagementReport(dateFrom: string, dateTo: string, sectio
     (need('purchase') || need('payment'))   ? fetch('/api/purchase-followup').then(r => r.json()).catch(() => []) : [],
     (need('po') || need('cost'))            ? fetch('/api/purchase-po').then(r => r.json()).catch(() => []) : [],
     need('projects')                        ? fetch('/api/projects').then(r => r.json()).catch(() => []) : [],
-    need('costing')                         ? fetch(`/api/accessories?from=${dateFrom}&to=${dateTo}&limit=2000`).then(r => r.json()).catch(() => ({ entries: [] })) : { entries: [] },
+    (need('costing') || need('cost'))       ? fetch(`/api/accessories?from=${dateFrom}&to=${dateTo}&limit=2000`).then(r => r.json()).catch(() => ({ entries: [] })) : { entries: [] },
   ]);
 
   const allSpares      = spareParts?.items || (Array.isArray(spareParts) ? spareParts : []);
@@ -467,6 +467,10 @@ async function generateManagementReport(dateFrom: string, dateTo: string, sectio
     }
   }
 
+  // Shared page-2 dynamic row padding (computed in purchase block, reused in cost block)
+  let rPad: number = 3;
+  let tBoxC: [number,number,number] = [200, 210, 225];
+
   // â”€â”€â”€ 5. E&I PURCHASE STATUS â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   if (need('purchase')) {
     // Page 1 continues from cover header — no extra sectionHeader needed
@@ -510,9 +514,11 @@ async function generateManagementReport(dateFrom: string, dateTo: string, sectio
         headStyles: { ...tblHead, fontSize: 7, cellPadding: { top: 3, bottom: 3, left: 2, right: 2 } },
         tableLineColor: [180, 190, 205],
         tableLineWidth: 0.3,
+        margin: { left: ML, right: ML },
+        tableWidth: W - ML * 2,
         columnStyles: {
           0:  { halign: 'center', cellWidth: 7 },
-          1:  { cellWidth: 58 },
+          1:  { halign: 'left',   cellWidth: 'auto' },
           2:  { halign: 'center', cellWidth: 22 },
           3:  { halign: 'center', cellWidth: 12 },
           4:  { halign: 'center', cellWidth: 22 },
@@ -546,6 +552,19 @@ async function generateManagementReport(dateFrom: string, dateTo: string, sectio
     doc.addPage();
     drawHdrBand('Materials Received & Cost Summary', monthLabel, 0);
     y = HDR_H + 5;
+
+    // Calculate dynamic row padding to fill page 2 fully
+    // Fixed overhead: header(15) + subH1(9) + subH2(13) + totalExpBar(17) + gaps(6)
+    const p2Overhead  = HDR_H + 5 + 9 + 13 + 17 + 6;
+    const p2Available = USABLE - p2Overhead;
+    const n1 = receivedThisMonth.length || 1;
+    const n2 = 6; // costRows count
+    const hH = 10; // header row height estimate
+    const bodySpace = Math.max(60, p2Available - hH * 2);
+    const rowH  = Math.max(7, Math.min(18, bodySpace / (n1 + n2)));
+    rPad  = Math.max(2.5, (rowH - 5) / 2);
+    tBoxC = [200, 210, 225];
+
     y = subHeader(y, `Materials Received This Month (${receivedThisMonth.length})`);
     if (receivedThisMonth.length > 0) {
       const fmtDs = (d: string) => d ? new Date(d).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: '2-digit' }) : ' - ';
@@ -560,10 +579,13 @@ async function generateManagementReport(dateFrom: string, dateTo: string, sectio
           fmtDs(r.receivedDate),
           r.budget ? fmtAED(r.budget) : ' - ',
         ]),
-        styles: { fontSize: 8.5, cellPadding: 3 },
-        headStyles: { fillColor: SUCCESS, textColor: WHITE, fontStyle: 'bold', fontSize: 9 },
-        columnStyles: { 0: { halign: 'center', cellWidth: 8 }, 2: { halign: 'center', cellWidth: 30 }, 3: { halign: 'center', cellWidth: 28 }, 4: { halign: 'center', cellWidth: 28 }, 5: { halign: 'right', cellWidth: 28 } },
+        margin: { left: ML, right: ML },
+        tableWidth: W - ML * 2,
+        styles: { fontSize: 8.5, cellPadding: { top: rPad, bottom: rPad, left: 3, right: 3 }, lineColor: [160, 195, 170], lineWidth: 0.2 },
+        headStyles: { fillColor: SUCCESS, textColor: WHITE, fontStyle: 'bold', fontSize: 9, cellPadding: { top: 3, bottom: 3, left: 3, right: 3 } },
+        columnStyles: { 0: { halign: 'center', cellWidth: 8 }, 1: { halign: 'left' }, 2: { halign: 'center', cellWidth: 32 }, 3: { halign: 'center', cellWidth: 28 }, 4: { halign: 'center', cellWidth: 28 }, 5: { halign: 'right', cellWidth: 30 } },
         alternateRowStyles: { fillColor: [240, 253, 244] },
+        tableLineColor: [100, 160, 120], tableLineWidth: 0.5,
       });
     } else {
       doc.setFontSize(9); doc.setTextColor(...NEUTRAL);
@@ -611,7 +633,9 @@ async function generateManagementReport(dateFrom: string, dateTo: string, sectio
   if (need('cost')) {
     // Continues on page 2 after Materials Received
     y = subHeader(y + 4, 'COST Summary');
-    const accCostTotal = accEntries.reduce((s: number, e: any) => s + (e.amount || 0), 0);
+    const accEntryTotal = (e: any) =>
+      e.totalCost || (e.items || []).reduce((is: number, it: any) => is + (it.totalCost || 0), 0);
+    const accCostTotal = accEntries.reduce((s: number, e: any) => s + accEntryTotal(e), 0);
     const costRows = [
       ['POs Received (Period)',         fmtAED(totalPOValue),  `${receivedPOs.length} POs`],
       ['All POs (All Time Total)',      fmtAED(allPOTotal),    `${allPOs.length} POs`],
@@ -624,24 +648,27 @@ async function generateManagementReport(dateFrom: string, dateTo: string, sectio
       startY: y,
       head: [['Category', 'Amount (AED)', 'Remarks']],
       body: costRows,
-      styles: { fontSize: 9, cellPadding: 3.5 },
-      headStyles: tblHead,
+      margin: { left: ML, right: ML },
+      tableWidth: W - ML * 2,
+      styles: { fontSize: 9, cellPadding: { top: rPad, bottom: rPad, left: 3, right: 3 }, lineColor: [160, 180, 210], lineWidth: 0.2 },
+      headStyles: { ...tblHead, cellPadding: { top: 3, bottom: 3, left: 3, right: 3 } },
       columnStyles: {
         0: { halign: 'left' },
-        1: { halign: 'right', fontStyle: 'bold' },
-        2: { halign: 'left', textColor: NEUTRAL },
+        1: { halign: 'right', fontStyle: 'bold', cellWidth: 50 },
+        2: { halign: 'left',  textColor: NEUTRAL, cellWidth: 60 },
       },
       alternateRowStyles: tblAlt,
+      tableLineColor: [120, 150, 190], tableLineWidth: 0.5,
     });
     y = (doc as any).lastAutoTable.finalY + 5;
 
-    const totalSpend = totalPOValue + outsourceCost + rentalCost;
+    const totalSpend = totalPOValue + outsourceCost + rentalCost + accCostTotal;
     doc.setFillColor(...NAVY);
-    doc.roundedRect(ML, y, W - ML * 2, 12, 2, 2, 'F');
+    doc.roundedRect(ML, y, W - ML * 2, 14, 2, 2, 'F');
     doc.setFont('helvetica', 'bold');
-    doc.setFontSize(10);
+    doc.setFontSize(11);
     doc.setTextColor(...WHITE);
-    doc.text(`Total Expenditure for Period: ${fmtAED(totalSpend)}`, W / 2, y + 8, { align: 'center' });
+    doc.text(`Total Expenditure for Period: ${fmtAED(totalSpend)}`, W / 2, y + 9.5, { align: 'center' });
   }
 
   // â”€â”€â”€ 8. PROJECTS â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
@@ -699,7 +726,8 @@ async function generateManagementReport(dateFrom: string, dateTo: string, sectio
   if (need('costing')) {
     const outsourceCostT = outsourceEntries.reduce((s: number, e: any) => s + (e.totalCost || 0), 0);
     const equipmentCostT = rentalEntries.reduce((s: number,   e: any) => s + (e.totalCost || 0), 0);
-    const accessoryCostT = accEntries.reduce((s: number,      e: any) => s + (e.totalCost || 0), 0);
+    const calcAccTotal   = (e: any) => e.totalCost || (e.items || []).reduce((is: number, it: any) => is + (it.totalCost || 0), 0);
+    const accessoryCostT = accEntries.reduce((s: number,      e: any) => s + calcAccTotal(e), 0);
     const grandCostT     = outsourceCostT + equipmentCostT + accessoryCostT;
 
     // Pre-build breakdowns
