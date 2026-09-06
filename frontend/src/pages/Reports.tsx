@@ -352,9 +352,9 @@ async function generateManagementReport(dateFrom: string, dateTo: string, sectio
   doc.text('Electrical & Instrumentation Department  —  Maintenance Management System', 37, 21);
   // Report type badge
   doc.setFillColor(...ORANGE);
-  doc.roundedRect(37, 24, 78, 6.5, 1.5, 1.5, 'F');
+  doc.roundedRect(37, 24, 58, 6.5, 1.5, 1.5, 'F');
   doc.setFont('helvetica', 'bold'); doc.setFontSize(7); doc.setTextColor(...SECOND);
-  doc.text('MONTHLY MANAGEMENT REPORT  •  PLANT DIRECTOR COPY', 76, 28.5, { align: 'center' });
+  doc.text('MONTHLY MANAGEMENT REPORT', 66, 28.5, { align: 'center' });
 
   // Right panel — period info
   doc.setFont('helvetica', 'bold'); doc.setFontSize(7.5); doc.setTextColor(160, 180, 210);
