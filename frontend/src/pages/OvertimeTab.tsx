@@ -64,8 +64,8 @@ export default function OvertimeTab({ year, month, team, canEdit }: Props) {
   useEffect(() => {
     // Fixed approvers for this organisation — always shown
     const DEFAULT_APPROVERS: Approver[] = [
-      { name: 'Senthil Babu', role: 'manager',         employeeId: 'EMP-000' },
-      { name: 'Rajesh Kumar', role: 'deputy_manager',  employeeId: 'EMP-001' },
+      { name: 'Sathish Venmani', role: 'manager',        employeeId: '' },
+      { name: 'Rabin Sivaraj',   role: 'deputy_manager', employeeId: 'GT020' },
     ];
 
     const buildList = (fromApi: Approver[]) => {
