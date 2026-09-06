@@ -5,30 +5,30 @@ import { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, R
 import { monthlyBreakdowns, pmComplianceData, mockKPIs, departmentEnergyData } from '../data/mockData';
 
 const REPORT_TYPES = [
-  { id: 'monthly',    label: 'Monthly Maintenance Report',   icon: 'ðŸ“‹', color: '#3b82f6', desc: 'Complete maintenance summary for the month' },
-  { id: 'breakdown',  label: 'Breakdown Analysis Report',    icon: 'âš ï¸', color: '#ef4444', desc: 'Detailed breakdown statistics and RCA' },
-  { id: 'pm',         label: 'PM Compliance Report',         icon: 'âœ…', color: '#22c55e', desc: 'Preventive maintenance completion report' },
-  { id: 'energy',     label: 'Energy Consumption Report',    icon: 'âš¡', color: '#f59e0b', desc: 'Electricity, DG, and utility usage report' },
-  { id: 'kpi',        label: 'KPI Dashboard Report',         icon: 'ðŸ“Š', color: '#8b5cf6', desc: 'Key performance indicators and trends' },
-  { id: 'cost',       label: 'Maintenance Cost Report',      icon: 'ðŸ’°', color: '#06b6d4', desc: 'Cost analysis by machine, department' },
-  { id: 'spare',      label: 'Spare Parts Report',           icon: 'ðŸ”©', color: '#f59e0b', desc: 'Inventory, consumption, and purchase report' },
-  { id: 'calibration',label: 'Calibration Status Report',   icon: 'ðŸ”¬', color: '#22c55e', desc: 'Instrument calibration compliance report' },
-  { id: 'safety',     label: 'Safety & Incident Report',     icon: 'ðŸ¦º', color: '#ef4444', desc: 'Incidents, near misses, and LOTO report' },
-  { id: 'yearly',     label: 'Annual Performance Report',    icon: 'ðŸ“…', color: '#6366f1', desc: 'Complete yearly performance summary' },
-  { id: 'management', label: 'Monthly Management Report',    icon: 'ðŸ“‘', color: '#0ea5e9', desc: 'Combined management report â€” select sections below' },
+  { id: 'monthly',    label: 'Monthly Maintenance Report',   icon: '📋', color: '#3b82f6', desc: 'Complete maintenance summary for the month' },
+  { id: 'breakdown',  label: 'Breakdown Analysis Report',    icon: '⚠️', color: '#ef4444', desc: 'Detailed breakdown statistics and RCA' },
+  { id: 'pm',         label: 'PM Compliance Report',         icon: '✅', color: '#22c55e', desc: 'Preventive maintenance completion report' },
+  { id: 'energy',     label: 'Energy Consumption Report',    icon: '⚡', color: '#f59e0b', desc: 'Electricity, DG, and utility usage report' },
+  { id: 'kpi',        label: 'KPI Dashboard Report',         icon: '📊', color: '#8b5cf6', desc: 'Key performance indicators and trends' },
+  { id: 'cost',       label: 'Maintenance Cost Report',      icon: '💰', color: '#06b6d4', desc: 'Cost analysis by machine, department' },
+  { id: 'spare',      label: 'Spare Parts Report',           icon: '🔧', color: '#f59e0b', desc: 'Inventory, consumption, and purchase report' },
+  { id: 'calibration',label: 'Calibration Status Report',   icon: '🔬', color: '#22c55e', desc: 'Instrument calibration compliance report' },
+  { id: 'safety',     label: 'Safety & Incident Report',     icon: '🦺', color: '#ef4444', desc: 'Incidents, near misses, and LOTO report' },
+  { id: 'yearly',     label: 'Annual Performance Report',    icon: '📅', color: '#6366f1', desc: 'Complete yearly performance summary' },
+  { id: 'management', label: 'Monthly Management Report',    icon: '📑', color: '#0ea5e9', desc: 'Combined management report - select sections below' },
 ];
 
 const MGMT_SECTIONS = [
-  { key: 'spares',    label: 'ðŸ“¦ Spare Parts Store Summary' },
-  { key: 'attendance',label: 'ðŸ‘¥ Employee Attendance' },
-  { key: 'outsource', label: 'ðŸ”§ Outsource Details' },
-  { key: 'rental',    label: 'ðŸšœ Rental Equipment' },
-  { key: 'purchase',  label: 'ðŸ›’ E&I Purchase Status' },
-  { key: 'po',        label: 'ðŸ“„ Received POs' },
-  { key: 'cost',      label: 'ðŸ’° Purchase Cost Summary' },
-  { key: 'projects',  label: 'ðŸ - ï¸ Projects' },
-  { key: 'costing',   label: 'ðŸ“Š E&I Costing Report' },
-  { key: 'payment',   label: 'ðŸ’³ E&I Purchase Payment' },
+  { key: 'spares',    label: '📦 Spare Parts Store Summary' },
+  { key: 'attendance',label: '👥 Employee Attendance' },
+  { key: 'outsource', label: '🔧 Outsource Details' },
+  { key: 'rental',    label: '🚜 Rental Equipment' },
+  { key: 'purchase',  label: '🛒 E&I Purchase Status' },
+  { key: 'po',        label: '🔄 Received POs' },
+  { key: 'cost',      label: '💰 Purchase Cost Summary' },
+  { key: 'projects',  label: '🗓️ Projects' },
+  { key: 'costing',   label: '📊 E&I Costing Report' },
+  { key: 'payment',   label: '💳 E&I Purchase Payment' },
 ];
 
 const OEM_STORES = ['Main Store - OEM Spare', 'Electrical Store - OEM Spare'];
