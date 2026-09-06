@@ -369,7 +369,7 @@ export default function PurchasePO() {
               <th>PO No.</th><th>PO Date</th><th>RFQ Ref</th><th>Vendor</th>
               <th>Items</th><th>Total Value</th><th>Est. Delivery</th><th>Actual Delivery</th>
               <th>Tracking</th><th>Status</th>
-              <th style={{ position:'sticky', right:0, background:'#0b0b18', zIndex:3 }}>Actions</th>
+              <th style={{ position:'sticky', right:0, zIndex:3, background: listTab === 'pending' ? '#78350f' : '#14532d', color: listTab === 'pending' ? '#fde68a' : '#bbf7d0', letterSpacing:'0.06em' }}>Actions</th>
             </tr>
           </thead>
           <tbody>
@@ -417,10 +417,10 @@ export default function PurchasePO() {
                       ))}
                     </select>
                   </td>
-                  <td style={{ position:'sticky', right:0, background:'#0b0b18', zIndex:1, boxShadow:'-3px 0 8px rgba(0,0,0,0.5)', whiteSpace:'nowrap' }}>
+                  <td style={{ position:'sticky', right:0, zIndex:1, boxShadow:'-3px 0 8px rgba(0,0,0,0.5)', whiteSpace:'nowrap', background: listTab === 'pending' ? '#1c1107' : '#071a0e' }}>
                     <div style={{ display:'flex', gap:5 }}>
-                      <button onClick={()=>setViewPO(p)} className="btn-secondary" style={{ padding:'4px 7px', fontSize:10 }} title="View"><Eye size={10}/></button>
-                      <button onClick={()=>openEdit(p)} className="btn-secondary" style={{ padding:'4px 7px', fontSize:10 }} title="Edit"><Edit2 size={10}/></button>
+                      <button onClick={()=>setViewPO(p)} style={{ padding:'4px 7px', fontSize:10, borderRadius:6, cursor:'pointer', border: listTab === 'pending' ? '1px solid rgba(245,158,11,0.4)' : '1px solid rgba(34,197,94,0.4)', background: listTab === 'pending' ? 'rgba(245,158,11,0.12)' : 'rgba(34,197,94,0.12)', color: listTab === 'pending' ? '#f59e0b' : '#22c55e' }} title="View"><Eye size={10}/></button>
+                      <button onClick={()=>openEdit(p)} style={{ padding:'4px 7px', fontSize:10, borderRadius:6, cursor:'pointer', border: listTab === 'pending' ? '1px solid rgba(245,158,11,0.4)' : '1px solid rgba(34,197,94,0.4)', background: listTab === 'pending' ? 'rgba(245,158,11,0.12)' : 'rgba(34,197,94,0.12)', color: listTab === 'pending' ? '#f59e0b' : '#22c55e' }} title="Edit"><Edit2 size={10}/></button>
                       <button onClick={()=>deletePO(p.id)} style={{ padding:'4px 7px', fontSize:10, background:'rgba(239,68,68,0.1)', border:'1px solid rgba(239,68,68,0.3)', borderRadius:6, color:'#ef4444', cursor:'pointer' }} title="Delete"><Trash2 size={10}/></button>
                     </div>
                   </td>
