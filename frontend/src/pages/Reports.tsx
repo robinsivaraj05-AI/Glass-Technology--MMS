@@ -158,47 +158,82 @@ async function generateManagementReport(dateFrom: string, dateTo: string, sectio
   const H = 210;
 
   // Design tokens
-  const PRIMARY : [number,number,number] = [15,  76,  129];
-  const SECOND  : [number,number,number] = [37,  99,  235];
-  const BG      : [number,number,number] = [248, 250, 252];
-  const SUCCESS : [number,number,number] = [22,  163, 74 ];
-  const WARNING : [number,number,number] = [245, 158, 11 ];
-  const DANGER  : [number,number,number] = [220, 38,  38 ];
-  const NEUTRAL : [number,number,number] = [71,  85,  105];
-  const DARK    : [number,number,number] = [15,  23,  42 ];
+  const PRIMARY : [number,number,number] = [11,  92,  173];  // #0B5CAD - corporate blue
+  const SECOND  : [number,number,number] = [31,  41,  55];   // #1F2937 - dark charcoal
+  const BG      : [number,number,number] = [248, 250, 252];  // #F8FAFC
+  const SUCCESS : [number,number,number] = [16,  185, 129];  // #10B981
+  const WARNING : [number,number,number] = [245, 158, 11];   // #F59E0B
+  const DANGER  : [number,number,number] = [220, 38,  38];
+  const NEUTRAL : [number,number,number] = [100, 116, 139];  // #64748B
+  const DARK    : [number,number,number] = [17,  24,  39];   // #111827
   const WHITE   : [number,number,number] = [255, 255, 255];
-  const NAVY    : [number,number,number] = [30,  58,  138];
+  const NAVY    : [number,number,number] = [11,  92,  173];  // same as PRIMARY
   const TEAL    : [number,number,number] = [15,  118, 110];
   const PURPLE  : [number,number,number] = [124, 58,  237];
-  const ORANGE  : [number,number,number] = [234, 88,  12 ];
+  const ORANGE  : [number,number,number] = [245, 158, 11];
   const ALT_ROW : [number,number,number] = [248, 250, 252];
+  const BORDER  : [number,number,number] = [209, 213, 219];  // #D1D5DB
 
-  const tblHead = { fillColor: PRIMARY, textColor: WHITE, fontStyle: 'bold' as const, fontSize: 9 };
-  const tblAlt  = { fillColor: ALT_ROW };
+  const tblHead = { fillColor: PRIMARY, textColor: WHITE, fontStyle: 'bold' as const, fontSize: 9.5, cellPadding: 3.5 };
+  const tblAlt  = { fillColor: [248, 250, 252] as [number, number, number] };
+  const tblLine = { lineColor: BORDER as [number, number, number], lineWidth: 0.2 };
 
   // â”€â”€ Layout constants â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-  const HDR_H  = 10;   // header band height (mm)
-  const FOOT_H = 10;   // footer strip height
+  const HDR_H  = 13;   // header band height (mm)
+  const FOOT_H = 12;   // footer strip height
   const ML     = 10;   // left margin
-  const USABLE = H - FOOT_H - 4; // lowest y content can reach
+  const USABLE = H - FOOT_H - 4; // 210 - 12 - 4 = 194
 
   // â”€â”€ KPI card helper â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-  const drawKPICard = (x: number, ky: number, w: number, h: number, label: string, value: string, color: [number,number,number]) => {
-    doc.setFillColor(210, 218, 226);
-    doc.roundedRect(x + 1, ky + 1, w, h, 2, 2, 'F');
+  const drawKPICard = (x: number, ky: number, w: number, h: number, label: string, value: string, color: [number,number,number], sub = '') => {
+    // Drop shadow
+    doc.setFillColor(215, 225, 240);
+    doc.roundedRect(x + 1.5, ky + 1.5, w, h, 3, 3, 'F');
+    // White card
     doc.setFillColor(...WHITE);
-    doc.roundedRect(x, ky, w, h, 2, 2, 'F');
+    doc.setDrawColor(...BORDER);
+    doc.setLineWidth(0.2);
+    doc.roundedRect(x, ky, w, h, 3, 3, 'FD');
+    // Color top bar
     doc.setFillColor(...color);
-    doc.roundedRect(x, ky, w, 3, 1.5, 1.5, 'F');
-    doc.rect(x, ky + 1.5, w, 1.5, 'F');
+    doc.roundedRect(x, ky, w, 4, 3, 3, 'F');
+    doc.rect(x, ky + 2, w, 2, 'F');
+    // Color left accent
+    doc.setFillColor(...color);
+    doc.roundedRect(x, ky + 4, 3, h - 4, 0.5, 0.5, 'F');
+    // Value
     doc.setFont('helvetica', 'bold');
-    doc.setFontSize(10);
+    doc.setFontSize(12);
     doc.setTextColor(...color);
-    doc.text(value, x + w / 2, ky + h / 2 + 2, { align: 'center' });
+    doc.text(value, x + w / 2, ky + h / 2 + 3, { align: 'center' });
+    // Label
     doc.setFont('helvetica', 'normal');
-    doc.setFontSize(6);
+    doc.setFontSize(6.5);
     doc.setTextColor(...NEUTRAL);
-    doc.text(label, x + w / 2, ky + h - 2.5, { align: 'center' });
+    doc.text(label.toUpperCase(), x + w / 2, ky + h - 3.5, { align: 'center' });
+    // Sub text if any
+    if (sub) {
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(5.5);
+      doc.setTextColor(180, 195, 215);
+      doc.text(sub, x + w / 2, ky + 13, { align: 'center' });
+    }
+  };
+
+  // Background grid texture helper
+  const drawPageBg = () => {
+    doc.setDrawColor(232, 238, 248);
+    doc.setLineWidth(0.08);
+    for (let gx = 20; gx < W; gx += 20) doc.line(gx, 0, gx, H - FOOT_H);
+    for (let gy = 20; gy < H - FOOT_H; gy += 20) doc.line(0, gy, W, gy);
+    // Corner accent marks
+    doc.setDrawColor(200, 215, 235);
+    doc.setLineWidth(0.3);
+    const cm = 6;
+    doc.line(0, 0, cm, 0); doc.line(0, 0, 0, cm);
+    doc.line(W - cm, 0, W, 0); doc.line(W, 0, W, cm);
+    doc.line(0, H - FOOT_H - cm, 0, H - FOOT_H); doc.line(0, H - FOOT_H, cm, H - FOOT_H);
+    doc.line(W - cm, H - FOOT_H, W, H - FOOT_H); doc.line(W, H - FOOT_H - cm, W, H - FOOT_H);
   };
 
   // â”€â”€ Section header helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
@@ -206,21 +241,33 @@ async function generateManagementReport(dateFrom: string, dateTo: string, sectio
 
   // Draw compact header band at any vertical position
   const drawHdrBand = (title: string, subtitle: string, atY: number) => {
-    doc.setFillColor(...PRIMARY);
+    // Dark charcoal base
+    doc.setFillColor(...SECOND);
     doc.rect(0, atY, W, HDR_H, 'F');
-    doc.setFillColor(...SECOND);
-    doc.rect(W * 0.6, atY, W * 0.4, HDR_H, 'F');
-    doc.setFillColor(...SECOND);
-    doc.rect(0, atY + HDR_H, W, 0.5, 'F');
+    // Left primary blue panel
+    doc.setFillColor(...PRIMARY);
+    doc.rect(0, atY, W * 0.55, HDR_H, 'F');
+    // Left amber accent stripe
+    doc.setFillColor(...ORANGE);
+    doc.rect(0, atY, 4, HDR_H, 'F');
+    // Bottom accent line
+    doc.setFillColor(...ORANGE);
+    doc.rect(0, atY + HDR_H, W, 0.8, 'F');
+    // Section indicator dots
+    doc.setFillColor(255, 255, 255);
+    doc.circle(W * 0.55 + 4, atY + HDR_H / 2, 0.8, 'F');
+    doc.circle(W * 0.55 + 8, atY + HDR_H / 2, 0.8, 'F');
+    // Title
     doc.setFont('helvetica', 'bold');
-    doc.setFontSize(10);
+    doc.setFontSize(11);
     doc.setTextColor(...WHITE);
-    doc.text(title, ML, atY + 7);
+    doc.text(title, ML + 3, atY + 9);
+    // Subtitle
     if (subtitle) {
       doc.setFont('helvetica', 'normal');
-      doc.setFontSize(6.5);
-      doc.setTextColor(186, 230, 253);
-      doc.text(subtitle, W - ML, atY + 7, { align: 'right' });
+      doc.setFontSize(7);
+      doc.setTextColor(180, 195, 215);
+      doc.text(subtitle, W - ML, atY + 9, { align: 'right' });
     }
   };
 
@@ -255,57 +302,76 @@ async function generateManagementReport(dateFrom: string, dateTo: string, sectio
   };
 
   const subHeader = (sy: number, text: string) => {
-    doc.setFillColor(...SECOND);
-    doc.rect(ML, sy, 2, 5, 'F');
+    // Primary blue accent bar
+    doc.setFillColor(...PRIMARY);
+    doc.roundedRect(ML, sy, 3.5, 6, 1, 1, 'F');
+    // Very subtle bg behind text
+    doc.setFillColor(240, 246, 255);
+    doc.rect(ML + 3.5, sy, W - ML * 2 - 3.5, 6, 'F');
     doc.setFont('helvetica', 'bold');
-    doc.setFontSize(8);
+    doc.setFontSize(9);
     doc.setTextColor(...DARK);
-    doc.text(text, ML + 4, sy + 3.8);
-    doc.setDrawColor(226, 232, 240);
-    doc.setLineWidth(0.2);
-    doc.line(ML + 4, sy + 5, W - ML, sy + 5);
+    doc.text(text, ML + 7, sy + 4.3);
+    doc.setDrawColor(...BORDER);
+    doc.setLineWidth(0.3);
+    doc.line(ML, sy + 6.5, W - ML, sy + 6.5);
     return sy + 9;
   };
 
-  // ── FIRST PAGE COVER HEADER ───────────────────────────────────────────────
-  const cvH = 30;
-  // Main background
-  doc.setFillColor(...PRIMARY); doc.rect(0, 0, W, cvH, 'F');
-  // Right accent panel
-  doc.setFillColor(...SECOND); doc.rect(W * 0.62, 0, W * 0.38, cvH, 'F');
-  // Decorative left stripe
-  doc.setFillColor(...ORANGE); doc.rect(0, 0, 5, cvH, 'F');
-  // Bottom border line
-  doc.setFillColor(...SECOND); doc.rect(0, cvH, W, 1, 'F');
+  // ── FIRST PAGE COVER HEADER ────────────────────────────────────────────────
+  const cvH = 44;
+  // Background
+  drawPageBg();
+  // Navy left panel (65% width)
+  doc.setFillColor(...PRIMARY);
+  doc.rect(0, 0, W * 0.65, cvH, 'F');
+  // Dark right panel (35% width)
+  doc.setFillColor(...SECOND);
+  doc.rect(W * 0.65, 0, W * 0.35, cvH, 'F');
+  // Left amber stripe
+  doc.setFillColor(...ORANGE);
+  doc.rect(0, 0, 5, cvH, 'F');
+  // Subtle blueprint grid lines on left panel
+  doc.setDrawColor(255, 255, 255);
+  doc.setLineWidth(0.06);
+  for (let gli = 0; gli < 8; gli++) doc.line(5, 5 + gli * 5.5, W * 0.65, 5 + gli * 5.5);
+  for (let gli = 0; gli < 12; gli++) doc.line(5 + gli * 18, 0, 5 + gli * 18, cvH);
+  // Bottom accent line
+  doc.setFillColor(...ORANGE);
+  doc.rect(0, cvH, W, 1.5, 'F');
 
-  // Logo (if loaded)
+  // Logo
   if (attLogo) {
-    doc.addImage(attLogo, 'PNG', 9, 4, 22, 22);
+    doc.addImage(attLogo, 'PNG', 10, 9, 26, 26);
   } else {
-    doc.setFillColor(...WHITE); doc.roundedRect(9, 4, 22, 22, 2, 2, 'F');
-    doc.setFont('helvetica', 'bold'); doc.setFontSize(10); doc.setTextColor(...PRIMARY);
-    doc.text('GT', 20, 17, { align: 'center' });
+    doc.setFillColor(...WHITE); doc.roundedRect(10, 9, 26, 26, 3, 3, 'F');
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(13); doc.setTextColor(...PRIMARY);
+    doc.text('GT', 23, 24, { align: 'center' });
   }
 
   // Company name
-  doc.setFont('helvetica', 'bold'); doc.setFontSize(15); doc.setTextColor(...WHITE);
-  doc.text('Glass Technology', 36, 13);
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(20); doc.setTextColor(...WHITE);
+  doc.text('Glass Technology', 42, 18);
   // Department subtitle
-  doc.setFont('helvetica', 'normal'); doc.setFontSize(8); doc.setTextColor(186, 230, 253);
-  doc.text('E & I Department  -  Maintenance Management System', 36, 21);
-  // Report type tag
-  doc.setFont('helvetica', 'bold'); doc.setFontSize(7.5); doc.setTextColor(255, 220, 160);
-  doc.text('MONTHLY MANAGEMENT REPORT', 36, 28);
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(9); doc.setTextColor(186, 230, 253);
+  doc.text('Electrical & Instrumentation Department  —  Maintenance Management System', 42, 27);
+  // Report type badge
+  doc.setFillColor(...ORANGE);
+  doc.roundedRect(42, 31, 85, 8, 1.5, 1.5, 'F');
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(8); doc.setTextColor(...SECOND);
+  doc.text('MONTHLY MANAGEMENT REPORT  •  PLANT DIRECTOR COPY', 84.5, 36.5, { align: 'center' });
 
-  // Right panel content
-  doc.setFont('helvetica', 'bold'); doc.setFontSize(9.5); doc.setTextColor(...WHITE);
-  doc.text('Report Month', W - ML - 2, 10, { align: 'right' });
-  doc.setFontSize(12); doc.setTextColor(255, 237, 213);
-  doc.text(monthLabel, W - ML - 2, 20, { align: 'right' });
-  doc.setFont('helvetica', 'normal'); doc.setFontSize(6.5); doc.setTextColor(186, 230, 253);
-  doc.text(`Generated: ${today}  |  E&I Dept. | Glass Technology`, W - ML - 2, 28, { align: 'right' });
+  // Right panel — period info
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(8); doc.setTextColor(160, 180, 210);
+  doc.text('REPORT PERIOD', W - 8, 13, { align: 'right' });
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(16); doc.setTextColor(...WHITE);
+  doc.text(monthLabel, W - 8, 26, { align: 'right' });
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(7.5); doc.setTextColor(160, 180, 210);
+  doc.text(`Prepared by: E&I Department`, W - 8, 34, { align: 'right' });
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(7); doc.setTextColor(140, 165, 200);
+  doc.text(`Generated: ${today}`, W - 8, 40, { align: 'right' });
 
-  y = cvH + 4;
+  y = cvH + 6;
 
   // â”€â”€â”€ 1. SPARE PARTS STORE-WISE SUMMARY â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   if (need('spares')) {
@@ -328,7 +394,7 @@ async function generateManagementReport(dateFrom: string, dateTo: string, sectio
           s.isOEM ? 'Free of Cost' : (s.value ? fmtAED(s.value) : 'AED 0'),
         ];
       }),
-      styles: { fontSize: 9, cellPadding: 3 },
+      styles: { fontSize: 9, cellPadding: 3, ...tblLine },
       headStyles: tblHead,
       columnStyles: {
         0: { cellPadding: { top: 3, right: 3, bottom: 3, left: 9 } },
@@ -337,6 +403,7 @@ async function generateManagementReport(dateFrom: string, dateTo: string, sectio
       },
       tableWidth: 190,
       margin: { left: ML },
+      tableLineColor: BORDER, tableLineWidth: 0.4,
       didParseCell: (data: any) => {
         const row = allStoreRows[data.row.index];
         if (!row) return;
@@ -403,10 +470,11 @@ async function generateManagementReport(dateFrom: string, dateTo: string, sectio
         startY: y,
         head: [['Vendor / Company', 'Jobs', 'Total Hours', 'Total Cost (AED)']],
         body: [...sumRows, ['TOTAL', fmt(outsourceEntries.length), `${outsourceEntries.reduce((s: number, e: any) => s + (e.workingHours || 0), 0).toFixed(1)} hrs`, fmtAED(outsourceCost)]],
-        styles: { fontSize: 9, cellPadding: 3 },
+        styles: { fontSize: 9, cellPadding: 3, ...tblLine },
         headStyles: tblHead,
         columnStyles: { 1: { halign: 'center' }, 2: { halign: 'center' }, 3: { halign: 'right' } },
         alternateRowStyles: tblAlt,
+        tableLineColor: BORDER, tableLineWidth: 0.4,
         didParseCell: (data: any) => { if (data.row.index === sumRows.length) { data.cell.styles.fillColor = NAVY; data.cell.styles.textColor = WHITE; data.cell.styles.fontStyle = 'bold'; } },
       });
       y = (doc as any).lastAutoTable.finalY + 5;
@@ -423,10 +491,11 @@ async function generateManagementReport(dateFrom: string, dateTo: string, sectio
             fmtAED(e.totalCost),
             e.completionStatus || ' - ',
           ]),
-          styles: { fontSize: 7.5, cellPadding: 2.5 },
+          styles: { fontSize: 7.5, cellPadding: 2.5, ...tblLine },
           headStyles: tblHead,
           columnStyles: { 3: { halign: 'center' }, 4: { halign: 'right' } },
           alternateRowStyles: tblAlt,
+          tableLineColor: BORDER, tableLineWidth: 0.4,
         });
       }
     } else {
@@ -455,10 +524,11 @@ async function generateManagementReport(dateFrom: string, dateTo: string, sectio
         startY: y,
         head: [['Equipment', 'Days Used', 'Total Hours', 'Total Cost (AED)']],
         body: [...sumRows, ['TOTAL', fmt(rentalEntries.length), `${rentalEntries.reduce((s: number, e: any) => s + (e.workingHours || 0), 0).toFixed(1)} hrs`, fmtAED(rentalCost)]],
-        styles: { fontSize: 9, cellPadding: 3 },
+        styles: { fontSize: 9, cellPadding: 3, ...tblLine },
         headStyles: tblHead,
         columnStyles: { 1: { halign: 'center' }, 2: { halign: 'center' }, 3: { halign: 'right' } },
         alternateRowStyles: tblAlt,
+        tableLineColor: BORDER, tableLineWidth: 0.4,
         didParseCell: (data: any) => { if (data.row.index === sumRows.length) { data.cell.styles.fillColor = NAVY; data.cell.styles.textColor = WHITE; data.cell.styles.fontStyle = 'bold'; } },
       });
     } else {
@@ -550,6 +620,7 @@ async function generateManagementReport(dateFrom: string, dateTo: string, sectio
       return d.getFullYear() === year && (d.getMonth() + 1) === month;
     });
     doc.addPage();
+    drawPageBg();
     drawHdrBand('Materials Received & Cost Summary', monthLabel, 0);
     y = HDR_H + 5;
 
@@ -613,10 +684,11 @@ async function generateManagementReport(dateFrom: string, dateTo: string, sectio
           fmtAED(po.totalValue),
           po.status || ' - ',
         ]),
-        styles: { fontSize: 8, cellPadding: 2.5 },
+        styles: { fontSize: 8, cellPadding: 2.5, ...tblLine },
         headStyles: tblHead,
         columnStyles: { 4: { halign: 'center' }, 5: { halign: 'right' } },
         alternateRowStyles: tblAlt,
+        tableLineColor: BORDER, tableLineWidth: 0.4,
       });
       y = (doc as any).lastAutoTable.finalY + 4;
       doc.setFont('helvetica', 'bold'); doc.setFontSize(9); doc.setTextColor(...PRIMARY);
@@ -706,7 +778,7 @@ async function generateManagementReport(dateFrom: string, dateTo: string, sectio
           fmtAED(p.spent),
           (p.projectManager || ' - ').substring(0, 14),
         ]),
-        styles: { fontSize: 7.5, cellPadding: 2.5 },
+        styles: { fontSize: 7.5, cellPadding: 2.5, ...tblLine },
         headStyles: tblHead,
         columnStyles: {
           0: { halign: 'center', cellWidth: 7 },
@@ -715,6 +787,7 @@ async function generateManagementReport(dateFrom: string, dateTo: string, sectio
           7: { halign: 'right' },
         },
         alternateRowStyles: tblAlt,
+        tableLineColor: BORDER, tableLineWidth: 0.4,
       });
     } else {
       doc.setFontSize(9); doc.setTextColor(...NEUTRAL);
@@ -776,6 +849,7 @@ async function generateManagementReport(dateFrom: string, dateTo: string, sectio
 
     // ── PAGE 3: E&I COSTING DASHBOARD ─────────────────────────────────────
     doc.addPage();
+    drawPageBg();
     drawHdrBand('E&I Costing Report', `Period: ${monthLabel}`, 0);
     y = HDR_H + 4;
 
@@ -1033,6 +1107,7 @@ async function generateManagementReport(dateFrom: string, dateTo: string, sectio
 
     // ── PAGE 2: COMBINED DETAILED BREAKDOWN (single page) ───────────────────
     doc.addPage();
+    drawPageBg();
     drawHdrBand('E&I Costing - Detailed Breakdown', `${monthLabel}  |  Outsource + Equipment + Accessories`, 0);
     y = HDR_H + 4;
 
@@ -1048,9 +1123,10 @@ async function generateManagementReport(dateFrom: string, dateTo: string, sectio
       foot: [['', 'TOTAL', '', outsourceEntries.length, fmtAED(outsourceCostT), '100%']],
       headStyles: { fillColor: TEAL, textColor: WHITE, fontSize: 9, fontStyle: 'bold' },
       footStyles: { fillColor: NAVY, textColor: WHITE, fontSize: 9, fontStyle: 'bold' },
-      bodyStyles: { fontSize: 9 },
+      bodyStyles: { fontSize: 9, ...tblLine },
       columnStyles: { 4: { fontStyle: 'bold', textColor: TEAL, halign: 'right' as const }, 5: { halign: 'center' as const } },
       alternateRowStyles: { fillColor: [240, 253, 250] },
+      tableLineColor: BORDER, tableLineWidth: 0.4,
     });
 
     // Equipment breakdown (same page)
@@ -1065,9 +1141,10 @@ async function generateManagementReport(dateFrom: string, dateTo: string, sectio
       foot: [['', 'TOTAL', '', rentalEntries.length, fmtAED(equipmentCostT), '100%']],
       headStyles: { fillColor: PURPLE, textColor: WHITE, fontSize: 9, fontStyle: 'bold' },
       footStyles: { fillColor: NAVY, textColor: WHITE, fontSize: 9, fontStyle: 'bold' },
-      bodyStyles: { fontSize: 9 },
+      bodyStyles: { fontSize: 9, ...tblLine },
       columnStyles: { 4: { fontStyle: 'bold', textColor: PURPLE, halign: 'right' as const }, 5: { halign: 'center' as const } },
       alternateRowStyles: { fillColor: [245, 243, 255] },
+      tableLineColor: BORDER, tableLineWidth: 0.4,
     });
 
     // Accessories breakdown (same page)
@@ -1082,9 +1159,10 @@ async function generateManagementReport(dateFrom: string, dateTo: string, sectio
       foot: [['', 'TOTAL', fmtAED(accessoryCostT), '100%']],
       headStyles: { fillColor: WARNING, textColor: WHITE, fontSize: 9, fontStyle: 'bold' },
       footStyles: { fillColor: NAVY, textColor: WHITE, fontSize: 9, fontStyle: 'bold' },
-      bodyStyles: { fontSize: 9 },
+      bodyStyles: { fontSize: 9, ...tblLine },
       columnStyles: { 2: { fontStyle: 'bold', textColor: WARNING, halign: 'right' as const }, 3: { halign: 'center' as const } },
       alternateRowStyles: { fillColor: [255, 251, 235] },
+      tableLineColor: BORDER, tableLineWidth: 0.4,
     });
 
     const finalCostY = Math.min(((doc as any).lastAutoTable?.finalY ?? 150) + 5, USABLE - 14);
@@ -1141,10 +1219,11 @@ async function generateManagementReport(dateFrom: string, dateTo: string, sectio
         ['GRAND TOTAL PAID',     String(payEntries.length),     `AED ${fmtE(payTotal)}`],
       ],
       headStyles: tblHead,
-      bodyStyles: { fontSize: 9 },
+      bodyStyles: { fontSize: 9, ...tblLine },
       columnStyles: { 0: { cellWidth: 80 }, 1: { cellWidth: 30, halign: 'center' }, 2: { cellWidth: 50, halign: 'right', fontStyle: 'bold' } },
       tableWidth: 165,
       alternateRowStyles: tblAlt,
+      tableLineColor: BORDER, tableLineWidth: 0.4,
       didParseCell: (data: any) => {
         if (data.row.index === 2) { data.cell.styles.fillColor = NAVY; data.cell.styles.textColor = WHITE; data.cell.styles.fontStyle = 'bold'; }
       },
@@ -1159,9 +1238,10 @@ async function generateManagementReport(dateFrom: string, dateTo: string, sectio
         ], ['SL', 'Item Description', 'PO / PR Number', 'Payment Date', 'Amount Paid (AED)', 'Type']],
         body: payEntries.map((e, i) => [i + 1, e.desc, e.prNo, fmtD(e.date), `AED ${fmtE(e.amount)}`, e.isFull ? 'Full Payment' : 'Partial Payment']),
         headStyles: tblHead,
-        bodyStyles: { fontSize: 8.5 },
+        bodyStyles: { fontSize: 8.5, ...tblLine },
         columnStyles: { 0: { cellWidth: 10, halign: 'center' }, 2: { cellWidth: 40 }, 3: { cellWidth: 28 }, 4: { cellWidth: 36, halign: 'right', fontStyle: 'bold' }, 5: { cellWidth: 35 } },
         alternateRowStyles: tblAlt,
+        tableLineColor: BORDER, tableLineWidth: 0.4,
         didParseCell: (data: any) => {
           if (data.column.index === 5 && data.section === 'body') {
             data.cell.styles.textColor = data.cell.raw === 'Full Payment' ? SUCCESS : PURPLE;
@@ -1214,19 +1294,29 @@ async function generateManagementReport(dateFrom: string, dateTo: string, sectio
   const totalPages = doc.getNumberOfPages();
   for (let i = 1; i <= totalPages; i++) {
     doc.setPage(i);
-    doc.setFillColor(...BG);
-    doc.rect(0, H - FOOT_H, W, FOOT_H, 'F');
-    doc.setDrawColor(...PRIMARY);
-    doc.setLineWidth(0.4);
-    doc.line(0, H - FOOT_H, W, H - FOOT_H);
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(6.5);
-    doc.setTextColor(...NEUTRAL);
-    doc.text('E&I Department | Glass Technology', ML, H - 3.5);
-    doc.setFont('helvetica', 'bold');
+    const footY = H - FOOT_H;
+    // Dark footer background
+    doc.setFillColor(...SECOND);
+    doc.rect(0, footY, W, FOOT_H, 'F');
+    // Top accent line (amber)
+    doc.setFillColor(...ORANGE);
+    doc.rect(0, footY, W, 1, 'F');
+    // Left accent stripe
+    doc.setFillColor(...PRIMARY);
+    doc.rect(0, footY + 1, 4, FOOT_H - 1, 'F');
+    // Left: company
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(7); doc.setTextColor(160, 180, 210);
+    doc.text('Glass Technology  |  E&I Department  |  Maintenance Management System', 7, H - 3.8);
+    // Center: CONFIDENTIAL badge
+    doc.setFillColor(...ORANGE);
+    doc.roundedRect(W / 2 - 20, footY + 3, 40, 6.5, 1.5, 1.5, 'F');
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(6.5); doc.setTextColor(...SECOND);
     doc.text('CONFIDENTIAL', W / 2, H - 3.5, { align: 'center' });
-    doc.setFont('helvetica', 'normal');
-    doc.text(`Page ${i} of ${totalPages}`, W - ML, H - 3.5, { align: 'right' });
+    // Right: page number
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(7.5); doc.setTextColor(255, 200, 100);
+    doc.text(`${i}`, W - ML - 18, H - 3.5);
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(7); doc.setTextColor(160, 180, 210);
+    doc.text(` / ${totalPages}  PAGE`, W - ML - 15, H - 3.5);
   }
 
   // â”€â”€â”€ Save â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
