@@ -24,7 +24,6 @@ const MGMT_SECTIONS = [
   { key: 'po',        label: '🔄 Received POs' },
   { key: 'cost',      label: '💰 Purchase Cost Summary' },
   { key: 'costing',   label: '📊 E&I Costing Report' },
-  { key: 'payment',   label: '💳 E&I Purchase Payment' },
 ];
 
 const OEM_STORES = ['Main Store - OEM Spare', 'Electrical Store - OEM Spare'];
