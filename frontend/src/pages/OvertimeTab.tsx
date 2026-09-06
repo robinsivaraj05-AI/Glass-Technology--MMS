@@ -64,21 +64,17 @@ export default function OvertimeTab({ year, month, team, canEdit }: Props) {
   useEffect(() => {
     // Fixed approvers for this organisation — always shown
     const DEFAULT_APPROVERS: Approver[] = [
-      { name: 'Sathish Venmani', role: 'manager',        employeeId: '' },
-      { name: 'Rabin Sivaraj',   role: 'deputy_manager', employeeId: 'GT020' },
+      { name: 'Mr. Sathish Venmani', role: 'manager',        employeeId: '' },
+      { name: 'Mr. Rabin Sivaraj',   role: 'deputy_manager', employeeId: 'GT020' },
     ];
 
     const buildList = (fromApi: Approver[]) => {
       const merged = [...DEFAULT_APPROVERS];
-      // Merge API results that aren't already in the default list
+      // Merge any additional approvers from API not already in the default list
       fromApi.forEach(a => {
-        if (!merged.some(m => m.name === a.name)) merged.push(a);
+        const normalise = (n: string) => n.replace(/^Mr\.?\s*/i, '').trim().toLowerCase();
+        if (!merged.some(m => normalise(m.name) === normalise(a.name))) merged.push(a);
       });
-      // Add current logged-in user if manager/deputy and not already listed
-      if (user?.name && (user.role === 'manager' || user.role === 'deputy_manager')) {
-        if (!merged.some(m => m.name === user.name))
-          merged.unshift({ name: user.name, role: user.role, employeeId: user.employeeId ?? '' });
-      }
       setApprovers(merged);
     };
 
