@@ -583,14 +583,13 @@ async function generateManagementReport(dateFrom: string, dateTo: string, sectio
   if (need('cost')) {
     y = sectionHeader('Purchase Cost Summary', monthLabel);
 
-    y = subHeader(y, 'Cost Breakdown');
+    y = subHeader(y, 'COST Summary');
     const costRows = [
-      ['POs Received (Period)',        fmtAED(totalPOValue),  `${receivedPOs.length} POs`],
-      ['All POs (All Time Total)',     fmtAED(allPOTotal),    `${allPOs.length} POs`],
-      ['Outsource Cost (Period)',      fmtAED(outsourceCost), `${outsourceEntries.length} jobs`],
-      ['Rental Equipment (Period)',    fmtAED(rentalCost),    `${rentalEntries.length} entries`],
-      ['Pending Purchase Budget',      fmtAED(pendingBudget), `${pendingItems.length} pending items`],
-      ['Spare Stock Value (Regular)', fmtAED(regularTotal),  `${fmt(regularCount)} items`],
+      ['POs Received (Period)',     fmtAED(totalPOValue),  `${receivedPOs.length} POs`],
+      ['All POs (All Time Total)', fmtAED(allPOTotal),    `${allPOs.length} POs`],
+      ['Outsource Cost (Period)',   fmtAED(outsourceCost), `${outsourceEntries.length} jobs`],
+      ['Rental Equipment (Period)', fmtAED(rentalCost),   `${rentalEntries.length} entries`],
+      ['Pending Purchase Budget',   fmtAED(pendingBudget), `${pendingItems.length} pending items`],
     ];
     autoTable(doc, {
       startY: y,
@@ -598,7 +597,11 @@ async function generateManagementReport(dateFrom: string, dateTo: string, sectio
       body: costRows,
       styles: { fontSize: 9, cellPadding: 3.5 },
       headStyles: tblHead,
-      columnStyles: { 1: { halign: 'right', fontStyle: 'bold' }, 2: { halign: 'center', textColor: NEUTRAL } },
+      columnStyles: {
+        0: { halign: 'left' },
+        1: { halign: 'right', fontStyle: 'bold' },
+        2: { halign: 'left', textColor: NEUTRAL },
+      },
       alternateRowStyles: tblAlt,
     });
     y = (doc as any).lastAutoTable.finalY + 5;
