@@ -1321,67 +1321,6 @@ export default function Reports() {
         <div style={{ fontSize: 12, color: '#64748b' }}>Generate, download and share maintenance reports</div>
       </div>
 
-      {/* KPI Cards */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12 }}>
-        {kpiData.map(k => {
-          const above = k.name === 'MTTR' ? k.value <= k.target : k.value >= k.target;
-          return (
-            <div key={k.name} className="glass-card" style={{ padding: '14px 16px' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-                <span style={{ fontSize: 12, color: '#64748b' }}>{k.name}</span>
-                <span style={{ fontSize: 10, color: above ? '#22c55e' : '#ef4444', background: above ? 'rgba(34,197,94,0.1)' : 'rgba(239,68,68,0.1)', padding: '1px 8px', borderRadius: 10 }}>
-                  {above ? 'On Target' : 'Below Target'}
-                </span>
-              </div>
-              <div style={{ fontSize: 22, fontWeight: 700, color: k.color }}>{k.value}{k.unit}</div>
-              <div style={{ fontSize: 10, color: '#475569', marginTop: 2 }}>Target: {k.target}{k.unit}</div>
-              <div className="progress-bar" style={{ marginTop: 8 }}>
-                <div className="progress-fill" style={{ width: `${Math.min((k.name === 'MTTR' ? (k.target / k.value) : (k.value / k.target)) * 100, 100)}%`, background: above ? '#22c55e' : '#ef4444' }} />
-              </div>
-            </div>
-          );
-        })}
-      </div>
-
-      {/* Charts */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 16 }}>
-        <div className="glass-card" style={{ padding: 16 }}>
-          <div style={{ fontSize: 13, fontWeight: 600, color: '#1e293b', marginBottom: 12 }}>Breakdowns MTD</div>
-          <ResponsiveContainer width="100%" height={150}>
-            <BarChart data={monthlyBreakdowns}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#F1F5F9" />
-              <XAxis dataKey="month" tick={{ fontSize: 10, fill: '#64748b' }} axisLine={false} tickLine={false} />
-              <YAxis tick={{ fontSize: 10, fill: '#64748b' }} axisLine={false} tickLine={false} />
-              <Tooltip content={<CustomTooltip />} />
-              <Bar dataKey="count" name="Breakdowns" fill="#ef4444" radius={[3,3,0,0]} opacity={0.8} />
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
-        <div className="glass-card" style={{ padding: 16 }}>
-          <div style={{ fontSize: 13, fontWeight: 600, color: '#1e293b', marginBottom: 12 }}>PM Compliance Trend</div>
-          <ResponsiveContainer width="100%" height={150}>
-            <LineChart data={pmComplianceData}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#F1F5F9" />
-              <XAxis dataKey="month" tick={{ fontSize: 10, fill: '#64748b' }} axisLine={false} tickLine={false} />
-              <YAxis domain={[85, 100]} tick={{ fontSize: 10, fill: '#64748b' }} axisLine={false} tickLine={false} />
-              <Tooltip content={<CustomTooltip />} />
-              <Line type="monotone" dataKey="compliance" name="Compliance%" stroke="#22c55e" strokeWidth={2} dot={{ r: 3, fill: '#22c55e' }} />
-            </LineChart>
-          </ResponsiveContainer>
-        </div>
-        <div className="glass-card" style={{ padding: 16 }}>
-          <div style={{ fontSize: 13, fontWeight: 600, color: '#1e293b', marginBottom: 12 }}>Dept Energy Split</div>
-          <ResponsiveContainer width="100%" height={130}>
-            <PieChart>
-              <Pie data={departmentEnergyData} cx="50%" cy="50%" innerRadius={35} outerRadius={55} dataKey="value" nameKey="name">
-                {departmentEnergyData.map((e, i) => <Cell key={i} fill={e.fill} />)}
-              </Pie>
-              <Tooltip content={<CustomTooltip />} />
-            </PieChart>
-          </ResponsiveContainer>
-        </div>
-      </div>
-
       {/* Generate Report */}
       <div className="glass-card" style={{ padding: 20 }}>
         <div style={{ fontSize: 14, fontWeight: 600, color: '#1e293b', marginBottom: 16 }}>Generate Report</div>
