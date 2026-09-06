@@ -719,7 +719,7 @@ async function generateManagementReport(dateFrom: string, dateTo: string, sectio
       headStyles: { ...tblHead, cellPadding: { top: 3, bottom: 3, left: 3, right: 3 } },
       columnStyles: {
         0: { halign: 'left' },
-        1: { halign: 'right', fontStyle: 'bold', cellWidth: 50 },
+        1: { halign: 'center', fontStyle: 'bold', cellWidth: 50 },
         2: { halign: 'left',  textColor: NEUTRAL, cellWidth: 60 },
       },
       alternateRowStyles: tblAlt,
