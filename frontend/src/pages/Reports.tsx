@@ -970,35 +970,37 @@ async function generateManagementReport(dateFrom: string, dateTo: string, sectio
     });
     maxTFY = Math.max(maxTFY, (doc as any).lastAutoTable?.finalY ?? tStartY);
 
-    // Grand total footer bar (matches screenshot: label+big value left, 3 categories+% right)
-    const gtH   = 19;
+    // Grand total footer bar
+    const gtH    = 26;
     const gtBarY = Math.min(maxTFY + 5, USABLE - gtH - 2);
-    // Rich navy-blue gradient bar (top stripe + main fill)
+    // Navy-blue bar
     doc.setFillColor(18, 52, 110); doc.roundedRect(ML, gtBarY, W - ML * 2, gtH, 2, 2, 'F');
     doc.setFillColor(26, 68, 140); doc.rect(ML, gtBarY + 2, W - ML * 2, gtH - 4, 'F');
     doc.setFillColor(18, 52, 110); doc.roundedRect(ML, gtBarY, W - ML * 2, gtH, 2, 2, 'D');
-    // Left: small label + large value
-    doc.setFont('helvetica', 'normal'); doc.setFontSize(6); doc.setTextColor(160, 190, 230);
-    doc.text('GRAND TOTAL  -  ALL CATEGORIES COMBINED', ML + 5, gtBarY + 6);
-    doc.setFont('helvetica', 'bold'); doc.setFontSize(13); doc.setTextColor(...WHITE);
-    doc.text(fmtAED(grandCostT), ML + 5, gtBarY + 15.5);
+    // Left: label + grand total value
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(7.5); doc.setTextColor(160, 190, 230);
+    doc.text('GRAND TOTAL  -  ALL CATEGORIES COMBINED', ML + 5, gtBarY + 8);
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(15); doc.setTextColor(...WHITE);
+    doc.text(fmtAED(grandCostT), ML + 5, gtBarY + 21);
     // Vertical divider
     doc.setDrawColor(60, 100, 170); doc.setLineWidth(0.3);
     doc.line(W - ML - 190, gtBarY + 3, W - ML - 190, gtBarY + gtH - 3);
-    // Right: 3 category columns (label, amount, %)
+    // Right: 3 category columns — label on top, amount + % on same line below
     const gtCols = [
-      { label: 'OUTSOURCE',   val: outsourceCostT, color: [80, 220, 200]  as [number, number, number], rx: W - ML - 162 },
-      { label: 'EQUIPMENT',   val: equipmentCostT, color: [180, 140, 255] as [number, number, number], rx: W - ML - 96 },
-      { label: 'ACCESSORIES', val: accessoryCostT, color: [255, 200, 80]  as [number, number, number], rx: W - ML - 18 },
+      { label: 'OUTSOURCE',   val: outsourceCostT, color: [80, 220, 200]  as [number, number, number], cx: W - ML - 178 },
+      { label: 'EQUIPMENT',   val: equipmentCostT, color: [180, 140, 255] as [number, number, number], cx: W - ML - 112 },
+      { label: 'ACCESSORIES', val: accessoryCostT, color: [255, 200, 80]  as [number, number, number], cx: W - ML - 28 },
     ];
     gtCols.forEach(c => {
       const pct = grandCostT > 0 ? Math.round(c.val / grandCostT * 100) : 0;
-      doc.setFont('helvetica', 'normal'); doc.setFontSize(5.5); doc.setTextColor(160, 190, 230);
-      doc.text(c.label, c.rx, gtBarY + 5.5, { align: 'right' });
-      doc.setFont('helvetica', 'bold'); doc.setFontSize(8.5); doc.setTextColor(...c.color);
-      doc.text(fmtAED(c.val), c.rx, gtBarY + 12, { align: 'right' });
-      doc.setFont('helvetica', 'normal'); doc.setFontSize(5.5); doc.setTextColor(160, 190, 230);
-      doc.text(`${pct}%`, c.rx, gtBarY + 17, { align: 'right' });
+      // Label
+      doc.setFont('helvetica', 'normal'); doc.setFontSize(7); doc.setTextColor(160, 190, 230);
+      doc.text(c.label, c.cx, gtBarY + 8, { align: 'center' });
+      // Amount + % on same line
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(10.5); doc.setTextColor(...c.color);
+      doc.text(fmtAED(c.val), c.cx - 5, gtBarY + 20, { align: 'center' });
+      doc.setFont('helvetica', 'normal'); doc.setFontSize(8); doc.setTextColor(160, 190, 230);
+      doc.text(`${pct}%`, c.cx + 16, gtBarY + 20, { align: 'center' });
     });
 
     // ── PAGE 2: COMBINED DETAILED BREAKDOWN (single page) ───────────────────
