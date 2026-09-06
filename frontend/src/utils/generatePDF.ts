@@ -379,14 +379,22 @@ export function addWorkSummary(
 
   const tableStartY = HEAD_H + 7;
 
-  // Column widths: SL=7 + Name=52 + ID=15 + 14×code=11 + WD=17 + WP=15 = 260 ≤ 263 ✓
+  // Dynamic row height to fill the page — leave ~26mm for the stats box + footer gap
+  const statsBoxH   = 26;
+  const availableH  = FOOT_Y - statsBoxH - tableStartY;
+  const rowCount    = team.length + 1; // data rows + totals row
+  const headerH     = 11;
+  const targetRowH  = Math.max(7, Math.min(16, (availableH - headerH) / rowCount));
+  const rowPad      = Math.max(2, (targetRowH - 5.5) / 2);
+
+  // Column widths: SL=7 + Name=54 + ID=15 + 14×code=11 + WD=18 + WP=16 = 264 ≈ UW ✓
   const colStyles: Record<number, object> = {
     0: { cellWidth: 7,  halign: 'center', fontSize: 9 },
-    1: { cellWidth: 52, halign: 'left',   fontSize: 9 },
+    1: { cellWidth: 54, halign: 'left',   fontSize: 9 },
     2: { cellWidth: 15, halign: 'center', fontSize: 9, fontStyle: 'bold', textColor: [96,165,250] },
     ...Object.fromEntries(SUMMARY_COLS.map((_, i) => [i + 3, { cellWidth: 11, halign: 'center', fontSize: 9 }])),
-    [3 + SUMMARY_COLS.length]:     { cellWidth: 17, halign: 'center', fontSize: 9.5, fontStyle: 'bold' },
-    [3 + SUMMARY_COLS.length + 1]: { cellWidth: 15, halign: 'center', fontSize: 9.5, fontStyle: 'bold' },
+    [3 + SUMMARY_COLS.length]:     { cellWidth: 18, halign: 'center', fontSize: 9.5, fontStyle: 'bold' },
+    [3 + SUMMARY_COLS.length + 1]: { cellWidth: 16, halign: 'center', fontSize: 9.5, fontStyle: 'bold' },
   };
 
   const bodyRows = team.map((m, idx) => {
@@ -430,12 +438,12 @@ export function addWorkSummary(
     bodyStyles: {
       fontSize:    8,
       valign:      'middle',
-      cellPadding: { top: 2, bottom: 2, left: 1, right: 1 },
+      cellPadding: { top: rowPad, bottom: rowPad, left: 1, right: 1 },
       lineColor:   [226, 232, 240],
       lineWidth:   0.15,
       textColor:   [30, 41, 59],
     },
-    willDrawCell: (data) => {
+    didParseCell: (data) => {
       if (data.section !== 'body') return;
 
       const rowIdx = data.row.index;
@@ -459,8 +467,8 @@ export function addWorkSummary(
         const code = SUMMARY_COLS[colIdx - 3];
         if (raw === 'Nil') {
           data.cell.styles.fillColor = altBg;
-          data.cell.styles.textColor = [209, 213, 219];   // light gray — mild, no highlight
-          data.cell.styles.fontSize  = 7;
+          data.cell.styles.textColor = [210, 214, 220];   // faded shadow — barely visible
+          data.cell.styles.fontSize  = 6.5;
           data.cell.styles.fontStyle = 'normal';
         } else if (raw && CODE_BG[code]) {
           data.cell.styles.fillColor = CODE_BG[code];
