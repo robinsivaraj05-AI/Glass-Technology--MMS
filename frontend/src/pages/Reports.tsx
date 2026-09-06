@@ -21,7 +21,6 @@ const REPORT_TYPES = [
 const MGMT_SECTIONS = [
   { key: 'attendance',label: '👥 Employee Attendance' },
   { key: 'purchase',  label: '🛒 E&I Purchase Status' },
-  { key: 'po',        label: '🔄 Received POs' },
   { key: 'cost',      label: '💰 Purchase Cost Summary' },
   { key: 'costing',   label: '📊 E&I Costing Report' },
 ];
