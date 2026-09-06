@@ -268,7 +268,7 @@ async function generateManagementReport(dateFrom: string, dateTo: string, sectio
   };
 
   // ── FIRST PAGE COVER HEADER ───────────────────────────────────────────────
-  const cvH = 44;
+  const cvH = 30;
   // Main background
   doc.setFillColor(...PRIMARY); doc.rect(0, 0, W, cvH, 'F');
   // Right accent panel
@@ -280,39 +280,32 @@ async function generateManagementReport(dateFrom: string, dateTo: string, sectio
 
   // Logo (if loaded)
   if (attLogo) {
-    doc.addImage(attLogo, 'PNG', 9, 7, 25, 25);
+    doc.addImage(attLogo, 'PNG', 9, 4, 22, 22);
   } else {
-    doc.setFillColor(...WHITE); doc.roundedRect(9, 7, 25, 25, 2, 2, 'F');
-    doc.setFont('helvetica', 'bold'); doc.setFontSize(11); doc.setTextColor(...PRIMARY);
-    doc.text('GT', 21.5, 22, { align: 'center' });
+    doc.setFillColor(...WHITE); doc.roundedRect(9, 4, 22, 22, 2, 2, 'F');
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(10); doc.setTextColor(...PRIMARY);
+    doc.text('GT', 20, 17, { align: 'center' });
   }
 
   // Company name
-  doc.setFont('helvetica', 'bold'); doc.setFontSize(18); doc.setTextColor(...WHITE);
-  doc.text('Glass Technology', 40, 17);
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(15); doc.setTextColor(...WHITE);
+  doc.text('Glass Technology', 36, 13);
   // Department subtitle
-  doc.setFont('helvetica', 'normal'); doc.setFontSize(9); doc.setTextColor(186, 230, 253);
-  doc.text('E & I Department  -  Maintenance Management System', 40, 26);
-
-  // Horizontal separator line
-  doc.setDrawColor(255, 255, 255); doc.setLineWidth(0.4);
-  doc.line(40, 31, W * 0.60, 31);
-
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(8); doc.setTextColor(186, 230, 253);
+  doc.text('E & I Department  -  Maintenance Management System', 36, 21);
   // Report type tag
-  doc.setFont('helvetica', 'bold'); doc.setFontSize(8.5); doc.setTextColor(255, 220, 160);
-  doc.text('MONTHLY MANAGEMENT REPORT', 40, 39);
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(7.5); doc.setTextColor(255, 220, 160);
+  doc.text('MONTHLY MANAGEMENT REPORT', 36, 28);
 
   // Right panel content
-  doc.setFont('helvetica', 'bold'); doc.setFontSize(11); doc.setTextColor(...WHITE);
-  doc.text('Report Month', W - ML - 2, 13, { align: 'right' });
-  doc.setFontSize(14); doc.setTextColor(255, 237, 213);
-  doc.text(monthLabel, W - ML - 2, 24, { align: 'right' });
-  doc.setFont('helvetica', 'normal'); doc.setFontSize(7); doc.setTextColor(186, 230, 253);
-  doc.text(`Generated: ${today}`, W - ML - 2, 32, { align: 'right' });
-  doc.setFontSize(7.5); doc.setTextColor(255, 220, 160);
-  doc.text('E & I Department | Glass Technology', W - ML - 2, 40, { align: 'right' });
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(9.5); doc.setTextColor(...WHITE);
+  doc.text('Report Month', W - ML - 2, 10, { align: 'right' });
+  doc.setFontSize(12); doc.setTextColor(255, 237, 213);
+  doc.text(monthLabel, W - ML - 2, 20, { align: 'right' });
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(6.5); doc.setTextColor(186, 230, 253);
+  doc.text(`Generated: ${today}  |  E&I Dept. | Glass Technology`, W - ML - 2, 28, { align: 'right' });
 
-  y = cvH + 5;
+  y = cvH + 4;
 
   // â”€â”€â”€ 1. SPARE PARTS STORE-WISE SUMMARY â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   if (need('spares')) {
@@ -476,10 +469,9 @@ async function generateManagementReport(dateFrom: string, dateTo: string, sectio
 
   // â”€â”€â”€ 5. E&I PURCHASE STATUS â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   if (need('purchase')) {
-    y = sectionHeader('E&I Pending Purchase Items Report', `As of ${today}`);
-
+    // Page 1 continues from cover header — no extra sectionHeader needed
     if (pendingItems.length) {
-      y = subHeader(y, 'Pending Purchase Items');
+      y = subHeader(y, 'E&I Pending Purchase Items');
       autoTable(doc, {
         startY: y,
         head: [['SL', 'Item Description', 'Request Date', 'Days', 'Required Timeline', 'Current Status', 'PR Number', 'Req. Date', 'Budget', 'Lead Time', 'Working Time']],
@@ -503,7 +495,7 @@ async function generateManagementReport(dateFrom: string, dateTo: string, sectio
         }),
         foot: [[
           { content: 'TOTAL BUDGET', colSpan: 8, styles: { halign: 'right', fontStyle: 'bold', fillColor: NAVY, textColor: WHITE, fontSize: 7 } },
-          { content: `AED ${fmtAED(pendingBudget)}`, styles: { halign: 'right', fontStyle: 'bold', fillColor: NAVY, textColor: WHITE, fontSize: 7 } },
+          { content: fmtAED(pendingBudget), styles: { halign: 'right', fontStyle: 'bold', fillColor: NAVY, textColor: WHITE, fontSize: 7 } },
           { content: '', styles: { fillColor: NAVY } },
           { content: '', styles: { fillColor: NAVY } },
         ]],
@@ -538,14 +530,16 @@ async function generateManagementReport(dateFrom: string, dateTo: string, sectio
       });
     }
 
-    // Materials Received This Month
+    // PAGE 2: Materials Received + Cost Summary
     const receivedThisMonth = followupRecords.filter((r: any) => {
       if (r.currentStatus !== 'Material Received') return false;
       if (!r.receivedDate) return true;
       const d = new Date(r.receivedDate);
       return d.getFullYear() === year && (d.getMonth() + 1) === month;
     });
-    y = (doc as any).lastAutoTable?.finalY + 5 || y + 5;
+    doc.addPage();
+    drawHdrBand('Materials Received & Cost Summary', monthLabel, 0);
+    y = HDR_H + 5;
     y = subHeader(y, `Materials Received This Month (${receivedThisMonth.length})`);
     if (receivedThisMonth.length > 0) {
       const fmtDs = (d: string) => d ? new Date(d).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: '2-digit' }) : ' - ';
@@ -567,8 +561,10 @@ async function generateManagementReport(dateFrom: string, dateTo: string, sectio
       });
     } else {
       doc.setFontSize(9); doc.setTextColor(...NEUTRAL);
-      doc.text(`No materials received in ${monthLabel}.`, 10, y + 6);
+      doc.text(`No materials received in ${monthLabel}.`, ML, y + 6);
+      y = y + 14;
     }
+    if ((doc as any).lastAutoTable) y = Math.max(y, (doc as any).lastAutoTable.finalY + 6);
   }
 
   // â”€â”€â”€ 6. RECEIVED POs â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
@@ -607,9 +603,8 @@ async function generateManagementReport(dateFrom: string, dateTo: string, sectio
 
   // â”€â”€â”€ 7. PURCHASE COST SUMMARY â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   if (need('cost')) {
-    y = sectionHeader('Purchase Cost Summary', monthLabel);
-
-    y = subHeader(y, 'COST Summary');
+    // Continues on page 2 after Materials Received
+    y = subHeader(y + 4, 'COST Summary');
     const accCostTotal = accEntries.reduce((s: number, e: any) => s + (e.amount || 0), 0);
     const costRows = [
       ['POs Received (Period)',         fmtAED(totalPOValue),  `${receivedPOs.length} POs`],
@@ -745,8 +740,10 @@ async function generateManagementReport(dateFrom: string, dateTo: string, sectio
       doc.lines(lines, cx, cy, [1, 1], 'F', true);
     };
 
-    // ── PAGE 1: DASHBOARD ──────────────────────────────────────────────────
-    y = sectionHeader('E&I Costing Report', `Period: ${monthLabel}`);
+    // ── PAGE 3: E&I COSTING DASHBOARD ─────────────────────────────────────
+    doc.addPage();
+    drawHdrBand('E&I Costing Report', `Period: ${monthLabel}`, 0);
+    y = HDR_H + 4;
 
     // Subtitle info bar
     doc.setFillColor(248, 250, 252);
