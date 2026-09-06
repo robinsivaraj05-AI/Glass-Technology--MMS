@@ -575,6 +575,8 @@ async function generateManagementReport(dateFrom: string, dateTo: string, sectio
     } else {
       doc.setFontSize(9); doc.setTextColor(...NEUTRAL);
       doc.text('No purchase orders found for this period.', 10, y + 6);
+      y = y + 12;
+      if ((doc as any).lastAutoTable) (doc as any).lastAutoTable.finalY = y;
     }
   }
 
@@ -583,12 +585,14 @@ async function generateManagementReport(dateFrom: string, dateTo: string, sectio
     y = sectionHeader('Purchase Cost Summary', monthLabel);
 
     y = subHeader(y, 'COST Summary');
+    const accCostTotal = accEntries.reduce((s: number, e: any) => s + (e.amount || 0), 0);
     const costRows = [
-      ['POs Received (Period)',     fmtAED(totalPOValue),  `${receivedPOs.length} POs`],
-      ['All POs (All Time Total)', fmtAED(allPOTotal),    `${allPOs.length} POs`],
-      ['Outsource Cost (Period)',   fmtAED(outsourceCost), `${outsourceEntries.length} jobs`],
-      ['Rental Equipment (Period)', fmtAED(rentalCost),   `${rentalEntries.length} entries`],
-      ['Pending Purchase Budget',   fmtAED(pendingBudget), `${pendingItems.length} pending items`],
+      ['POs Received (Period)',         fmtAED(totalPOValue),  `${receivedPOs.length} POs`],
+      ['All POs (All Time Total)',      fmtAED(allPOTotal),    `${allPOs.length} POs`],
+      ['Outsource Cost (Period)',       fmtAED(outsourceCost), `${outsourceEntries.length} jobs`],
+      ['Rental Equipment (Period)',     fmtAED(rentalCost),    `${rentalEntries.length} entries`],
+      ['Accessories by Category Cost', fmtAED(accCostTotal),  `${accEntries.length} entries`],
+      ['Pending Purchase Budget',       fmtAED(pendingBudget), `${pendingItems.length} pending items`],
     ];
     autoTable(doc, {
       startY: y,
