@@ -245,15 +245,34 @@ export function addAttendanceSheet(
       lineWidth:   0.15,
       textColor:   [30, 41, 59],
     },
-    alternateRowStyles: { fillColor: [255, 247, 237] },
-    willDrawCell: (data) => {
-      if (data.section === 'body' && data.column.index >= 3) {
+    didParseCell: (data) => {
+      if (data.section !== 'body') return;
+      const colIdx = data.column.index;
+      const rowIdx = data.row.index;
+      const altBg: [number,number,number] = rowIdx % 2 === 0 ? [255,255,255] : [255,247,237];
+
+      if (colIdx >= 3) {
         const code = String(data.cell.raw ?? '');
+        const day  = colIdx - 2;   // col 3 → day 1
+        const dow  = new Date(year, month - 1, day).getDay();
+        const isSun = dow === 0;
+
         if (code && CODE_BG[code]) {
+          // Coloured attendance code cell
           data.cell.styles.fillColor = CODE_BG[code];
           data.cell.styles.textColor = CODE_TEXT[code];
           data.cell.styles.fontStyle = 'bold';
+        } else if (isSun) {
+          // Sunday with no code — light red tint like web UI
+          data.cell.styles.fillColor = [254, 242, 242];
+          data.cell.styles.textColor = [203, 213, 225];
+        } else {
+          data.cell.styles.fillColor = altBg;
+          data.cell.styles.textColor = [203, 213, 225];
         }
+      } else {
+        // SL / Name / ID columns — alternating row bg
+        data.cell.styles.fillColor = altBg;
       }
     },
     didDrawCell: (data) => {
