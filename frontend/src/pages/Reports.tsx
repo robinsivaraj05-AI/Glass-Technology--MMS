@@ -152,7 +152,7 @@ async function generateManagementReport(dateFrom: string, dateTo: string, sectio
   const jsPDFmod  = (await import('jspdf')).default;
   const autoTable = (await import('jspdf-autotable')).default;
   const attPdf    = await import('../utils/generatePDF');
-  const attLogo   = need('attendance') ? await attPdf.loadLogo() : null;
+  const attLogo   = await attPdf.loadLogo().catch(() => null);
   const doc = new jsPDFmod({ orientation: 'landscape', unit: 'mm', format: 'a4' });
   const W = 297;
   const H = 210;
@@ -228,12 +228,9 @@ async function generateManagementReport(dateFrom: string, dateTo: string, sectio
 
   // Smart section header: only adds a new page when not enough space remains
   const sectionHeader = (title: string, subtitle = '', minH = 50) => {
-    const curY = getLastY();
-    const isVeryFirst = doc.getNumberOfPages() === 1 && curY === 0;
+    const curY = Math.max(getLastY(), y);
     let headerY: number;
-    if (isVeryFirst) {
-      headerY = 0;
-    } else if (curY + 8 + HDR_H + minH > USABLE) {
+    if (curY + 8 + HDR_H + minH > USABLE) {
       doc.addPage();
       headerY = 0;
     } else {
@@ -269,6 +266,53 @@ async function generateManagementReport(dateFrom: string, dateTo: string, sectio
     doc.line(ML + 4, sy + 5, W - ML, sy + 5);
     return sy + 9;
   };
+
+  // ── FIRST PAGE COVER HEADER ───────────────────────────────────────────────
+  const cvH = 44;
+  // Main background
+  doc.setFillColor(...PRIMARY); doc.rect(0, 0, W, cvH, 'F');
+  // Right accent panel
+  doc.setFillColor(...SECOND); doc.rect(W * 0.62, 0, W * 0.38, cvH, 'F');
+  // Decorative left stripe
+  doc.setFillColor(...ORANGE); doc.rect(0, 0, 5, cvH, 'F');
+  // Bottom border line
+  doc.setFillColor(...SECOND); doc.rect(0, cvH, W, 1, 'F');
+
+  // Logo (if loaded)
+  if (attLogo) {
+    doc.addImage(attLogo, 'PNG', 9, 7, 25, 25);
+  } else {
+    doc.setFillColor(...WHITE); doc.roundedRect(9, 7, 25, 25, 2, 2, 'F');
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(11); doc.setTextColor(...PRIMARY);
+    doc.text('GT', 21.5, 22, { align: 'center' });
+  }
+
+  // Company name
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(18); doc.setTextColor(...WHITE);
+  doc.text('Glass Technology', 40, 17);
+  // Department subtitle
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(9); doc.setTextColor(186, 230, 253);
+  doc.text('E & I Department  -  Maintenance Management System', 40, 26);
+
+  // Horizontal separator line
+  doc.setDrawColor(255, 255, 255); doc.setLineWidth(0.4);
+  doc.line(40, 31, W * 0.60, 31);
+
+  // Report type tag
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(8.5); doc.setTextColor(255, 220, 160);
+  doc.text('MONTHLY MANAGEMENT REPORT', 40, 39);
+
+  // Right panel content
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(11); doc.setTextColor(...WHITE);
+  doc.text('Report Month', W - ML - 2, 13, { align: 'right' });
+  doc.setFontSize(14); doc.setTextColor(255, 237, 213);
+  doc.text(monthLabel, W - ML - 2, 24, { align: 'right' });
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(7); doc.setTextColor(186, 230, 253);
+  doc.text(`Generated: ${today}`, W - ML - 2, 32, { align: 'right' });
+  doc.setFontSize(7.5); doc.setTextColor(255, 220, 160);
+  doc.text('E & I Department | Glass Technology', W - ML - 2, 40, { align: 'right' });
+
+  y = cvH + 5;
 
   // â”€â”€â”€ 1. SPARE PARTS STORE-WISE SUMMARY â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   if (need('spares')) {
