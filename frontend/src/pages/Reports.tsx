@@ -477,8 +477,17 @@ async function generateManagementReport(dateFrom: string, dateTo: string, sectio
             r.workingTime || ' - ',
           ];
         }),
-        styles: { fontSize: 7, cellPadding: 2 },
+        foot: [[
+          { content: 'TOTAL BUDGET', colSpan: 8, styles: { halign: 'right', fontStyle: 'bold', fillColor: NAVY, textColor: WHITE, fontSize: 7 } },
+          { content: `AED ${fmtAED(pendingBudget)}`, styles: { halign: 'right', fontStyle: 'bold', fillColor: NAVY, textColor: WHITE, fontSize: 7 } },
+          { content: '', styles: { fillColor: NAVY } },
+          { content: '', styles: { fillColor: NAVY } },
+        ]],
+        showFoot: 'lastPage',
+        styles: { fontSize: 7, cellPadding: 2, lineColor: [210, 215, 225], lineWidth: 0.15 },
         headStyles: { ...tblHead, fontSize: 7 },
+        tableLineColor: [180, 190, 205],
+        tableLineWidth: 0.3,
         columnStyles: {
           0:  { halign: 'center', cellWidth: 7 },
           1:  { cellWidth: 58 },
