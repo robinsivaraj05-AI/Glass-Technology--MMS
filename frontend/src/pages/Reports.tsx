@@ -472,6 +472,12 @@ async function generateManagementReport(dateFrom: string, dateTo: string, sectio
     // Page 1 continues from cover header — no extra sectionHeader needed
     if (pendingItems.length) {
       y = subHeader(y, 'E&I Pending Purchase Items');
+      // Dynamic row height to fill remaining page 1 space
+      const availH   = USABLE - y - 2;
+      const totalRows = pendingItems.length + 1; // +1 for footer row
+      const hdrRowH  = 10;
+      const bodyRowH = Math.max(7, Math.min(22, (availH - hdrRowH) / totalRows));
+      const rowPad   = Math.max(2, (bodyRowH - 5.5) / 2);
       autoTable(doc, {
         startY: y,
         head: [['SL', 'Item Description', 'Request Date', 'Days', 'Required Timeline', 'Current Status', 'PR Number', 'Req. Date', 'Budget', 'Lead Time', 'Working Time']],
@@ -500,8 +506,8 @@ async function generateManagementReport(dateFrom: string, dateTo: string, sectio
           { content: '', styles: { fillColor: NAVY } },
         ]],
         showFoot: 'lastPage',
-        styles: { fontSize: 7, cellPadding: 2, lineColor: [210, 215, 225], lineWidth: 0.15 },
-        headStyles: { ...tblHead, fontSize: 7 },
+        styles: { fontSize: 7, cellPadding: { top: rowPad, bottom: rowPad, left: 2, right: 2 }, lineColor: [210, 215, 225], lineWidth: 0.15 },
+        headStyles: { ...tblHead, fontSize: 7, cellPadding: { top: 3, bottom: 3, left: 2, right: 2 } },
         tableLineColor: [180, 190, 205],
         tableLineWidth: 0.3,
         columnStyles: {
