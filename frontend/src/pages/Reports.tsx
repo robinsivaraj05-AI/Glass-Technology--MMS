@@ -721,10 +721,10 @@ async function generateManagementReport(dateFrom: string, dateTo: string, sectio
     const kpiCBW = (W - ML * 2 - 9) / 4;
     const kpiH = 26;
     const kpiDefs = [
-      { label: 'OUTSOURCE LABOUR', icon: 'O', value: `AED ${fmtAED(outsourceCostT)}`, sub: `${outsourceEntries.length} entries`, color: TEAL as [number, number, number] },
-      { label: 'EQUIPMENT USAGE',  icon: 'E', value: `AED ${fmtAED(equipmentCostT)}`, sub: `${rentalEntries.length} entries`,   color: PURPLE as [number, number, number] },
-      { label: 'ACCESSORIES',      icon: 'A', value: `AED ${fmtAED(accessoryCostT)}`, sub: `${accEntries.length} entries`,      color: WARNING as [number, number, number] },
-      { label: 'GRAND TOTAL',      icon: '$', value: `AED ${fmtAED(grandCostT)}`,     sub: `${outsourceEntries.length + rentalEntries.length + accEntries.length} total entries`, color: DANGER as [number, number, number] },
+      { label: 'OUTSOURCE LABOUR', icon: 'O', value: fmtAED(outsourceCostT), sub: `${outsourceEntries.length} entries`, color: TEAL as [number, number, number] },
+      { label: 'EQUIPMENT USAGE',  icon: 'E', value: fmtAED(equipmentCostT), sub: `${rentalEntries.length} entries`,   color: PURPLE as [number, number, number] },
+      { label: 'ACCESSORIES',      icon: 'A', value: fmtAED(accessoryCostT), sub: `${accEntries.length} entries`,      color: WARNING as [number, number, number] },
+      { label: 'GRAND TOTAL',      icon: '$', value: fmtAED(grandCostT),     sub: `${outsourceEntries.length + rentalEntries.length + accEntries.length} total entries`, color: DANGER as [number, number, number] },
     ];
     kpiDefs.forEach((k, i) => {
       const kx = ML + i * (kpiCBW + 3);
@@ -852,6 +852,7 @@ async function generateManagementReport(dateFrom: string, dateTo: string, sectio
     doc.setTextColor(...PURPLE); doc.text('Equipment Usage',          t2X + 2, tLblY);
     doc.setTextColor(...WARNING); doc.text('Accessories by Category', t3X + 2, tLblY);
 
+    const tBoxLine: [number,number,number] = [200, 210, 225];
     autoTable(doc, {
       startY: tStartY, margin: { left: t1X, right: W - (t1X + tW1) },
       head: [['Contract', 'Entries', 'Cost (AED)']],
@@ -860,11 +861,11 @@ async function generateManagementReport(dateFrom: string, dateTo: string, sectio
         : [['No data', '-', '-']],
       foot: [['TOTAL', outsourceEntries.length, fmtAED(outsourceCostT)]],
       headStyles: { fillColor: TEAL, textColor: WHITE, fontSize: 7.5, fontStyle: 'bold', cellPadding: 2 },
-      footStyles: { fillColor: NAVY, textColor: WHITE, fontSize: 7.5, fontStyle: 'bold', cellPadding: 2 },
-      bodyStyles: { fontSize: 7.5, cellPadding: 2 },
-      columnStyles: { 1: { halign: 'center' as const }, 2: { halign: 'right' as const, fontStyle: 'bold' as const } },
+      footStyles: { fillColor: NAVY, textColor: WHITE, fontSize: 7.5, fontStyle: 'bold', cellPadding: 2, halign: 'left' as const },
+      bodyStyles: { fontSize: 7.5, cellPadding: 2, lineColor: tBoxLine, lineWidth: 0.15 },
+      columnStyles: { 0: { halign: 'left' as const }, 1: { halign: 'center' as const }, 2: { halign: 'right' as const, fontStyle: 'bold' as const } },
       alternateRowStyles: { fillColor: [240, 253, 250] },
-      tableWidth: tW1,
+      tableWidth: tW1, tableLineColor: tBoxLine, tableLineWidth: 0.4,
     });
     maxTFY = Math.max(maxTFY, (doc as any).lastAutoTable?.finalY ?? tStartY);
 
@@ -876,11 +877,11 @@ async function generateManagementReport(dateFrom: string, dateTo: string, sectio
         : [['No data', '-', '-']],
       foot: [['TOTAL', rentalEntries.length, fmtAED(equipmentCostT)]],
       headStyles: { fillColor: PURPLE, textColor: WHITE, fontSize: 7.5, fontStyle: 'bold', cellPadding: 2 },
-      footStyles: { fillColor: NAVY, textColor: WHITE, fontSize: 7.5, fontStyle: 'bold', cellPadding: 2 },
-      bodyStyles: { fontSize: 7.5, cellPadding: 2 },
-      columnStyles: { 1: { halign: 'center' as const }, 2: { halign: 'right' as const, fontStyle: 'bold' as const } },
+      footStyles: { fillColor: NAVY, textColor: WHITE, fontSize: 7.5, fontStyle: 'bold', cellPadding: 2, halign: 'left' as const },
+      bodyStyles: { fontSize: 7.5, cellPadding: 2, lineColor: tBoxLine, lineWidth: 0.15 },
+      columnStyles: { 0: { halign: 'left' as const }, 1: { halign: 'center' as const }, 2: { halign: 'right' as const, fontStyle: 'bold' as const } },
       alternateRowStyles: { fillColor: [245, 243, 255] },
-      tableWidth: tW2,
+      tableWidth: tW2, tableLineColor: tBoxLine, tableLineWidth: 0.4,
       didParseCell: (data: any) => {
         if (data.section === 'body' && data.column.index === 0 && data.row.index % 2 === 0) {
           data.cell.styles.fontStyle = 'bold';
@@ -897,11 +898,11 @@ async function generateManagementReport(dateFrom: string, dateTo: string, sectio
         : [['No data', '-', '']],
       foot: [['TOTAL', fmtAED(accessoryCostT), '100%']],
       headStyles: { fillColor: WARNING, textColor: WHITE, fontSize: 7.5, fontStyle: 'bold', cellPadding: 2 },
-      footStyles: { fillColor: [255, 251, 225], textColor: NAVY, fontSize: 7.5, fontStyle: 'bold', cellPadding: 2 },
-      bodyStyles: { fontSize: 7.5, cellPadding: 2 },
-      columnStyles: { 1: { halign: 'right' as const, fontStyle: 'bold' as const }, 2: { cellWidth: 22 } },
+      footStyles: { fillColor: [255, 251, 225], textColor: NAVY, fontSize: 7.5, fontStyle: 'bold', cellPadding: 2, halign: 'left' as const },
+      bodyStyles: { fontSize: 7.5, cellPadding: 2, lineColor: tBoxLine, lineWidth: 0.15 },
+      columnStyles: { 0: { halign: 'left' as const }, 1: { halign: 'right' as const, fontStyle: 'bold' as const }, 2: { cellWidth: 22 } },
       alternateRowStyles: { fillColor: [255, 251, 235] },
-      tableWidth: tW3,
+      tableWidth: tW3, tableLineColor: tBoxLine, tableLineWidth: 0.4,
       didDrawCell: (data: any) => {
         if (data.section === 'body' && data.column.index === 2 && accCats[data.row.index]) {
           const cost = accCats[data.row.index][1] as number;
@@ -926,25 +927,31 @@ async function generateManagementReport(dateFrom: string, dateTo: string, sectio
     // Grand total footer bar (matches screenshot: label+big value left, 3 categories+% right)
     const gtH   = 19;
     const gtBarY = Math.min(maxTFY + 5, USABLE - gtH - 2);
-    doc.setFillColor(...DARK); doc.roundedRect(ML, gtBarY, W - ML * 2, gtH, 2, 2, 'F');
-    // Left: small label + large AED value
-    doc.setFont('helvetica', 'normal'); doc.setFontSize(6); doc.setTextColor(140, 165, 190);
+    // Rich navy-blue gradient bar (top stripe + main fill)
+    doc.setFillColor(18, 52, 110); doc.roundedRect(ML, gtBarY, W - ML * 2, gtH, 2, 2, 'F');
+    doc.setFillColor(26, 68, 140); doc.rect(ML, gtBarY + 2, W - ML * 2, gtH - 4, 'F');
+    doc.setFillColor(18, 52, 110); doc.roundedRect(ML, gtBarY, W - ML * 2, gtH, 2, 2, 'D');
+    // Left: small label + large value
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(6); doc.setTextColor(160, 190, 230);
     doc.text('GRAND TOTAL  -  ALL CATEGORIES COMBINED', ML + 5, gtBarY + 6);
     doc.setFont('helvetica', 'bold'); doc.setFontSize(13); doc.setTextColor(...WHITE);
-    doc.text(`AED ${fmtAED(grandCostT)}`, ML + 5, gtBarY + 15.5);
+    doc.text(fmtAED(grandCostT), ML + 5, gtBarY + 15.5);
+    // Vertical divider
+    doc.setDrawColor(60, 100, 170); doc.setLineWidth(0.3);
+    doc.line(W - ML - 190, gtBarY + 3, W - ML - 190, gtBarY + gtH - 3);
     // Right: 3 category columns (label, amount, %)
     const gtCols = [
-      { label: 'OUTSOURCE',   val: outsourceCostT, color: TEAL    as [number, number, number], rx: W - ML - 162 },
-      { label: 'EQUIPMENT',   val: equipmentCostT, color: PURPLE  as [number, number, number], rx: W - ML - 96 },
-      { label: 'ACCESSORIES', val: accessoryCostT, color: WARNING  as [number, number, number], rx: W - ML - 18 },
+      { label: 'OUTSOURCE',   val: outsourceCostT, color: [80, 220, 200]  as [number, number, number], rx: W - ML - 162 },
+      { label: 'EQUIPMENT',   val: equipmentCostT, color: [180, 140, 255] as [number, number, number], rx: W - ML - 96 },
+      { label: 'ACCESSORIES', val: accessoryCostT, color: [255, 200, 80]  as [number, number, number], rx: W - ML - 18 },
     ];
     gtCols.forEach(c => {
       const pct = grandCostT > 0 ? Math.round(c.val / grandCostT * 100) : 0;
-      doc.setFont('helvetica', 'normal'); doc.setFontSize(5.5); doc.setTextColor(140, 165, 190);
+      doc.setFont('helvetica', 'normal'); doc.setFontSize(5.5); doc.setTextColor(160, 190, 230);
       doc.text(c.label, c.rx, gtBarY + 5.5, { align: 'right' });
       doc.setFont('helvetica', 'bold'); doc.setFontSize(8.5); doc.setTextColor(...c.color);
-      doc.text(`AED ${fmtAED(c.val)}`, c.rx, gtBarY + 12, { align: 'right' });
-      doc.setFont('helvetica', 'normal'); doc.setFontSize(5.5); doc.setTextColor(140, 165, 190);
+      doc.text(fmtAED(c.val), c.rx, gtBarY + 12, { align: 'right' });
+      doc.setFont('helvetica', 'normal'); doc.setFontSize(5.5); doc.setTextColor(160, 190, 230);
       doc.text(`${pct}%`, c.rx, gtBarY + 17, { align: 'right' });
     });
 
