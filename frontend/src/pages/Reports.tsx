@@ -1276,18 +1276,73 @@ async function generateManagementReport(dateFrom: string, dateTo: string, sectio
       doc.text(`No attendance records found for ${monthLabel}.`, ML, y + 6);
     }
 
-    // Page: Overtime Details
+    // Page: Overtime Details — skip entirely if no records
     if (need('overtime')) {
       const otRecords: any[] = Array.isArray(otRes) ? otRes : [];
       if (otRecords.length > 0) {
         doc.addPage();
         attPdf.addOvertimeSheet(doc, attLogo, otRecords, year, month);
-      } else {
-        if (!need('attendance')) { doc.addPage(); drawPageBg(); }
-        const oty = sectionHeader('Overtime Details', monthLabel);
-        doc.setFontSize(9); doc.setTextColor(...NEUTRAL);
-        doc.text(`No overtime records found for ${monthLabel}.`, ML, oty + 6);
+
+        // After OT table, if white space remains (> 50mm before footer) fill with remarks
+        const FOOT_Y_ATT = 200; // PH(210) - 10
+        const afterOT = (doc as any).lastAutoTable?.finalY ?? FOOT_Y_ATT;
+        const spaceLeft = FOOT_Y_ATT - afterOT;
+        if (spaceLeft > 50 && attTeam.length > 0) {
+          const remarksList: Array<{ day: number; empName: string; empId: string; code: string; remark: string }> = [];
+          attTeam.forEach((m: any) => {
+            Object.entries(attRemarks[m.empId] ?? {}).forEach(([dayStr, note]: [string, any]) => {
+              if (note?.trim()) {
+                remarksList.push({ day: Number(dayStr), empName: m.empName, empId: m.empId, code: attEntries[m.empId]?.[Number(dayStr)] ?? '—', remark: note.trim() });
+              }
+            });
+          });
+          remarksList.sort((a, b) => a.day - b.day || a.empName.localeCompare(b.empName));
+          if (remarksList.length > 0) {
+            const CODE_BG_MAP: Record<string, [number,number,number]> = {
+              PR:[187,247,208], WO:[254,240,138], WH:[186,230,253], SD:[254,215,170],
+              CO:[254,202,202], PL:[233,213,255], AL:[251,207,232], OD:[110,231,183],
+              RP:[254,249,195], SL:[221,214,254], NH:[224,231,255], A:[209,250,229], B:[254,243,199], C:[199,210,254],
+            };
+            const CODE_TEXT_MAP: Record<string, [number,number,number]> = {
+              PR:[20,83,45], WO:[113,63,18], WH:[12,74,110], SD:[124,45,18],
+              CO:[127,29,29], PL:[76,29,149], AL:[131,24,67], OD:[6,78,59],
+              RP:[133,77,14], SL:[59,7,100], NH:[30,27,75], A:[6,95,70], B:[120,53,15], C:[49,46,129],
+            };
+            const remY = afterOT + 6;
+            // Section label
+            doc.setFillColor(255, 215, 170);
+            doc.rect(17, remY, 263, 7, 'F');
+            doc.setFont('helvetica', 'bold'); doc.setFontSize(8.5); doc.setTextColor(124, 45, 18);
+            doc.text(`REMARKS / NOTES  —  ${remarksList.length} ENTR${remarksList.length > 1 ? 'IES' : 'Y'}`, 20, remY + 5);
+            autoTable(doc, {
+              startY: remY + 7,
+              margin: { left: 17, right: 17 },
+              head: [['Day', 'Employee Name', 'Emp ID', 'Code', 'Remark / Note']],
+              body: remarksList.map(r => [r.day, r.empName, r.empId, r.code, r.remark]),
+              columnStyles: {
+                0: { cellWidth: 12, halign: 'center', fontStyle: 'bold', fontSize: 9, textColor: [234,88,12] },
+                1: { cellWidth: 55, halign: 'left',   fontSize: 9 },
+                2: { cellWidth: 20, halign: 'center', fontStyle: 'bold', fontSize: 9, textColor: [96,165,250] },
+                3: { cellWidth: 16, halign: 'center', fontStyle: 'bold', fontSize: 9 },
+                4: { cellWidth: 160, halign: 'left',  fontSize: 9 },
+              },
+              headStyles: { fillColor: [245,158,11], textColor: [255,255,255], fontSize: 9, fontStyle: 'bold', halign: 'center', cellPadding: { top:2, bottom:2, left:2, right:2 } },
+              bodyStyles: { fontSize: 8.5, valign: 'middle', cellPadding: { top:2.5, bottom:2.5, left:3, right:3 }, lineColor:[226,232,240], lineWidth:0.15, textColor:[30,41,59] },
+              didParseCell: (data) => {
+                if (data.section !== 'body') return;
+                const altBg: [number,number,number] = data.row.index % 2 === 0 ? [255,255,255] : [255,251,235];
+                data.cell.styles.fillColor = altBg;
+                if (data.column.index === 3) {
+                  const code = String(data.cell.raw || '');
+                  if (CODE_BG_MAP[code]) { data.cell.styles.fillColor = CODE_BG_MAP[code]; data.cell.styles.textColor = CODE_TEXT_MAP[code]; }
+                }
+              },
+              tableLineColor: [203,213,225], tableLineWidth: 0.2,
+            });
+          }
+        }
       }
+      // If no OT records — page is skipped entirely (no empty page added)
     }
 
   }
