@@ -89,10 +89,11 @@ async function generateManagementReport(dateFrom: string, dateTo: string, sectio
   const need = (k: string) => sections[k] === true;
 
   // â”€â”€ Fetch only what's needed â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-  const [spareParts, empRes, attRes, outsourceRes, rentalRes, followupRes, poRes, projectRes, accessoriesRes, otRes] = await Promise.all([
+  const [spareParts, empRes, attRes, teamOrderRes, outsourceRes, rentalRes, followupRes, poRes, projectRes, accessoriesRes, otRes] = await Promise.all([
     need('spares')                                          ? fetch('/api/spare-parts?limit=5000').then(r => r.json()).catch(() => ({ items: [] })) : { items: [] },
     need('attendance')                                      ? fetch('/api/employees').then(r => r.json()).catch(() => []) : [],
     (need('attendance') || need('overtime') || need('remarks')) ? fetch(`/api/attendance?year=${year}&month=${month}`).then(r => r.json()).catch(() => []) : [],
+    (need('attendance') || need('overtime') || need('remarks')) ? fetch('/api/attendance/team').then(r => r.json()).catch(() => []) : [],
     (need('outsource') || need('costing'))                  ? fetch(`/api/outsource?from=${dateFrom}&to=${dateTo}&limit=2000`).then(r => r.json()).catch(() => ({ entries: [] })) : { entries: [] },
     (need('rental') || need('costing'))                     ? fetch(`/api/equipment-entries?from=${dateFrom}&to=${dateTo}&limit=2000`).then(r => r.json()).catch(() => ({ entries: [] })) : { entries: [] },
     (need('purchase') || need('payment'))                   ? fetch('/api/purchase-followup').then(r => r.json()).catch(() => []) : [],
@@ -1228,17 +1229,30 @@ async function generateManagementReport(dateFrom: string, dateTo: string, sectio
     const empMap: Record<string, any> = {};
     empList.forEach((e: any) => { empMap[e.empId] = e; });
 
-    const attTeam = attRecords.length > 0
-      ? attRecords.map((r: any) => ({
-          empId:   r.empId,
-          empName: r.empName || empMap[r.empId]?.empName || r.empId,
-          role:    empMap[r.empId]?.designation || empMap[r.empId]?.role || '',
-        }))
-      : empList.map((e: any) => ({
-          empId:   e.empId,
-          empName: e.empName || e.name || e.empId,
-          role:    e.designation || e.role || '',
-        }));
+    // Build sort order map from /api/attendance/team (same order as the web app)
+    const teamOrder: any[] = Array.isArray(teamOrderRes) ? teamOrderRes : [];
+    const sortOrderMap: Record<string, number> = {};
+    teamOrder.sort((a, b) => (a.sortOrder ?? 999) - (b.sortOrder ?? 999))
+             .forEach((t, i) => { sortOrderMap[t.empId] = i; });
+
+    const buildTeamMember = (empId: string, empName: string, role: string) => ({ empId, empName, role });
+
+    const attTeamUnsorted = attRecords.length > 0
+      ? attRecords.map((r: any) => buildTeamMember(
+          r.empId,
+          r.empName || empMap[r.empId]?.empName || r.empId,
+          empMap[r.empId]?.designation || empMap[r.empId]?.role || '',
+        ))
+      : empList.map((e: any) => buildTeamMember(
+          e.empId,
+          e.empName || e.name || e.empId,
+          e.designation || e.role || '',
+        ));
+
+    // Sort using sortOrder from /api/attendance/team — matches app sequence exactly
+    const attTeam = attTeamUnsorted.sort((a: any, b: any) =>
+      (sortOrderMap[a.empId] ?? 999) - (sortOrderMap[b.empId] ?? 999)
+    );
 
     const attEntries: Record<string, Record<number, string>> = {};
     const attRemarks: Record<string, Record<number, string>> = {};
