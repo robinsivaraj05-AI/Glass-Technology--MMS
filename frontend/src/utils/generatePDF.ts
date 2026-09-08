@@ -292,64 +292,6 @@ export function addAttendanceSheet(
     tableLineWidth: 0.2,
   });
 
-  // Remarks table — only if any remarks exist
-  const remarksList: Array<{ day: number; empName: string; empId: string; code: string; remark: string }> = [];
-  if (remarks) {
-    team.forEach(m => {
-      Object.entries(remarks[m.empId] ?? {}).forEach(([dayStr, note]) => {
-        if (note?.trim()) {
-          const day = Number(dayStr);
-          remarksList.push({ day, empName: m.empName, empId: m.empId, code: entries[m.empId]?.[day] ?? '', remark: note.trim() });
-        }
-      });
-    });
-    remarksList.sort((a, b) => a.day - b.day || a.empName.localeCompare(b.empName));
-  }
-
-  if (remarksList.length > 0) {
-    const remarkStartY = (doc as any).lastAutoTable.finalY + 6;
-    drawSectionTitle(doc, `Remarks / Notes  —  ${remarksList.length} entr${remarksList.length > 1 ? 'ies' : 'y'}`, remarkStartY);
-
-    autoTable(doc, {
-      startY: remarkStartY + 7,
-      margin: { left: ML, right: MR },
-      head: [['Day', 'Employee Name', 'Emp ID', 'Code', 'Remark / Note']],
-      body: remarksList.map(r => [r.day, r.empName, r.empId, r.code || '—', r.remark]),
-      columnStyles: {
-        0: { cellWidth: 12, halign: 'center', fontStyle: 'bold', fontSize: 9, textColor: [234,88,12] },
-        1: { cellWidth: 55, halign: 'left',   fontSize: 9 },
-        2: { cellWidth: 20, halign: 'center', fontStyle: 'bold', fontSize: 9, textColor: [96,165,250] },
-        3: { cellWidth: 16, halign: 'center', fontStyle: 'bold', fontSize: 9 },
-        4: { cellWidth: 160, halign: 'left',  fontSize: 9 },
-      },
-      headStyles: {
-        fillColor:   [245, 158, 11],
-        textColor:   [255, 255, 255],
-        fontSize:    9, fontStyle: 'bold', halign: 'center',
-        cellPadding: { top: 2, bottom: 2, left: 2, right: 2 },
-      },
-      bodyStyles: {
-        fontSize: 8.5, valign: 'middle',
-        cellPadding: { top: 2.5, bottom: 2.5, left: 3, right: 3 },
-        lineColor: [226, 232, 240], lineWidth: 0.15,
-        textColor: [30, 41, 59],
-      },
-      willDrawCell: (data) => {
-        if (data.section !== 'body') return;
-        const altBg: [number,number,number] = data.row.index % 2 === 0 ? [255,255,255] : [255,251,235];
-        data.cell.styles.fillColor = altBg;
-        // Highlight the code cell with its attendance colour
-        if (data.column.index === 3) {
-          const code = String(data.cell.raw || '');
-          if (CODE_BG[code]) {
-            data.cell.styles.fillColor = CODE_BG[code];
-            data.cell.styles.textColor = CODE_TEXT[code];
-          }
-        }
-      },
-      tableLineColor: [203, 213, 225], tableLineWidth: 0.2,
-    });
-  }
 
   // Legend — pinned just above footer
   const legendY = FOOT_Y - 19;
