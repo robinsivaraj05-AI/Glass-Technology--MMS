@@ -350,12 +350,17 @@ export default function PurchaseFollowup() {
 
   const filtered = useMemo(() => {
     const t = search.toLowerCase();
-    return records.filter(r => {
+    const result = records.filter(r => {
       const m = !t || r.itemDescription.toLowerCase().includes(t) || r.prNumber.toLowerCase().includes(t) || r.currentStatus.toLowerCase().includes(t);
       const inTab = listTab === 'pending' ? inPending(r) : listTab === 'payment' ? inPayment(r) : inCompleted(r);
       const sf = statusFilter === 'all' || (listTab === 'pending' ? r.currentStatus === statusFilter : r.paymentStatus === statusFilter);
       return m && inTab && sf;
     });
+    // Sort pending tab by days (highest → lowest) for easy tracking
+    if (listTab === 'pending') {
+      result.sort((a, b) => daysSince(b.requestDate) - daysSince(a.requestDate));
+    }
+    return result;
   }, [records, search, statusFilter, listTab]);
 
   const tableRows = useMemo<TableRow[]>(() => {
