@@ -13,7 +13,7 @@ const SEED_TEAM = [
   { empId: 'GT035', empName: 'Mr. Mohit S Talaviya', role: 'Junior Engineer',       sortOrder: 5 },
   { empId: 'GT033', empName: 'Mr. Vivek Singh',      role: 'Junior Engineer - A',  sortOrder: 6 },
   { empId: 'GT074', empName: 'Mr. Aniket',           role: 'Junior Engineer - B',  sortOrder: 7 },
-  { empId: 'GT046', empName: 'Mr. Ravi Kannan',      role: 'Junior Engineer - C',  sortOrder: 8 },
+  { empId: 'GT046', empName: 'Mr. Ravi Kannan',      role: 'Technician',           sortOrder: 8 },
   { empId: 'GT053', empName: 'Mr. Krishna',          role: 'Technician',           sortOrder: 9 },
   { empId: 'GT069', empName: 'Mr. Casetro',          role: 'IT Engineer',          sortOrder: 10 },
 ];
@@ -28,10 +28,14 @@ router.get('/team', async (_req, res) => {
       await TeamMember.insertMany(SEED_TEAM);
       members = await TeamMember.find().sort({ sortOrder: 1 });
     }
-    // One-time fix: correct stale role label for GT035
+    // One-time fixes: correct stale role labels
     await TeamMember.findOneAndUpdate(
       { empId: 'GT035', role: 'Reliving Shift Eng' },
       { $set: { role: 'Junior Engineer' } }
+    );
+    await TeamMember.findOneAndUpdate(
+      { empId: 'GT046', role: 'Junior Engineer - C' },
+      { $set: { role: 'Technician' } }
     );
     members = await TeamMember.find().sort({ sortOrder: 1 });
     res.json(members);
