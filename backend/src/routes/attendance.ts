@@ -10,7 +10,7 @@ const SEED_TEAM = [
   { empId: 'GT026', empName: 'Mr. Praveen Kumar',    role: 'Shift Engineer - A',   sortOrder: 2 },
   { empId: 'GT051', empName: 'Mr. Hari Krishna',     role: 'Shift Engineer - B',   sortOrder: 3 },
   { empId: 'GT062', empName: 'Mr. Arun',             role: 'Shift Engineer - C',   sortOrder: 4 },
-  { empId: 'GT035', empName: 'Mr. Mohit S Talaviya', role: 'Reliving Shift Eng',   sortOrder: 5 },
+  { empId: 'GT035', empName: 'Mr. Mohit S Talaviya', role: 'Junior Engineer',       sortOrder: 5 },
   { empId: 'GT033', empName: 'Mr. Vivek Singh',      role: 'Junior Engineer - A',  sortOrder: 6 },
   { empId: 'GT074', empName: 'Mr. Aniket',           role: 'Junior Engineer - B',  sortOrder: 7 },
   { empId: 'GT046', empName: 'Mr. Ravi Kannan',      role: 'Junior Engineer - C',  sortOrder: 8 },
@@ -28,7 +28,26 @@ router.get('/team', async (_req, res) => {
       await TeamMember.insertMany(SEED_TEAM);
       members = await TeamMember.find().sort({ sortOrder: 1 });
     }
+    // One-time fix: correct stale role label for GT035
+    await TeamMember.findOneAndUpdate(
+      { empId: 'GT035', role: 'Reliving Shift Eng' },
+      { $set: { role: 'Junior Engineer' } }
+    );
+    members = await TeamMember.find().sort({ sortOrder: 1 });
     res.json(members);
+  } catch (err) { res.status(500).json({ error: String(err) }); }
+});
+
+// PATCH /api/attendance/team/:empId — update member fields
+router.patch('/team/:empId', async (req, res) => {
+  try {
+    const member = await TeamMember.findOneAndUpdate(
+      { empId: req.params.empId },
+      { $set: req.body },
+      { new: true }
+    );
+    if (!member) return res.status(404).json({ error: 'Member not found' });
+    res.json(member);
   } catch (err) { res.status(500).json({ error: String(err) }); }
 });
 
