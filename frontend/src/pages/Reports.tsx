@@ -23,6 +23,8 @@ const MGMT_SECTIONS = [
   { key: 'purchase',  label: '🛒 E&I Purchase Status' },
   { key: 'cost',      label: '💰 Purchase Cost Summary' },
   { key: 'costing',   label: '📊 E&I Costing Report' },
+  { key: 'overtime',  label: '⏰ Overtime Details' },
+  { key: 'remarks',   label: '📝 Attendance Remarks' },
 ];
 
 const OEM_STORES = ['Main Store - OEM Spare', 'Electrical Store - OEM Spare'];
@@ -87,16 +89,17 @@ async function generateManagementReport(dateFrom: string, dateTo: string, sectio
   const need = (k: string) => sections[k] === true;
 
   // â”€â”€ Fetch only what's needed â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-  const [spareParts, empRes, attRes, outsourceRes, rentalRes, followupRes, poRes, projectRes, accessoriesRes] = await Promise.all([
-    need('spares')                          ? fetch('/api/spare-parts?limit=5000').then(r => r.json()).catch(() => ({ items: [] })) : { items: [] },
-    need('attendance')                      ? fetch('/api/employees').then(r => r.json()).catch(() => []) : [],
-    need('attendance')                      ? fetch(`/api/attendance?year=${year}&month=${month}`).then(r => r.json()).catch(() => []) : [],
-    (need('outsource') || need('costing'))  ? fetch(`/api/outsource?from=${dateFrom}&to=${dateTo}&limit=2000`).then(r => r.json()).catch(() => ({ entries: [] })) : { entries: [] },
-    (need('rental') || need('costing'))     ? fetch(`/api/equipment-entries?from=${dateFrom}&to=${dateTo}&limit=2000`).then(r => r.json()).catch(() => ({ entries: [] })) : { entries: [] },
-    (need('purchase') || need('payment'))   ? fetch('/api/purchase-followup').then(r => r.json()).catch(() => []) : [],
-    (need('po') || need('cost'))            ? fetch('/api/purchase-po').then(r => r.json()).catch(() => []) : [],
-    need('projects')                        ? fetch('/api/projects').then(r => r.json()).catch(() => []) : [],
-    (need('costing') || need('cost'))       ? fetch(`/api/accessories?from=${dateFrom}&to=${dateTo}&limit=2000`).then(r => r.json()).catch(() => ({ entries: [] })) : { entries: [] },
+  const [spareParts, empRes, attRes, outsourceRes, rentalRes, followupRes, poRes, projectRes, accessoriesRes, otRes] = await Promise.all([
+    need('spares')                                          ? fetch('/api/spare-parts?limit=5000').then(r => r.json()).catch(() => ({ items: [] })) : { items: [] },
+    need('attendance')                                      ? fetch('/api/employees').then(r => r.json()).catch(() => []) : [],
+    (need('attendance') || need('overtime') || need('remarks')) ? fetch(`/api/attendance?year=${year}&month=${month}`).then(r => r.json()).catch(() => []) : [],
+    (need('outsource') || need('costing'))                  ? fetch(`/api/outsource?from=${dateFrom}&to=${dateTo}&limit=2000`).then(r => r.json()).catch(() => ({ entries: [] })) : { entries: [] },
+    (need('rental') || need('costing'))                     ? fetch(`/api/equipment-entries?from=${dateFrom}&to=${dateTo}&limit=2000`).then(r => r.json()).catch(() => ({ entries: [] })) : { entries: [] },
+    (need('purchase') || need('payment'))                   ? fetch('/api/purchase-followup').then(r => r.json()).catch(() => []) : [],
+    (need('po') || need('cost'))                            ? fetch('/api/purchase-po').then(r => r.json()).catch(() => []) : [],
+    need('projects')                                        ? fetch('/api/projects').then(r => r.json()).catch(() => []) : [],
+    (need('costing') || need('cost'))                       ? fetch(`/api/accessories?from=${dateFrom}&to=${dateTo}&limit=2000`).then(r => r.json()).catch(() => ({ entries: [] })) : { entries: [] },
+    (need('overtime') || need('remarks'))                   ? fetch(`/api/overtime?year=${year}&month=${month}`).then(r => r.json()).catch(() => []) : [],
   ]);
 
   const allSpares      = spareParts?.items || (Array.isArray(spareParts) ? spareParts : []);
@@ -1218,11 +1221,13 @@ async function generateManagementReport(dateFrom: string, dateTo: string, sectio
     }
   }
 
-  // --- Attendance (rendered last so other sections flow together) -----------
-  if (need('attendance')) {
+  // --- Attendance + OT + Remarks (rendered last so other sections flow first) -
+  const needAtt = need('attendance') || need('overtime') || need('remarks');
+  if (needAtt) {
     const empList = Array.isArray(empRes) ? empRes : [];
     const empMap: Record<string, any> = {};
     empList.forEach((e: any) => { empMap[e.empId] = e; });
+
     const attTeam = attRecords.length > 0
       ? attRecords.map((r: any) => ({
           empId:   r.empId,
@@ -1234,20 +1239,48 @@ async function generateManagementReport(dateFrom: string, dateTo: string, sectio
           empName: e.empName || e.name || e.empId,
           role:    e.designation || e.role || '',
         }));
+
     const attEntries: Record<string, Record<number, string>> = {};
+    const attRemarks: Record<string, Record<number, string>> = {};
     attRecords.forEach((rec: any) => {
       attEntries[rec.empId] = {};
-      (rec.entries || []).forEach((e: any) => { attEntries[rec.empId][e.day] = e.code; });
+      attRemarks[rec.empId] = {};
+      (rec.entries || []).forEach((e: any) => {
+        attEntries[rec.empId][e.day] = e.code;
+        if (e.remark) attRemarks[rec.empId][e.day] = e.remark;
+      });
     });
-    if (attTeam.length > 0) {
+
+    // Page: Attendance Sheet
+    if (need('attendance') && attTeam.length > 0) {
       doc.addPage();
-      attPdf.addAttendanceSheet(doc, attLogo, attTeam, attEntries, year, month);
+      attPdf.addAttendanceSheet(doc, attLogo, attTeam, attEntries, year, month, attRemarks);
       doc.addPage();
       attPdf.addWorkSummary(doc, attLogo, attTeam, attEntries, year, month);
-    } else {
+    } else if (need('attendance')) {
       y = sectionHeader('Employee Attendance', monthLabel);
       doc.setFontSize(9); doc.setTextColor(...NEUTRAL);
       doc.text(`No attendance records found for ${monthLabel}.`, ML, y + 6);
+    }
+
+    // Page: Overtime Details
+    if (need('overtime')) {
+      const otRecords: any[] = Array.isArray(otRes) ? otRes : [];
+      if (otRecords.length > 0) {
+        doc.addPage();
+        attPdf.addOvertimeSheet(doc, attLogo, otRecords, year, month);
+      } else {
+        if (!need('attendance')) { doc.addPage(); drawPageBg(); }
+        const oty = sectionHeader('Overtime Details', monthLabel);
+        doc.setFontSize(9); doc.setTextColor(...NEUTRAL);
+        doc.text(`No overtime records found for ${monthLabel}.`, ML, oty + 6);
+      }
+    }
+
+    // Page: Attendance Remarks
+    if (need('remarks')) {
+      doc.addPage();
+      attPdf.addAttendanceRemarksPage(doc, attLogo, attTeam, attEntries, attRemarks, year, month);
     }
   }
 

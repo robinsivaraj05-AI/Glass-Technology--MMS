@@ -574,7 +574,7 @@ export function addWorkSummary(
 }
 
 // ── Page 3: Overtime Report ───────────────────────────────────────────────────
-function addOvertimeSheet(
+export function addOvertimeSheet(
   doc: jsPDF,
   logo: string | null,
   otRecords: OTRecord[],
@@ -688,6 +688,82 @@ function addOvertimeSheet(
       tableLineWidth:  0.2,
     });
   }
+}
+
+// ── Attendance Remarks Page ───────────────────────────────────────────────────
+export function addAttendanceRemarksPage(
+  doc: jsPDF,
+  logo: string | null,
+  team: PDFTeamMember[],
+  entries: Entries,
+  remarks: Remarks,
+  year: number,
+  month: number,
+) {
+  const DOW_FULL = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+
+  // Build flat list of all remarks sorted by day → employee
+  const remarksList: Array<{ day: number; dow: string; empName: string; empId: string; code: string; remark: string }> = [];
+  team.forEach(m => {
+    Object.entries(remarks[m.empId] ?? {}).forEach(([dayStr, note]) => {
+      if (note?.trim()) {
+        const day = Number(dayStr);
+        const dow = DOW_FULL[new Date(year, month - 1, day).getDay()];
+        remarksList.push({ day, dow, empName: m.empName, empId: m.empId, code: entries[m.empId]?.[day] ?? '—', remark: note.trim() });
+      }
+    });
+  });
+  remarksList.sort((a, b) => a.day - b.day || a.empName.localeCompare(b.empName));
+
+  drawHeader(doc, logo, 'Attendance Remarks', `${MONTHS[month - 1]} ${year}  ·  ${remarksList.length} entr${remarksList.length !== 1 ? 'ies' : 'y'}`);
+
+  const tableStartY = HEAD_H + 7;
+
+  if (remarksList.length === 0) {
+    doc.setFont('helvetica', 'italic'); doc.setFontSize(10); doc.setTextColor(160, 160, 160);
+    doc.text('No attendance remarks recorded for this period.', ML + 4, tableStartY + 10);
+    return;
+  }
+
+  drawSectionTitle(doc, `Remarks / Notes  —  ${MONTHS[month - 1]} ${year}`, tableStartY);
+
+  autoTable(doc, {
+    startY: tableStartY + 7,
+    margin: { left: ML, right: MR },
+    head: [['#', 'Day', 'Weekday', 'Employee Name', 'Emp ID', 'Status', 'Remark / Note']],
+    body: remarksList.map((r, i) => [i + 1, r.day, r.dow, r.empName, r.empId, r.code, r.remark]),
+    columnStyles: {
+      0: { cellWidth: 8,   halign: 'center', fontSize: 8, textColor: [156, 163, 175] },
+      1: { cellWidth: 12,  halign: 'center', fontSize: 9, fontStyle: 'bold', textColor: [234, 88, 12] },
+      2: { cellWidth: 24,  halign: 'center', fontSize: 8, textColor: [100, 116, 139] },
+      3: { cellWidth: 55,  halign: 'left',   fontSize: 9, fontStyle: 'bold' },
+      4: { cellWidth: 20,  halign: 'center', fontSize: 9, fontStyle: 'bold', textColor: [96, 165, 250] },
+      5: { cellWidth: 18,  halign: 'center', fontSize: 9, fontStyle: 'bold' },
+      6: { cellWidth: 126, halign: 'left',   fontSize: 9 },
+    },
+    headStyles: {
+      fillColor:   [234, 88, 12],
+      textColor:   [255, 237, 213],
+      fontSize:    9, fontStyle: 'bold', halign: 'center',
+      cellPadding: { top: 2.5, bottom: 2.5, left: 2, right: 2 },
+    },
+    bodyStyles: {
+      fontSize: 8.5, valign: 'middle',
+      cellPadding: { top: 3, bottom: 3, left: 3, right: 3 },
+      lineColor: [226, 232, 240], lineWidth: 0.15,
+      textColor: [30, 41, 59],
+    },
+    didParseCell: (data) => {
+      if (data.section !== 'body') return;
+      const altBg: [number,number,number] = data.row.index % 2 === 0 ? [255,255,255] : [255,251,235];
+      data.cell.styles.fillColor = altBg;
+      if (data.column.index === 5) {
+        const code = String(data.cell.raw || '');
+        if (CODE_BG[code]) { data.cell.styles.fillColor = CODE_BG[code]; data.cell.styles.textColor = CODE_TEXT[code]; }
+      }
+    },
+    tableLineColor: [203, 213, 225], tableLineWidth: 0.2,
+  });
 }
 
 // ── Main export entry point ───────────────────────────────────────────────────
