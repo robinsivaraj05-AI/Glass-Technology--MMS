@@ -1322,7 +1322,7 @@ async function generateManagementReport(dateFrom: string, dateTo: string, sectio
               doc.text(`REMARKS / NOTES${suffix}`, 20, remY + 5);
               autoTable(doc, {
                 startY: remY + LABEL_H,
-                margin: { left: 17, right: 17, bottom: 999 },
+                margin: { left: 17, right: 17 },
                 head: [['Day', 'Employee Name', 'Emp ID', 'Code', 'Remark / Note']],
                 body: visibleRows.map(r => [r.day, r.empName, r.empId, r.code, r.remark]),
                 columnStyles: {
