@@ -24,7 +24,6 @@ const MGMT_SECTIONS = [
   { key: 'cost',      label: '💰 Purchase Cost Summary' },
   { key: 'costing',   label: '📊 E&I Costing Report' },
   { key: 'overtime',  label: '⏰ Overtime Details' },
-  { key: 'remarks',   label: '📝 Attendance Remarks' },
 ];
 
 const OEM_STORES = ['Main Store - OEM Spare', 'Electrical Store - OEM Spare'];
@@ -92,8 +91,8 @@ async function generateManagementReport(dateFrom: string, dateTo: string, sectio
   const [spareParts, empRes, attRes, teamOrderRes, outsourceRes, rentalRes, followupRes, poRes, projectRes, accessoriesRes, otRes] = await Promise.all([
     need('spares')                                          ? fetch('/api/spare-parts?limit=5000').then(r => r.json()).catch(() => ({ items: [] })) : { items: [] },
     need('attendance')                                      ? fetch('/api/employees').then(r => r.json()).catch(() => []) : [],
-    (need('attendance') || need('overtime') || need('remarks')) ? fetch(`/api/attendance?year=${year}&month=${month}`).then(r => r.json()).catch(() => []) : [],
-    (need('attendance') || need('overtime') || need('remarks')) ? fetch('/api/attendance/team').then(r => r.json()).catch(() => []) : [],
+    (need('attendance') || need('overtime')) ? fetch(`/api/attendance?year=${year}&month=${month}`).then(r => r.json()).catch(() => []) : [],
+    (need('attendance') || need('overtime')) ? fetch('/api/attendance/team').then(r => r.json()).catch(() => []) : [],
     (need('outsource') || need('costing'))                  ? fetch(`/api/outsource?from=${dateFrom}&to=${dateTo}&limit=2000`).then(r => r.json()).catch(() => ({ entries: [] })) : { entries: [] },
     (need('rental') || need('costing'))                     ? fetch(`/api/equipment-entries?from=${dateFrom}&to=${dateTo}&limit=2000`).then(r => r.json()).catch(() => ({ entries: [] })) : { entries: [] },
     (need('purchase') || need('payment'))                   ? fetch('/api/purchase-followup').then(r => r.json()).catch(() => []) : [],
@@ -1223,7 +1222,7 @@ async function generateManagementReport(dateFrom: string, dateTo: string, sectio
   }
 
   // --- Attendance + OT + Remarks (rendered last so other sections flow first) -
-  const needAtt = need('attendance') || need('overtime') || need('remarks');
+  const needAtt = need('attendance') || need('overtime');
   if (needAtt) {
     const empList = Array.isArray(empRes) ? empRes : [];
     const empMap: Record<string, any> = {};
@@ -1291,11 +1290,6 @@ async function generateManagementReport(dateFrom: string, dateTo: string, sectio
       }
     }
 
-    // Page: Attendance Remarks
-    if (need('remarks')) {
-      doc.addPage();
-      attPdf.addAttendanceRemarksPage(doc, attLogo, attTeam, attEntries, attRemarks, year, month);
-    }
   }
 
   // --- Footer on all pages -------------------------------------------------
