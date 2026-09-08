@@ -205,7 +205,7 @@ export default function SpareParts() {
     for (const row of importRows) {
       try {
         const currentStock = Number(row['Current Stock'] || 0);
-        const unitPrice    = Number(row['Unit Price']    || 0);
+        const unitPrice    = Number(row['Unit Price (AED)'] || row['Unit Price'] || 0);
         const payload = {
           spareCode:    String(row['Spare Code'] || '').trim(),
           itemName:     String(row['Item Name']  || '').trim(),
