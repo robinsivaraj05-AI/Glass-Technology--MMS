@@ -1276,25 +1276,35 @@ async function generateManagementReport(dateFrom: string, dateTo: string, sectio
       doc.text(`No attendance records found for ${monthLabel}.`, ML, y + 6);
     }
 
-    // Page 7: OT Details + Remarks/Notes — skip entirely if no OT records
+    // Page 7: OT Details + Remarks/Notes
+    // Show if there is OT OR if there are remarks — skip only when both are absent
     if (need('overtime')) {
       const otRecords: any[] = Array.isArray(otRes) ? otRes : [];
-      if (otRecords.length > 0) {
-        doc.addPage();
-        attPdf.addOvertimeSheet(doc, attLogo, otRecords, year, month);
 
-        // Remarks/Notes — all entries, flows naturally after the OT table
-        const remarksList: Array<{ day: number; empName: string; empId: string; code: string; remark: string }> = [];
-        attTeam.forEach((m: any) => {
-          Object.entries(attRemarks[m.empId] ?? {}).forEach(([dayStr, note]: [string, any]) => {
-            if (note?.trim()) {
-              remarksList.push({ day: Number(dayStr), empName: m.empName, empId: m.empId, code: attEntries[m.empId]?.[Number(dayStr)] ?? '—', remark: note.trim() });
-            }
-          });
+      // Build remarks list
+      const remarksList: Array<{ day: number; empName: string; empId: string; code: string; remark: string }> = [];
+      attTeam.forEach((m: any) => {
+        Object.entries(attRemarks[m.empId] ?? {}).forEach(([dayStr, note]: [string, any]) => {
+          if (note?.trim()) {
+            remarksList.push({ day: Number(dayStr), empName: m.empName, empId: m.empId, code: attEntries[m.empId]?.[Number(dayStr)] ?? '—', remark: note.trim() });
+          }
         });
-        remarksList.sort((a, b) => a.day - b.day || a.empName.localeCompare(b.empName));
+      });
+      remarksList.sort((a, b) => a.day - b.day || a.empName.localeCompare(b.empName));
 
-        if (remarksList.length > 0) {
+      const hasOT      = otRecords.length > 0;
+      const hasRemarks = remarksList.length > 0;
+
+      if (hasOT || hasRemarks) {
+        doc.addPage();
+
+        // OT table (only if OT records exist)
+        if (hasOT) {
+          attPdf.addOvertimeSheet(doc, attLogo, otRecords, year, month);
+        }
+
+        // Remarks/Notes table
+        if (hasRemarks) {
           const CODE_BG_MAP: Record<string, [number,number,number]> = {
             PR:[187,247,208], WO:[254,240,138], WH:[186,230,253], SD:[254,215,170],
             CO:[254,202,202], PL:[233,213,255], AL:[251,207,232], OD:[110,231,183],
@@ -1305,8 +1315,9 @@ async function generateManagementReport(dateFrom: string, dateTo: string, sectio
             CO:[127,29,29], PL:[76,29,149], AL:[131,24,67], OD:[6,78,59],
             RP:[133,77,14], SL:[59,7,100], NH:[30,27,75], A:[6,95,70], B:[120,53,15], C:[49,46,129],
           };
+          // Start remarks below OT table if OT was drawn, otherwise near top
           const afterOT = (doc as any).lastAutoTable?.finalY ?? 44;
-          const remY = afterOT + 6;
+          const remY = hasOT ? afterOT + 6 : 44;
           doc.setFillColor(255, 215, 170);
           doc.rect(17, remY, 263, 7, 'F');
           doc.setFont('helvetica', 'bold'); doc.setFontSize(8.5); doc.setTextColor(124, 45, 18);
@@ -1338,7 +1349,7 @@ async function generateManagementReport(dateFrom: string, dateTo: string, sectio
           });
         }
       }
-      // No OT records — page skipped entirely
+      // No OT and no remarks — page 7 skipped entirely
     }
 
   }
