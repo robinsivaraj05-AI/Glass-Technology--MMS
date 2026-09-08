@@ -141,7 +141,13 @@ async function generateManagementReport(dateFrom: string, dateTo: string, sectio
   // Costs
   const outsourceCost = outsourceEntries.reduce((s: number, e: any) => s + (e.totalCost || 0), 0);
   const rentalCost    = rentalEntries.reduce((s: number, e: any) => s + (e.totalCost || 0), 0);
-  const pendingItems  = followupRecords.filter((r: any) => r.currentStatus !== 'Material Received' && r.currentStatus !== 'Rejected');
+  const pendingItems  = followupRecords
+    .filter((r: any) => r.currentStatus !== 'Material Received' && r.currentStatus !== 'Rejected')
+    .sort((a: any, b: any) => {
+      const dA = a.requestDate ? Math.floor((Date.now() - new Date(a.requestDate).getTime()) / 86400000) : 0;
+      const dB = b.requestDate ? Math.floor((Date.now() - new Date(b.requestDate).getTime()) / 86400000) : 0;
+      return dB - dA;
+    });
 
   const receivedPOs   = allPOs.filter(po => {
     const d = new Date(po.actualDelivery || po.poDate);
