@@ -369,130 +369,6 @@ async function generateManagementReport(dateFrom: string, dateTo: string, sectio
 
   y = cvH + 5;
 
-  // === ATTENDANCE + WORK SUMMARY + OT (generated first for logical page sequence) ===
-  const needAtt = need('attendance') || need('overtime');
-  if (needAtt) {
-    const empList = Array.isArray(empRes) ? empRes : [];
-    const empMap: Record<string, any> = {};
-    empList.forEach((e: any) => { empMap[e.empId] = e; });
-
-    const teamOrder: any[] = Array.isArray(teamOrderRes) ? teamOrderRes : [];
-    const sortOrderMap: Record<string, number> = {};
-    teamOrder.sort((a, b) => (a.sortOrder ?? 999) - (b.sortOrder ?? 999))
-             .forEach((t, i) => { sortOrderMap[t.empId] = i; });
-
-    const buildTeamMember = (empId: string, empName: string, role: string) => ({ empId, empName, role });
-
-    const attTeamUnsorted = attRecords.length > 0
-      ? attRecords.map((r: any) => buildTeamMember(
-          r.empId,
-          r.empName || empMap[r.empId]?.empName || r.empId,
-          empMap[r.empId]?.designation || empMap[r.empId]?.role || '',
-        ))
-      : empList.map((e: any) => buildTeamMember(
-          e.empId,
-          e.empName || e.name || e.empId,
-          e.designation || e.role || '',
-        ));
-
-    const attTeam = attTeamUnsorted.sort((a: any, b: any) =>
-      (sortOrderMap[a.empId] ?? 999) - (sortOrderMap[b.empId] ?? 999)
-    );
-
-    const attEntries: Record<string, Record<number, string>> = {};
-    const attRemarks: Record<string, Record<number, string>> = {};
-    attRecords.forEach((rec: any) => {
-      attEntries[rec.empId] = {};
-      attRemarks[rec.empId] = {};
-      (rec.entries || []).forEach((e: any) => {
-        attEntries[rec.empId][e.day] = e.code;
-        if (e.remark) attRemarks[rec.empId][e.day] = e.remark;
-      });
-    });
-
-    if (need('attendance') && attTeam.length > 0) {
-      doc.addPage();
-      attPdf.addAttendanceSheet(doc, attLogo, attTeam, attEntries, year, month, attRemarks);
-      doc.addPage();
-      attPdf.addWorkSummary(doc, attLogo, attTeam, attEntries, year, month);
-    } else if (need('attendance')) {
-      y = sectionHeader('Employee Attendance', monthLabel);
-      doc.setFontSize(9); doc.setTextColor(...NEUTRAL);
-      doc.text(`No attendance records found for ${monthLabel}.`, ML, y + 6);
-    }
-
-    if (need('overtime')) {
-      const otRecords: any[] = Array.isArray(otRes) ? otRes : [];
-      const remarksList: Array<{ day: number; empName: string; empId: string; code: string; remark: string }> = [];
-      attTeam.forEach((m: any) => {
-        Object.entries(attRemarks[m.empId] ?? {}).forEach(([dayStr, note]: [string, any]) => {
-          if (note?.trim()) {
-            remarksList.push({ day: Number(dayStr), empName: m.empName, empId: m.empId, code: attEntries[m.empId]?.[Number(dayStr)] ?? '—', remark: note.trim() });
-          }
-        });
-      });
-      remarksList.sort((a, b) => a.day - b.day || a.empName.localeCompare(b.empName));
-      const hasOT = otRecords.length > 0;
-      const hasRemarks = remarksList.length > 0;
-      if (hasOT || hasRemarks) {
-        doc.addPage();
-        if (hasOT) attPdf.addOvertimeSheet(doc, attLogo, otRecords, year, month);
-        if (hasRemarks) {
-          const CODE_BG_MAP: Record<string, [number,number,number]> = {
-            PR:[187,247,208], WO:[254,240,138], WH:[186,230,253], SD:[254,215,170],
-            CO:[254,202,202], PL:[233,213,255], AL:[251,207,232], OD:[110,231,183],
-            RP:[254,249,195], SL:[221,214,254], NH:[224,231,255], A:[209,250,229], B:[254,243,199], C:[199,210,254],
-          };
-          const CODE_TEXT_MAP: Record<string, [number,number,number]> = {
-            PR:[20,83,45], WO:[113,63,18], WH:[12,74,110], SD:[124,45,18],
-            CO:[127,29,29], PL:[76,29,149], AL:[131,24,67], OD:[6,78,59],
-            RP:[133,77,14], SL:[59,7,100], NH:[30,27,75], A:[6,95,70], B:[120,53,15], C:[49,46,129],
-          };
-          const afterOT = (doc as any).lastAutoTable?.finalY ?? 44;
-          const remY = hasOT ? afterOT + 6 : 44;
-          doc.setFillColor(255, 215, 170);
-          doc.rect(17, remY, 263, 7, 'F');
-          doc.setFont('helvetica', 'bold'); doc.setFontSize(8.5); doc.setTextColor(124, 45, 18);
-          doc.text(`REMARKS / NOTES  —  ${remarksList.length} ENTR${remarksList.length > 1 ? 'IES' : 'Y'}`, 20, remY + 5);
-          autoTable(doc, {
-            startY: remY + 7,
-            margin: { left: 17, right: 17 },
-            head: [['Day', 'Employee Name', 'Emp ID', 'Code', 'Remark / Note']],
-            body: remarksList.map(r => [r.day, r.empName, r.empId, r.code, r.remark]),
-            columnStyles: {
-              0: { cellWidth: 12, halign: 'center', fontStyle: 'bold', fontSize: 9, textColor: [234,88,12] },
-              1: { cellWidth: 55, halign: 'left',   fontSize: 9 },
-              2: { cellWidth: 20, halign: 'center', fontStyle: 'bold', fontSize: 9, textColor: [96,165,250] },
-              3: { cellWidth: 16, halign: 'center', fontStyle: 'bold', fontSize: 9 },
-              4: { cellWidth: 160, halign: 'left',  fontSize: 9 },
-            },
-            headStyles: { fillColor: [245,158,11], textColor: [255,255,255], fontSize: 9, fontStyle: 'bold', halign: 'center', cellPadding: { top:2, bottom:2, left:2, right:2 } },
-            bodyStyles: { fontSize: 8.5, valign: 'middle', cellPadding: { top:2.5, bottom:2.5, left:3, right:3 }, lineColor:[226,232,240], lineWidth:0.15, textColor:[30,41,59] },
-            didParseCell: (data) => {
-              if (data.section !== 'body') return;
-              const altBg: [number,number,number] = data.row.index % 2 === 0 ? [255,255,255] : [255,251,235];
-              data.cell.styles.fillColor = altBg;
-              if (data.column.index === 3) {
-                const code = String(data.cell.raw || '');
-                if (CODE_BG_MAP[code]) { data.cell.styles.fillColor = CODE_BG_MAP[code]; data.cell.styles.textColor = CODE_TEXT_MAP[code]; }
-              }
-            },
-            tableLineColor: [203,213,225], tableLineWidth: 0.2,
-          });
-        }
-      }
-    }
-
-    // If management sections follow attendance, start them on a fresh page
-    const hasManagementSections = need('spares') || need('outsource') || need('rental') || need('purchase') || need('po') || need('cost') || need('projects') || need('costing') || need('payment');
-    if (hasManagementSections) {
-      doc.addPage();
-      drawPageBg();
-      y = 5;
-      (doc as any).lastAutoTable = { finalY: 0 };
-    }
-  }
-
   // â”€â”€â”€ 1. SPARE PARTS STORE-WISE SUMMARY â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   if (need('spares')) {
     y = sectionHeader('Spare Parts  -  Store-Wise Cost Summary', `As of ${today}`);
@@ -663,7 +539,7 @@ async function generateManagementReport(dateFrom: string, dateTo: string, sectio
 
   // â”€â”€â”€ 5. E&I PURCHASE STATUS â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   if (need('purchase')) {
-    if (needAtt) y = sectionHeader('E&I Purchase Status', monthLabel);
+    // Page 1 continues from cover header — no extra sectionHeader needed
     if (pendingItems.length) {
       y = subHeader(y, 'E&I Pending Purchase Items');
       // Dynamic row height to fill remaining page 1 space
@@ -1343,6 +1219,139 @@ async function generateManagementReport(dateFrom: string, dateTo: string, sectio
       doc.setFontSize(9); doc.setTextColor(...NEUTRAL);
       doc.text(`No payments recorded for ${monthLabel}.`, ML, ((doc as any).lastAutoTable?.finalY || 60) + 6);
     }
+  }
+
+  // --- Attendance + OT + Remarks (rendered last so other sections flow first) -
+  const needAtt = need('attendance') || need('overtime');
+  if (needAtt) {
+    const empList = Array.isArray(empRes) ? empRes : [];
+    const empMap: Record<string, any> = {};
+    empList.forEach((e: any) => { empMap[e.empId] = e; });
+
+    // Build sort order map from /api/attendance/team (same order as the web app)
+    const teamOrder: any[] = Array.isArray(teamOrderRes) ? teamOrderRes : [];
+    const sortOrderMap: Record<string, number> = {};
+    teamOrder.sort((a, b) => (a.sortOrder ?? 999) - (b.sortOrder ?? 999))
+             .forEach((t, i) => { sortOrderMap[t.empId] = i; });
+
+    const buildTeamMember = (empId: string, empName: string, role: string) => ({ empId, empName, role });
+
+    const attTeamUnsorted = attRecords.length > 0
+      ? attRecords.map((r: any) => buildTeamMember(
+          r.empId,
+          r.empName || empMap[r.empId]?.empName || r.empId,
+          empMap[r.empId]?.designation || empMap[r.empId]?.role || '',
+        ))
+      : empList.map((e: any) => buildTeamMember(
+          e.empId,
+          e.empName || e.name || e.empId,
+          e.designation || e.role || '',
+        ));
+
+    // Sort using sortOrder from /api/attendance/team — matches app sequence exactly
+    const attTeam = attTeamUnsorted.sort((a: any, b: any) =>
+      (sortOrderMap[a.empId] ?? 999) - (sortOrderMap[b.empId] ?? 999)
+    );
+
+    const attEntries: Record<string, Record<number, string>> = {};
+    const attRemarks: Record<string, Record<number, string>> = {};
+    attRecords.forEach((rec: any) => {
+      attEntries[rec.empId] = {};
+      attRemarks[rec.empId] = {};
+      (rec.entries || []).forEach((e: any) => {
+        attEntries[rec.empId][e.day] = e.code;
+        if (e.remark) attRemarks[rec.empId][e.day] = e.remark;
+      });
+    });
+
+    // Page: Attendance Sheet
+    if (need('attendance') && attTeam.length > 0) {
+      doc.addPage();
+      attPdf.addAttendanceSheet(doc, attLogo, attTeam, attEntries, year, month, attRemarks);
+      doc.addPage();
+      attPdf.addWorkSummary(doc, attLogo, attTeam, attEntries, year, month);
+    } else if (need('attendance')) {
+      y = sectionHeader('Employee Attendance', monthLabel);
+      doc.setFontSize(9); doc.setTextColor(...NEUTRAL);
+      doc.text(`No attendance records found for ${monthLabel}.`, ML, y + 6);
+    }
+
+    // Page 7: OT Details + Remarks/Notes
+    // Show if there is OT OR if there are remarks — skip only when both are absent
+    if (need('overtime')) {
+      const otRecords: any[] = Array.isArray(otRes) ? otRes : [];
+
+      // Build remarks list
+      const remarksList: Array<{ day: number; empName: string; empId: string; code: string; remark: string }> = [];
+      attTeam.forEach((m: any) => {
+        Object.entries(attRemarks[m.empId] ?? {}).forEach(([dayStr, note]: [string, any]) => {
+          if (note?.trim()) {
+            remarksList.push({ day: Number(dayStr), empName: m.empName, empId: m.empId, code: attEntries[m.empId]?.[Number(dayStr)] ?? '—', remark: note.trim() });
+          }
+        });
+      });
+      remarksList.sort((a, b) => a.day - b.day || a.empName.localeCompare(b.empName));
+
+      const hasOT      = otRecords.length > 0;
+      const hasRemarks = remarksList.length > 0;
+
+      if (hasOT || hasRemarks) {
+        doc.addPage();
+
+        // OT table (only if OT records exist)
+        if (hasOT) {
+          attPdf.addOvertimeSheet(doc, attLogo, otRecords, year, month);
+        }
+
+        // Remarks/Notes table
+        if (hasRemarks) {
+          const CODE_BG_MAP: Record<string, [number,number,number]> = {
+            PR:[187,247,208], WO:[254,240,138], WH:[186,230,253], SD:[254,215,170],
+            CO:[254,202,202], PL:[233,213,255], AL:[251,207,232], OD:[110,231,183],
+            RP:[254,249,195], SL:[221,214,254], NH:[224,231,255], A:[209,250,229], B:[254,243,199], C:[199,210,254],
+          };
+          const CODE_TEXT_MAP: Record<string, [number,number,number]> = {
+            PR:[20,83,45], WO:[113,63,18], WH:[12,74,110], SD:[124,45,18],
+            CO:[127,29,29], PL:[76,29,149], AL:[131,24,67], OD:[6,78,59],
+            RP:[133,77,14], SL:[59,7,100], NH:[30,27,75], A:[6,95,70], B:[120,53,15], C:[49,46,129],
+          };
+          // Start remarks below OT table if OT was drawn, otherwise near top
+          const afterOT = (doc as any).lastAutoTable?.finalY ?? 44;
+          const remY = hasOT ? afterOT + 6 : 44;
+          doc.setFillColor(255, 215, 170);
+          doc.rect(17, remY, 263, 7, 'F');
+          doc.setFont('helvetica', 'bold'); doc.setFontSize(8.5); doc.setTextColor(124, 45, 18);
+          doc.text(`REMARKS / NOTES  —  ${remarksList.length} ENTR${remarksList.length > 1 ? 'IES' : 'Y'}`, 20, remY + 5);
+          autoTable(doc, {
+            startY: remY + 7,
+            margin: { left: 17, right: 17 },
+            head: [['Day', 'Employee Name', 'Emp ID', 'Code', 'Remark / Note']],
+            body: remarksList.map(r => [r.day, r.empName, r.empId, r.code, r.remark]),
+            columnStyles: {
+              0: { cellWidth: 12, halign: 'center', fontStyle: 'bold', fontSize: 9, textColor: [234,88,12] },
+              1: { cellWidth: 55, halign: 'left',   fontSize: 9 },
+              2: { cellWidth: 20, halign: 'center', fontStyle: 'bold', fontSize: 9, textColor: [96,165,250] },
+              3: { cellWidth: 16, halign: 'center', fontStyle: 'bold', fontSize: 9 },
+              4: { cellWidth: 160, halign: 'left',  fontSize: 9 },
+            },
+            headStyles: { fillColor: [245,158,11], textColor: [255,255,255], fontSize: 9, fontStyle: 'bold', halign: 'center', cellPadding: { top:2, bottom:2, left:2, right:2 } },
+            bodyStyles: { fontSize: 8.5, valign: 'middle', cellPadding: { top:2.5, bottom:2.5, left:3, right:3 }, lineColor:[226,232,240], lineWidth:0.15, textColor:[30,41,59] },
+            didParseCell: (data) => {
+              if (data.section !== 'body') return;
+              const altBg: [number,number,number] = data.row.index % 2 === 0 ? [255,255,255] : [255,251,235];
+              data.cell.styles.fillColor = altBg;
+              if (data.column.index === 3) {
+                const code = String(data.cell.raw || '');
+                if (CODE_BG_MAP[code]) { data.cell.styles.fillColor = CODE_BG_MAP[code]; data.cell.styles.textColor = CODE_TEXT_MAP[code]; }
+              }
+            },
+            tableLineColor: [203,213,225], tableLineWidth: 0.2,
+          });
+        }
+      }
+      // No OT and no remarks — page 7 skipped entirely
+    }
+
   }
 
   // --- Footer on all pages -------------------------------------------------
