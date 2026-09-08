@@ -204,25 +204,35 @@ export default function SpareParts() {
     let added = 0, updated = 0, failed = 0;
     for (const row of importRows) {
       try {
-        const currentStock = Number(row['Current Stock'] || 0);
-        const unitPrice    = Number(row['Unit Price (AED)'] || row['Unit Price'] || 0);
+        const importedStock = Number(row['Current Stock'] || 0);
+        const unitPrice     = Number(row['Unit Price (AED)'] || row['Unit Price'] || 0);
+        const spareCode     = String(row['Spare Code'] || '').trim();
+        const itemName      = String(row['Item Name']  || '').trim();
+        if (!spareCode || !itemName) { failed++; continue; }
+        const existing = spares.find((s:any) => s.spareCode === spareCode);
+
+        // When updating an existing item, preserve stock ledger (opening/received/issued)
+        // and only update unit price + metadata. Export only has Current Stock, not the breakdown.
+        const currentStock = existing ? existing.currentStock : importedStock;
+        const openingStock = existing ? existing.openingStock : importedStock;
+        const receivedQty  = existing ? existing.receivedQty  : 0;
+        const issuedQty    = existing ? existing.issuedQty    : 0;
+
         const payload = {
-          spareCode:    String(row['Spare Code'] || '').trim(),
-          itemName:     String(row['Item Name']  || '').trim(),
+          spareCode,
+          itemName,
           category:     String(row['Category']   || 'General').trim(),
           area:         String(row['Area']         || '').trim(),
           storeName:    String(row['Store']       || 'Main Store').trim(),
           unit:         String(row['Unit']        || 'Nos').trim(),
-          openingStock: currentStock,
-          receivedQty:  0,
-          issuedQty:    0,
+          openingStock,
+          receivedQty,
+          issuedQty,
           currentStock,
           unitPrice,
           totalValue:   currentStock * unitPrice,
           poNumber:     String(row['PO Number']   || '').trim(),
         };
-        if (!payload.spareCode || !payload.itemName) { failed++; continue; }
-        const existing = spares.find((s:any) => s.spareCode === payload.spareCode);
         const method = existing ? 'PUT' : 'POST';
         const url = existing ? `${API}/api/spare-parts/${existing._id}` : `${API}/api/spare-parts`;
         const res = await fetch(url, { method, headers: {'Content-Type':'application/json'}, body: JSON.stringify(payload) });
