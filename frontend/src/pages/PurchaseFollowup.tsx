@@ -132,7 +132,9 @@ function downloadXLS(records: FollowupRecord[]) {
   const today = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: '2-digit' });
 
   // Exclude items that are already received — report is for PENDING items only
-  const pending = records.filter(r => r.currentStatus !== 'Material Received' && r.currentStatus !== 'Payment Done' && r.currentStatus !== 'Rejected');
+  const pending = records
+    .filter(r => r.currentStatus !== 'Material Received' && r.currentStatus !== 'Payment Done' && r.currentStatus !== 'Rejected')
+    .sort((a, b) => daysSince(b.requestDate) - daysSince(a.requestDate));
 
   const sectionOrder: string[] = [];
   const sectionMap: Record<string, FollowupRecord[]> = {};
