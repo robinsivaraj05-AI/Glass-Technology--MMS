@@ -1582,9 +1582,10 @@ async function generateManagementReport(dateFrom: string, dateTo: string, sectio
         }
       };
 
+      // Start from y (after subHeader) — lastAutoTable.finalY still points to the previous section
+      let lastGroupY = y;
       Object.entries(groupMap).forEach(([responsible, jobs]) => {
-        const curY = (doc as any).lastAutoTable?.finalY ?? y;
-        let lblY = curY + 5;
+        let lblY = lastGroupY + 8;
         // If label bar + table header + at least one row won't fit, start a new page
         if (lblY + 22 > USABLE) {
           doc.addPage();
@@ -1616,6 +1617,7 @@ async function generateManagementReport(dateFrom: string, dateTo: string, sectio
           tableLineColor: BORDER, tableLineWidth: 0.4,
           didParseCell: pendDidParseCell,
         });
+        lastGroupY = (doc as any).lastAutoTable.finalY;
       });
     } else {
       doc.setFontSize(9); doc.setTextColor(...NEUTRAL);
