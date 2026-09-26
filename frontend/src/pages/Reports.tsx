@@ -646,7 +646,7 @@ async function generateManagementReport(dateFrom: string, dateTo: string, sectio
       const fmtDs = (d: string) => d ? new Date(d).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: '2-digit' }) : ' - ';
       autoTable(doc, {
         startY: y,
-        head: [['#', 'Item Description', 'PR Number', 'Request Date', 'Received Date', 'Budget (AED)']],
+        head: [['Sl', 'Item Description', 'PR Number', 'Request Date', 'Received Date', 'Budget (AED)']],
         body: receivedThisMonth.map((r: any, i: number) => [
           i + 1,
           (r.itemDescription || ' - ').substring(0, 60),
@@ -771,7 +771,7 @@ async function generateManagementReport(dateFrom: string, dateTo: string, sectio
       y = subHeader(y, 'Project Details');
       autoTable(doc, {
         startY: y,
-        head: [['#', 'Project No.', 'Name', 'Type', 'Status', 'Progress', 'Budget (AED)', 'Spent (AED)', 'Manager']],
+        head: [['Sl', 'Project No.', 'Name', 'Type', 'Status', 'Progress', 'Budget (AED)', 'Spent (AED)', 'Manager']],
         body: projects.map((p: any, i: number) => [
           i + 1,
           p.projectNo || ' - ',
@@ -1088,7 +1088,7 @@ async function generateManagementReport(dateFrom: string, dateTo: string, sectio
     y = subHeader(y, 'Outsource Labour by Contract');
     autoTable(doc, {
       startY: y, margin: { left: ML, right: ML },
-      head: [['#', 'Contract Name', 'Contractor Company', 'Entries', 'Total Cost (AED)', 'Share']],
+      head: [['Sl', 'Contract Name', 'Contractor Company', 'Entries', 'Total Cost (AED)', 'Share']],
       body: contractList.length ? contractList.map(([name, d], i) => [
         i + 1, name, d.company, d.entries, fmtAED(d.cost),
         outsourceCostT > 0 ? `${Math.round(d.cost / outsourceCostT * 100)}%` : '-',
@@ -1106,7 +1106,7 @@ async function generateManagementReport(dateFrom: string, dateTo: string, sectio
     y = subHeader(((doc as any).lastAutoTable?.finalY ?? y) + 7, 'Equipment Usage by Asset');
     autoTable(doc, {
       startY: y, margin: { left: ML, right: ML },
-      head: [['#', 'Equipment Name', 'Vendor / Company', 'Entries', 'Total Cost (AED)', 'Share']],
+      head: [['Sl', 'Equipment Name', 'Vendor / Company', 'Entries', 'Total Cost (AED)', 'Share']],
       body: equipList.length ? equipList.map(([name, d], i) => [
         i + 1, name, d.vendor, d.entries, fmtAED(d.cost),
         equipmentCostT > 0 ? `${Math.round(d.cost / equipmentCostT * 100)}%` : '-',
@@ -1124,7 +1124,7 @@ async function generateManagementReport(dateFrom: string, dateTo: string, sectio
     y = subHeader(((doc as any).lastAutoTable?.finalY ?? y) + 7, 'Accessories by Category');
     autoTable(doc, {
       startY: y, margin: { left: ML, right: ML },
-      head: [['#', 'Category', 'Total Cost (AED)', 'Share of Accessories']],
+      head: [['Sl', 'Category', 'Total Cost (AED)', 'Share of Accessories']],
       body: accCats.length ? accCats.map(([cat, cost], i) => [
         i + 1, cat, fmtAED(cost as number),
         accessoryCostT > 0 ? `${Math.round((cost as number) / accessoryCostT * 100)}%` : '-',
@@ -1418,7 +1418,7 @@ async function generateManagementReport(dateFrom: string, dateTo: string, sectio
       ]);
       autoTable(doc, {
         startY: y,
-        head: [['#', 'Description', 'Job Ref', 'Follow-up Date', 'Status', 'Responsible', 'Comments']],
+        head: [['Sl', 'Description', 'Job Ref', 'Follow-up Date', 'Status', 'Responsible', 'Comments']],
         body: flwRows,
         margin: { left: ML, right: ML },
         styles: { fontSize: 9.5, cellPadding: 3, ...tblLine },
@@ -1466,7 +1466,7 @@ async function generateManagementReport(dateFrom: string, dateTo: string, sectio
         ]);
       autoTable(doc, {
         startY: y,
-        head: [['#', 'Area', 'Description', 'Priority', 'Responsible', 'Status', 'Doing By', 'Remarks']],
+        head: [['Sl', 'Area', 'Description', 'Priority', 'Responsible', 'Status', 'Doing By', 'Remarks']],
         body: ongoingRows,
         margin: { left: ML, right: ML },
         styles: { fontSize: 8, cellPadding: 2.5, ...tblLine },
@@ -1519,7 +1519,7 @@ async function generateManagementReport(dateFrom: string, dateTo: string, sectio
         ]);
       autoTable(doc, {
         startY: y,
-        head: [['#', 'Area', 'Description', 'Priority', 'Responsible', 'Completed By', 'Comp. Date', 'Remarks']],
+        head: [['Sl', 'Area', 'Description', 'Priority', 'Responsible', 'Completed By', 'Comp. Date', 'Remarks']],
         body: compRows,
         margin: { left: ML, right: ML },
         styles: { fontSize: 8, cellPadding: 2.5, ...tblLine },
@@ -1601,7 +1601,7 @@ async function generateManagementReport(dateFrom: string, dateTo: string, sectio
         ]);
         autoTable(doc, {
           startY: lblY + 7,
-          head: [['#', 'Area', 'Description', 'Priority', 'Status', 'Created', 'Remarks']],
+          head: [['Sl', 'Area', 'Description', 'Priority', 'Status', 'Created', 'Remarks']],
           body: rows,
           margin: { left: ML, right: ML },
           styles: { fontSize: 8, cellPadding: 2.5, ...tblLine },
