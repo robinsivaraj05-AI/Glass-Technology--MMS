@@ -1409,7 +1409,7 @@ async function generateManagementReport(dateFrom: string, dateTo: string, sectio
     if (followupJobsList.length > 0 || completedFollowups.length > 0) {
       const flwRows = [...followupJobsList, ...completedFollowups].map((f: any, i: number) => [
         i + 1,
-        (f.description || '—').substring(0, 50),
+        f.description || '—',
         fmtJD(f.nextFollowupDate),
         f.status || '—',
         (f.responsiblePerson || '—').substring(0, 20),
@@ -1455,7 +1455,7 @@ async function generateManagementReport(dateFrom: string, dateTo: string, sectio
         .map((j: any, i: number) => [
           i + 1,
           (j.asset || '—').substring(0, 22),
-          (j.description || '—').substring(0, 50),
+          j.description || '—',
           j.priority || '—',
           j.assignedTo || '—',
           j.status || '—',
@@ -1508,7 +1508,7 @@ async function generateManagementReport(dateFrom: string, dateTo: string, sectio
         .map((j: any, i: number) => [
           i + 1,
           (j.asset || '—').substring(0, 22),
-          (j.description || '—').substring(0, 50),
+          j.description || '—',
           j.priority || '—',
           j.assignedTo || '—',
           (j.completedBy || '—').substring(0, 20),
@@ -1597,7 +1597,7 @@ async function generateManagementReport(dateFrom: string, dateTo: string, sectio
         const rows = jobs.map((j: any, i: number) => [
           i + 1,
           (j.asset || '—').substring(0, 24),
-          (j.description || '—').substring(0, 52),
+          j.description || '—',
           j.priority || '—',
           j.status || '—',
           fmtJD(j.createdDate),
