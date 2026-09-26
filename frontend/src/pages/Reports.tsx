@@ -1295,8 +1295,8 @@ async function generateManagementReport(dateFrom: string, dateTo: string, sectio
         head: [['#', 'Description', 'Job Ref', 'Follow-up Date', 'Status', 'Responsible', 'Comments']],
         body: flwRows,
         margin: { left: ML, right: ML },
-        styles: { fontSize: 7.5, cellPadding: 2.5, ...tblLine },
-        headStyles: { ...tblHead, fillColor: PURPLE },
+        styles: { fontSize: 9.5, cellPadding: 3, ...tblLine },
+        headStyles: { ...tblHead, fillColor: PURPLE, fontSize: 9, cellPadding: { top: 2, bottom: 2, left: 3, right: 3 } },
         columnStyles: {
           0: { cellWidth: 8,  halign: 'center' },
           1: { cellWidth: 'auto' },
