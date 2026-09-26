@@ -1584,7 +1584,12 @@ async function generateManagementReport(dateFrom: string, dateTo: string, sectio
 
       Object.entries(groupMap).forEach(([responsible, jobs]) => {
         const curY = (doc as any).lastAutoTable?.finalY ?? y;
-        const lblY = curY + 5;
+        let lblY = curY + 5;
+        // If label bar + table header + at least one row won't fit, start a new page
+        if (lblY + 22 > USABLE) {
+          doc.addPage();
+          lblY = 15;
+        }
         doc.setFillColor(...PRIMARY);
         doc.roundedRect(ML, lblY, W - ML * 2, 7, 1.5, 1.5, 'F');
         doc.setFont('helvetica', 'bold'); doc.setFontSize(9); doc.setTextColor(...WHITE);
