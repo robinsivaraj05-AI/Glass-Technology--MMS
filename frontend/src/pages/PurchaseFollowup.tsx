@@ -810,7 +810,7 @@ export default function PurchaseFollowup() {
                 <th style={{ textAlign:'center' }}>#</th>
                 <th>Item Description</th>
                 <th>PO Number</th>
-                <th style={{ whiteSpace:'nowrap' }}>Payment Date</th>
+                <th style={{ whiteSpace:'nowrap' }}>Received Date</th>
                 <th style={{ textAlign:'right', whiteSpace:'nowrap' }}>PO Total</th>
                 <th style={{ textAlign:'right', whiteSpace:'nowrap' }}>Paid (This)</th>
                 <th style={{ textAlign:'right', whiteSpace:'nowrap' }}>Remaining</th>
@@ -842,7 +842,12 @@ export default function PurchaseFollowup() {
                         <td style={{ textAlign:'center', fontSize:12, color:'#64748b', fontWeight:700 }}>{row.idx+1}</td>
                         <td style={{ fontSize:13, fontWeight:700, color:'#1e293b', wordBreak:'break-word' }}>{row.rec.itemDescription}</td>
                         <td style={{ fontSize:12, color:'#60a5fa', fontFamily:'monospace', fontWeight:700 }}>{row.rec.prNumber||'—'}</td>
-                        <td style={{ fontSize:11, color:'#64748b' }}>{row.rec.receivedDate ? fmtDate(row.rec.receivedDate) : '—'}</td>
+                        <td style={{ padding:'4px 6px' }}>
+                          <input type="date" className="input-dark"
+                            style={{ fontSize:11, padding:'3px 5px', width:'100%', background:'transparent', border:'1px solid #E5E7EB', borderRadius:5, color:'#374151' }}
+                            value={row.rec.receivedDate||''} onChange={e=>updateFieldDirect(row.rec.id,{receivedDate:e.target.value})}
+                          />
+                        </td>
                         <td style={{ textAlign:'right', fontSize:12, color:'#374151', fontWeight:700 }}>{row.rec.budget ? `AED ${row.rec.budget.toLocaleString()}` : '—'}</td>
                         <td style={{ textAlign:'right', fontSize:12, color:'#a855f7', fontWeight:700 }}>{tp > 0 ? `AED ${tp.toLocaleString()}` : '—'}</td>
                         <td style={{ textAlign:'right', fontSize:12, fontWeight:700, color: rm>0 ? '#f59e0b' : '#22c55e' }}>{rm > 0 ? `AED ${rm.toLocaleString()}` : '✓ Fully Paid'}</td>
