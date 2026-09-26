@@ -65,10 +65,17 @@ const RESPONSIBLE_LIST = ['GT-E&I', 'EBC', 'Creative', 'GT-PUR', 'GT-IT', 'Contr
 const AREA_LIST        = ['Batch Plant', 'Furnace', 'Rolling Machine', 'Lehr', 'Cutting Line', 'Cullet Return', 'Solar Line', 'Green House', 'Utility', 'Diesel Engine', 'UPS', 'Electrical Panel', 'Raw Material', 'General', 'Power Plant', 'IT', 'Project'];
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
-const today = new Date().toISOString().slice(0, 10);
+const _n = new Date();
+const today = `${_n.getFullYear()}-${String(_n.getMonth()+1).padStart(2,'0')}-${String(_n.getDate()).padStart(2,'0')}`;
+// Parse YYYY-MM-DD as local time (not UTC) to avoid timezone date shift
+function parseLocalDate(iso: string): Date | null {
+  const m = iso ? iso.slice(0, 10).match(/^(\d{4})-(\d{2})-(\d{2})$/) : null;
+  if (!m) return null;
+  return new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
+}
 function fmtDate(iso: string) {
   if (!iso) return '—';
-  const d = new Date(iso);
+  const d = parseLocalDate(iso) ?? new Date(iso);
   if (isNaN(d.getTime())) return '—';
   return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: '2-digit' });
 }
@@ -77,13 +84,27 @@ function toIsoDate(val: string) {
   if (/^\d{4}-\d{2}-\d{2}$/.test(val)) return val;
   const d = new Date(val);
   if (isNaN(d.getTime())) return '';
-  return d.toISOString().slice(0, 10);
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
 }
-function daysPending(d: string) { return d ? Math.floor((Date.now() - new Date(d).getTime()) / 86400000) : 0; }
-function daysUntil(d: string)   { return d ? Math.ceil((new Date(d).getTime() - Date.now()) / 86400000) : null; }
+function daysPending(iso: string) {
+  if (!iso) return 0;
+  const d = parseLocalDate(iso);
+  if (!d) return 0;
+  const today0 = parseLocalDate(today)!;
+  return Math.floor((today0.getTime() - d.getTime()) / 86400000);
+}
+function daysUntil(iso: string) {
+  if (!iso) return null;
+  const d = parseLocalDate(iso);
+  if (!d) return null;
+  const today0 = parseLocalDate(today)!;
+  return Math.ceil((d.getTime() - today0.getTime()) / 86400000);
+}
 function isOverdue(dueDate: string, status: string) {
   if (!dueDate || status === 'Completed') return false;
-  return new Date(dueDate) < new Date(today);
+  const d = parseLocalDate(dueDate);
+  const t = parseLocalDate(today);
+  return !!d && !!t && d < t;
 }
 function autoId(prefix: string, list: any[]) {
   return `${prefix}-${new Date().getFullYear()}-${String(list.length + 1).padStart(3, '0')}`;
@@ -1065,7 +1086,7 @@ export default function JobTracker() {
                   {filteredFlw.map((f, i) => {
                     const sc  = FLW_STATUS_CFG[f.status] || FLW_STATUS_CFG.Pending;
                     const du  = daysUntil(f.nextFollowupDate);
-                    const od  = f.nextFollowupDate && new Date(f.nextFollowupDate) < new Date(today) && f.status !== 'Completed';
+                    const od  = f.nextFollowupDate && (parseLocalDate(f.nextFollowupDate) ?? new Date(0)) < parseLocalDate(today)! && f.status !== 'Completed';
                     const rel = pendingByJobId[f.relatedJobId];
                     const area = rel?.asset || '';
                     const pc = PRIORITY_CFG[rel?.priority] || PRIORITY_CFG.Medium;
@@ -1161,7 +1182,7 @@ export default function JobTracker() {
                         const sc = REM_STATUS_CFG[r.status] || REM_STATUS_CFG.Pending;
                         const pc = PRIORITY_CFG[r.priority] || PRIORITY_CFG.Medium;
                         const du = daysUntil(r.dueDate);
-                        const od = r.dueDate && new Date(r.dueDate) < new Date(today) && r.status !== 'Completed';
+                        const od = r.dueDate && (parseLocalDate(r.dueDate) ?? new Date(0)) < parseLocalDate(today)! && r.status !== 'Completed';
                         return (
                           <tr key={r.id} style={{ background: od ? 'rgba(239,68,68,0.04)' : r.dueDate === today ? 'rgba(52,211,153,0.04)' : undefined }}>
                             <td style={{ textAlign: 'center', color: '#64748b' }}>{i + 1}</td>
