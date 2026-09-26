@@ -828,7 +828,7 @@ export default function JobTracker() {
                       return (
                         <tr key={j.id} style={{ background: 'rgba(239,68,68,0.04)' }}>
                           <td style={{ fontFamily: 'monospace', color: '#60a5fa', fontWeight: 700 }}>{j.jobId || '—'}</td>
-                          <td style={{ fontWeight: 500, color: '#374151' }}>{j.description}</td>
+                          <td style={{ fontWeight: 500, color: '#374151', whiteSpace: 'normal', wordBreak: 'break-word' }}>{j.description}</td>
                           <td><Badge label={j.priority} cfg={pc} /></td>
                           <td style={{ color: '#94a3b8' }}>{j.assignedTo || '—'}</td>
                           <td style={{ color: '#ef4444', fontWeight: 700 }}>{fmtDate(j.dueDate)}</td>
@@ -959,7 +959,7 @@ export default function JobTracker() {
                         <td style={{ textAlign: 'center', color: '#64748b' }}>{i + 1}</td>
                         <td style={{ textAlign: 'center', color: '#374151', fontSize: 11, whiteSpace: 'nowrap' }}>{fmtDate(j.createdDate) || '—'}</td>
                         <td><span style={{ display:'inline-block', padding:'3px 9px', borderRadius:6, background:'#EFF6FF', color:'#1D4ED8', fontWeight:700, fontSize:13, whiteSpace:'nowrap' }}>{j.asset || '—'}</span></td>
-                        <td style={{ fontWeight: 500, color: '#1e293b' }}>{j.description}</td>
+                        <td style={{ fontWeight: 500, color: '#1e293b', whiteSpace: 'normal', wordBreak: 'break-word' }}>{j.description}</td>
                         <td style={{ textAlign: 'center' }}><Badge label={j.priority} cfg={pc} /></td>
                         <td style={{ fontWeight: 600, fontSize: 11, color: '#374151' }}>{j.assignedTo || '—'}</td>
                         <td style={{ textAlign: 'center' }}>
@@ -1035,7 +1035,7 @@ export default function JobTracker() {
                         <td style={{ textAlign: 'center', color: '#64748b' }}>{i + 1}</td>
                         <td style={{ textAlign: 'center', color: '#374151', fontSize: 11, whiteSpace: 'nowrap' }}>{fmtDate(j.createdDate) || '—'}</td>
                         <td><span style={{ display:'inline-block', padding:'3px 9px', borderRadius:6, background:'#EFF6FF', color:'#1D4ED8', fontWeight:700, fontSize:13, whiteSpace:'nowrap' }}>{j.asset || '—'}</span></td>
-                        <td style={{ fontWeight: 500, color: '#1e293b' }}>{j.description}</td>
+                        <td style={{ fontWeight: 500, color: '#1e293b', whiteSpace: 'normal', wordBreak: 'break-word' }}>{j.description}</td>
                         <td style={{ textAlign: 'center' }}><Badge label={j.priority} cfg={pc} /></td>
                         <td style={{ fontWeight: 600, fontSize: 11, color: '#374151' }}>{j.assignedTo || '—'}</td>
                         <td style={{ textAlign: 'center' }}><Badge label={j.status} cfg={sc} /></td>
@@ -1125,7 +1125,7 @@ export default function JobTracker() {
                           {!od && du !== null && du <= 3 && du >= 0 && <div style={{ fontSize: 9, color: '#f59e0b' }}>in {du}d</div>}
                         </td>
                         <td><span style={{ display:'inline-block', padding:'3px 9px', borderRadius:6, background:'#EFF6FF', color:'#1D4ED8', fontWeight:700, fontSize:13, whiteSpace:'nowrap' }}>{area || '—'}</span></td>
-                        <td style={{ fontWeight: 500, color: '#1e293b' }}>{f.description}</td>
+                        <td style={{ fontWeight: 500, color: '#1e293b', whiteSpace: 'normal', wordBreak: 'break-word' }}>{f.description}</td>
                         <td style={{ textAlign: 'center' }}>{rel ? <Badge label={rel.priority} cfg={pc} /> : <span style={{ color:'#94a3b8' }}>—</span>}</td>
                         <td style={{ fontWeight: 600, fontSize: 11, color: '#374151' }}>{f.responsiblePerson || '—'}</td>
                         <td style={{ textAlign: 'center' }}>
