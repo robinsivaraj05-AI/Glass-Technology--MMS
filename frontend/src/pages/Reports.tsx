@@ -1448,7 +1448,7 @@ async function generateManagementReport(dateFrom: string, dateTo: string, sectio
     }
 
     // ── Sub-section B: Ongoing + Partially Done ───────────────────────────
-    y = subHeader((doc as any).lastAutoTable?.finalY ?? y + 4, `Ongoing & Partially Done  (${ongoingJobs.length} jobs)`);
+    y = subHeader(((doc as any).lastAutoTable?.finalY ?? y) + 8, `Ongoing & Partially Done  (${ongoingJobs.length} jobs)`);
     if (ongoingJobs.length > 0) {
       const ongoingRows = ongoingJobs
         .sort((a: any, b: any) => (a.asset || '').localeCompare(b.asset || ''))
@@ -1501,7 +1501,7 @@ async function generateManagementReport(dateFrom: string, dateTo: string, sectio
     }
 
     // ── Sub-section C: Completed This Month ───────────────────────────────
-    y = subHeader((doc as any).lastAutoTable?.finalY ?? y + 4, `Completed This Month  (${completedThisMonth.length} jobs)`);
+    y = subHeader(((doc as any).lastAutoTable?.finalY ?? y) + 8, `Completed This Month  (${completedThisMonth.length} jobs)`);
     if (completedThisMonth.length > 0) {
       const compRows = completedThisMonth
         .sort((a: any, b: any) => (a.completedDate || '').localeCompare(b.completedDate || ''))
@@ -1549,7 +1549,7 @@ async function generateManagementReport(dateFrom: string, dateTo: string, sectio
     }
 
     // ── Sub-section D: Pending Jobs grouped by Responsible ────────────────
-    y = subHeader((doc as any).lastAutoTable?.finalY ?? y + 4, `Pending Jobs by Responsible  (${restPending.length} jobs)`);
+    y = subHeader(((doc as any).lastAutoTable?.finalY ?? y) + 8, `Pending Jobs by Responsible  (${restPending.length} jobs)`);
     if (restPending.length > 0) {
       const groupMap: Record<string, any[]> = {};
       restPending.forEach((j: any) => {
