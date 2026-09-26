@@ -1241,33 +1241,26 @@ async function generateManagementReport(dateFrom: string, dateTo: string, sectio
     const followupJobsList = allFollowupJobs.filter((f: any) => f.status !== 'Completed' && f.status !== 'Cancelled');
     const completedFollowups = allFollowupJobs.filter((f: any) => f.status === 'Completed');
 
-    // ── 2. Ongoing jobs + Completed this month ─────────────────────────────
-    const ongoingJobs = allPendingJobs.filter((j: any) => j.status === 'Ongoing');
+    // ── 2a. Ongoing + Partially Done jobs ──────────────────────────────────
+    const ongoingJobs = allPendingJobs.filter((j: any) => j.status === 'Ongoing' || j.status === 'Partially Done');
+
+    // ── 2b. Completed this month ────────────────────────────────────────────
     const completedThisMonth = allPendingJobs.filter((j: any) => {
-      if (j.status !== 'Completed' && j.status !== 'Partially Done') return false;
+      if (j.status !== 'Completed') return false;
       if (!j.completedDate) return false;
       const d = new Date(j.completedDate);
       return d.getFullYear() === year && (d.getMonth() + 1) === month;
     });
-    const ongoingAndCompleted = [
-      ...ongoingJobs,
-      ...completedThisMonth,
-    ].sort((a: any, b: any) => {
-      // Ongoing first, then completed; within each group sort by area
-      const sA = a.status === 'Ongoing' ? 0 : 1;
-      const sB = b.status === 'Ongoing' ? 0 : 1;
-      if (sA !== sB) return sA - sB;
-      return (a.asset || '').localeCompare(b.asset || '');
-    });
 
     // ── 3. Rest of pending jobs sorted by responsible person ──────────────
     const ongoingIds = new Set(ongoingJobs.map((j: any) => j.id || j._id?.toString()));
-    const completedIds = new Set(completedThisMonth.map((j: any) => j.id || j._id?.toString()));
     const restPending = allPendingJobs
       .filter((j: any) => {
         const id = j.id || j._id?.toString();
-        return j.status !== 'Completed' && j.status !== 'Partially Done'
-          && !ongoingIds.has(id)
+        return !ongoingIds.has(id)
+          && j.status !== 'Completed'
+          && j.status !== 'Partially Done'
+          && j.status !== 'Ongoing'
           && j.status !== 'Follow Up';
       })
       .sort((a: any, b: any) => (a.assignedTo || '').localeCompare(b.assignedTo || '') || (a.asset || '').localeCompare(b.asset || ''));
@@ -1323,60 +1316,108 @@ async function generateManagementReport(dateFrom: string, dateTo: string, sectio
       y = y + 12;
     }
 
-    // ── Sub-section B: Ongoing + Completed This Month ─────────────────────
-    y = subHeader((doc as any).lastAutoTable?.finalY ?? y + 4, `Ongoing Jobs + Completed This Month  (${ongoingJobs.length} ongoing · ${completedThisMonth.length} completed)`);
-    if (ongoingAndCompleted.length > 0) {
-      const ocRows = ongoingAndCompleted.map((j: any, i: number) => [
-        i + 1,
-        (j.asset || '—').substring(0, 22),
-        (j.description || '—').substring(0, 48),
-        j.priority || '—',
-        j.assignedTo || '—',
-        j.status || '—',
-        (j.completedBy || '—').substring(0, 18),
-        fmtJD(j.completedDate),
-      ]);
+    // ── Sub-section B: Ongoing + Partially Done ───────────────────────────
+    y = subHeader((doc as any).lastAutoTable?.finalY ?? y + 4, `Ongoing & Partially Done  (${ongoingJobs.length} jobs)`);
+    if (ongoingJobs.length > 0) {
+      const ongoingRows = ongoingJobs
+        .sort((a: any, b: any) => (a.asset || '').localeCompare(b.asset || ''))
+        .map((j: any, i: number) => [
+          i + 1,
+          (j.asset || '—').substring(0, 22),
+          (j.description || '—').substring(0, 50),
+          j.priority || '—',
+          j.assignedTo || '—',
+          j.status || '—',
+          (j.completedBy || '—').substring(0, 20),
+          (j.remarks || '—').substring(0, 30),
+        ]);
       autoTable(doc, {
         startY: y,
-        head: [['#', 'Area', 'Description', 'Priority', 'Responsible', 'Status', 'Completed By', 'Comp. Date']],
-        body: ocRows,
+        head: [['#', 'Area', 'Description', 'Priority', 'Responsible', 'Status', 'Doing By', 'Remarks']],
+        body: ongoingRows,
         margin: { left: ML, right: ML },
-        styles: { fontSize: 7.5, cellPadding: 2.5, ...tblLine },
-        headStyles: { ...tblHead, fillColor: TEAL },
+        styles: { fontSize: 8, cellPadding: 2.5, ...tblLine },
+        headStyles: { ...tblHead, fillColor: TEAL, fontSize: 8.5, cellPadding: { top: 2, bottom: 2, left: 3, right: 3 } },
         columnStyles: {
           0: { cellWidth: 8,   halign: 'center' },
           1: { cellWidth: 30 },
           2: { cellWidth: 'auto' },
-          3: { cellWidth: 18,  halign: 'center' },
+          3: { cellWidth: 20,  halign: 'center' },
           4: { cellWidth: 28,  halign: 'center' },
-          5: { cellWidth: 26,  halign: 'center' },
-          6: { cellWidth: 32 },
-          7: { cellWidth: 22,  halign: 'center' },
+          5: { cellWidth: 28,  halign: 'center' },
+          6: { cellWidth: 34 },
+          7: { cellWidth: 40 },
         },
         alternateRowStyles: tblAlt,
         tableLineColor: BORDER, tableLineWidth: 0.4,
         didParseCell: (data: any) => {
           if (data.section === 'body' && data.column.index === 5) {
             const st = String(data.cell.raw || '');
-            if (st === 'Ongoing')        { data.cell.styles.textColor = [20,184,166]; data.cell.styles.fontStyle = 'bold'; }
-            else if (st === 'Completed')  { data.cell.styles.textColor = SUCCESS;      data.cell.styles.fontStyle = 'bold'; }
-            else if (st === 'Partially Done') { data.cell.styles.textColor = WARNING;  data.cell.styles.fontStyle = 'bold'; }
+            if (st === 'Ongoing')         { data.cell.styles.textColor = [20,184,166] as [number,number,number]; data.cell.styles.fontStyle = 'bold'; }
+            else if (st === 'Partially Done') { data.cell.styles.textColor = WARNING; data.cell.styles.fontStyle = 'bold'; }
           }
           if (data.section === 'body' && data.column.index === 3) {
             const pr = String(data.cell.raw || '');
-            if (pr === 'Critical')     { data.cell.styles.textColor = DANGER;   data.cell.styles.fontStyle = 'bold'; }
-            else if (pr === 'High')    { data.cell.styles.textColor = WARNING;  data.cell.styles.fontStyle = 'bold'; }
-            else if (pr === 'Medium')  { data.cell.styles.textColor = PRIMARY; }
+            if (pr === 'Critical')  { data.cell.styles.textColor = DANGER;   data.cell.styles.fontStyle = 'bold'; }
+            else if (pr === 'High') { data.cell.styles.textColor = WARNING;  data.cell.styles.fontStyle = 'bold'; }
           }
         },
       });
     } else {
       doc.setFontSize(9); doc.setTextColor(...NEUTRAL);
-      doc.text(`No ongoing or completed jobs for ${monthLabel}.`, ML, y + 6);
+      doc.text('No ongoing or partially done jobs.', ML, y + 6);
       y = y + 12;
     }
 
-    // ── Sub-section C: Rest of Pending Jobs by Responsible ────────────────
+    // ── Sub-section C: Completed This Month ───────────────────────────────
+    y = subHeader((doc as any).lastAutoTable?.finalY ?? y + 4, `Completed This Month  (${completedThisMonth.length} jobs)`);
+    if (completedThisMonth.length > 0) {
+      const compRows = completedThisMonth
+        .sort((a: any, b: any) => (a.completedDate || '').localeCompare(b.completedDate || ''))
+        .map((j: any, i: number) => [
+          i + 1,
+          (j.asset || '—').substring(0, 22),
+          (j.description || '—').substring(0, 50),
+          j.priority || '—',
+          j.assignedTo || '—',
+          (j.completedBy || '—').substring(0, 20),
+          fmtJD(j.completedDate),
+          (j.remarks || '—').substring(0, 30),
+        ]);
+      autoTable(doc, {
+        startY: y,
+        head: [['#', 'Area', 'Description', 'Priority', 'Responsible', 'Completed By', 'Comp. Date', 'Remarks']],
+        body: compRows,
+        margin: { left: ML, right: ML },
+        styles: { fontSize: 8, cellPadding: 2.5, ...tblLine },
+        headStyles: { ...tblHead, fillColor: SUCCESS, fontSize: 8.5, cellPadding: { top: 2, bottom: 2, left: 3, right: 3 } },
+        columnStyles: {
+          0: { cellWidth: 8,   halign: 'center' },
+          1: { cellWidth: 30 },
+          2: { cellWidth: 'auto' },
+          3: { cellWidth: 20,  halign: 'center' },
+          4: { cellWidth: 28,  halign: 'center' },
+          5: { cellWidth: 34 },
+          6: { cellWidth: 22,  halign: 'center' },
+          7: { cellWidth: 40 },
+        },
+        alternateRowStyles: { fillColor: [240, 253, 244] as [number,number,number] },
+        tableLineColor: BORDER, tableLineWidth: 0.4,
+        didParseCell: (data: any) => {
+          if (data.section === 'body' && data.column.index === 3) {
+            const pr = String(data.cell.raw || '');
+            if (pr === 'Critical')  { data.cell.styles.textColor = DANGER;  data.cell.styles.fontStyle = 'bold'; }
+            else if (pr === 'High') { data.cell.styles.textColor = WARNING; data.cell.styles.fontStyle = 'bold'; }
+          }
+        },
+      });
+    } else {
+      doc.setFontSize(9); doc.setTextColor(...NEUTRAL);
+      doc.text(`No completed jobs for ${monthLabel}.`, ML, y + 6);
+      y = y + 12;
+    }
+
+    // ── Sub-section D: Rest of Pending Jobs by Responsible ────────────────
     y = subHeader((doc as any).lastAutoTable?.finalY ?? y + 4, `Pending Jobs by Responsible  (${restPending.length} jobs)`);
     if (restPending.length > 0) {
       const pendRows = restPending.map((j: any, i: number) => [
