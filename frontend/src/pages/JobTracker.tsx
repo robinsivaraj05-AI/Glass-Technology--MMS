@@ -210,23 +210,49 @@ function downloadTemplate() {
   XLSX.writeFile(wb, 'JobTracker_Template.xlsx');
 }
 
+// Convert any date value from Excel (Date object, serial number, or string) → YYYY-MM-DD
+function excelDateToISO(val: any): string {
+  if (!val && val !== 0) return '';
+  if (val instanceof Date) {
+    // cellDates:true gives a UTC-based Date; use UTC getters to get the correct calendar day
+    const y = val.getUTCFullYear(), m = val.getUTCMonth() + 1, d = val.getUTCDate();
+    return `${y}-${String(m).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+  }
+  if (typeof val === 'number') {
+    // Excel date serial (fallback — shouldn't occur when cellDates:true)
+    const d = new Date(Math.round((val - 25569) * 86400000));
+    const y = d.getUTCFullYear(), mo = d.getUTCMonth() + 1, day = d.getUTCDate();
+    return `${y}-${String(mo).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
+  }
+  if (typeof val === 'string') {
+    if (/^\d{4}-\d{2}-\d{2}$/.test(val)) return val;
+    // Try parsing human-readable formats like "1 Jan 23", "01/01/2023", etc.
+    const parsed = new Date(val);
+    if (!isNaN(parsed.getTime())) {
+      const y = parsed.getFullYear(), m = parsed.getMonth() + 1, d = parsed.getDate();
+      return `${y}-${String(m).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    }
+  }
+  return '';
+}
+
 function parseUploadedFile(file: File, employees: Employee[]): Promise<any[]> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = e => {
       try {
         const data = new Uint8Array(e.target!.result as ArrayBuffer);
-        const wb   = XLSX.read(data, { type: 'array' });
+        const wb   = XLSX.read(data, { type: 'array', cellDates: true });
         const ws   = wb.Sheets[wb.SheetNames[0]];
         const rows: any[] = XLSX.utils.sheet_to_json(ws, { defval: '' });
-        const parsed = rows.map((r, i) => ({
+        const parsed = rows.map((r) => ({
           jobId:       '',
           asset:       String(r['Area / Location'] || r['Asset/Equipment'] || r['asset'] || ''),
           description: String(r['Description'] || r['description'] || ''),
           priority:    PRIORITIES.includes(r['Priority']) ? r['Priority'] : 'Medium',
           assignedTo:  String(r['Responsible'] || r['Assigned To'] || r['assignedTo'] || ''),
-          createdDate: r['Created Date'] || today,
-          dueDate:     r['Due Date'] || '',
+          createdDate: excelDateToISO(r['Created Date']) || today,
+          dueDate:     excelDateToISO(r['Due Date']) || '',
           status:      JOB_STATUSES.includes(r['Status']) ? r['Status'] : 'Open',
           remarks:     String(r['Remarks'] || r['remarks'] || ''),
           completedBy: String(r['Doing / Completed By'] || r['Assigned To'] || ''),
