@@ -8,7 +8,7 @@ const PendingJobSchema = new Schema({
   assignedTo:  { type: String, default: '' },
   createdDate: { type: String, default: '' },
   dueDate:     { type: String, default: '' },
-  status:      { type: String, enum: ['Open', 'In Progress', 'On Hold', 'Completed', 'Cancelled', 'Partially Done', 'Follow Up'], default: 'Open' },
+  status:      { type: String, enum: ['Open', 'Ongoing', 'In Progress', 'On Hold', 'Completed', 'Cancelled', 'Partially Done', 'Follow Up'], default: 'Open' },
   remarks:       { type: String, default: '' },
   completedBy:   { type: String, default: '' },
   completedDate: { type: String, default: '' },
