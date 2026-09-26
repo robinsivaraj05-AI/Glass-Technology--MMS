@@ -390,9 +390,6 @@ export default function JobTracker() {
         };
         const newFlw = await apiFetch('/api/followup-jobs', { method: 'POST', body: JSON.stringify(flwPayload) });
         setFollowupJobs(p => [newFlw, ...p]);
-        setTab('followup');
-      } else if (newStatus === 'Completed') {
-        setTab('completed');
       }
     } catch (e: any) { alert(e.message); }
   };
@@ -444,9 +441,6 @@ export default function JobTracker() {
         const flwPayload = { followupId: autoId('FLW', followupJobs), relatedJobId: quickJob.jobId, description: quickJob.description, nextFollowupDate: '', status: 'Pending', responsiblePerson: patch.assignedTo || '', comments: '' };
         const newFlw = await apiFetch('/api/followup-jobs', { method: 'POST', body: JSON.stringify(flwPayload) });
         setFollowupJobs(p => [newFlw, ...p]);
-        setTab('followup');
-      } else if (patch.status === 'Completed') {
-        setTab('completed');
       }
       setQuickJob(null);
     } catch (e: any) { alert(e.message); }
@@ -476,8 +470,6 @@ export default function JobTracker() {
         }
       }
       setShowJobForm(false);
-      if (payload.status === 'Completed') setTab('completed');
-      else if (payload.status === 'Follow Up') setTab('followup');
     } catch (e: any) { alert(e.message); }
   };
   const deleteJob = async (id: string) => {
