@@ -1417,50 +1417,70 @@ async function generateManagementReport(dateFrom: string, dateTo: string, sectio
       y = y + 12;
     }
 
-    // ── Sub-section D: Rest of Pending Jobs by Responsible ────────────────
+    // ── Sub-section D: Pending Jobs grouped by Responsible ───────────────
     y = subHeader((doc as any).lastAutoTable?.finalY ?? y + 4, `Pending Jobs by Responsible  (${restPending.length} jobs)`);
     if (restPending.length > 0) {
-      const pendRows = restPending.map((j: any, i: number) => [
-        i + 1,
-        (j.asset || '—').substring(0, 22),
-        (j.description || '—').substring(0, 50),
-        j.priority || '—',
-        j.assignedTo || '—',
-        j.status || '—',
-        fmtJD(j.createdDate),
-        (j.remarks || '—').substring(0, 35),
-      ]);
-      autoTable(doc, {
-        startY: y,
-        head: [['#', 'Area', 'Description', 'Priority', 'Responsible', 'Status', 'Created', 'Remarks']],
-        body: pendRows,
-        margin: { left: ML, right: ML },
-        styles: { fontSize: 7.5, cellPadding: 2.5, ...tblLine },
-        headStyles: { ...tblHead, fillColor: [31, 41, 55] as [number,number,number] },
-        columnStyles: {
-          0: { cellWidth: 8,   halign: 'center' },
-          1: { cellWidth: 30 },
-          2: { cellWidth: 'auto' },
-          3: { cellWidth: 18,  halign: 'center' },
-          4: { cellWidth: 28,  halign: 'center' },
-          5: { cellWidth: 26,  halign: 'center' },
-          6: { cellWidth: 22,  halign: 'center' },
-          7: { cellWidth: 40 },
-        },
-        alternateRowStyles: tblAlt,
-        tableLineColor: BORDER, tableLineWidth: 0.4,
-        didParseCell: (data: any) => {
-          if (data.section === 'body' && data.column.index === 5) {
-            const st = String(data.cell.raw || '');
-            if (st === 'Follow Up')      { data.cell.styles.textColor = PURPLE;  data.cell.styles.fontStyle = 'bold'; }
-            else if (st === 'Open')      { data.cell.styles.textColor = PRIMARY; data.cell.styles.fontStyle = 'bold'; }
-          }
-          if (data.section === 'body' && data.column.index === 3) {
-            const pr = String(data.cell.raw || '');
-            if (pr === 'Critical')     { data.cell.styles.textColor = DANGER;  data.cell.styles.fontStyle = 'bold'; }
-            else if (pr === 'High')    { data.cell.styles.textColor = WARNING; data.cell.styles.fontStyle = 'bold'; }
-          }
-        },
+      // Build ordered group map — preserve insertion order (sorted by responsible already)
+      const groupMap: Record<string, any[]> = {};
+      restPending.forEach((j: any) => {
+        const key = j.assignedTo || 'Unassigned';
+        if (!groupMap[key]) groupMap[key] = [];
+        groupMap[key].push(j);
+      });
+
+      const pendColStyles = {
+        0: { cellWidth: 8,   halign: 'center' as const },
+        1: { cellWidth: 32 },
+        2: { cellWidth: 'auto' as const },
+        3: { cellWidth: 18,  halign: 'center' as const },
+        4: { cellWidth: 26,  halign: 'center' as const },
+        5: { cellWidth: 22,  halign: 'center' as const },
+        6: { cellWidth: 38 },
+      };
+      const pendDidParseCell = (data: any) => {
+        if (data.section === 'body' && data.column.index === 4) {
+          const st = String(data.cell.raw || '');
+          if (st === 'Follow Up') { data.cell.styles.textColor = PURPLE;  data.cell.styles.fontStyle = 'bold'; }
+          else if (st === 'Open') { data.cell.styles.textColor = PRIMARY; data.cell.styles.fontStyle = 'bold'; }
+        }
+        if (data.section === 'body' && data.column.index === 3) {
+          const pr = String(data.cell.raw || '');
+          if (pr === 'Critical')  { data.cell.styles.textColor = DANGER;  data.cell.styles.fontStyle = 'bold'; }
+          else if (pr === 'High') { data.cell.styles.textColor = WARNING; data.cell.styles.fontStyle = 'bold'; }
+        }
+      };
+
+      // One table per responsible person
+      Object.entries(groupMap).forEach(([responsible, jobs]) => {
+        const curY = (doc as any).lastAutoTable?.finalY ?? y;
+        // Responsible person label bar
+        const lblY = curY + 5;
+        doc.setFillColor(...PRIMARY);
+        doc.roundedRect(ML, lblY, W - ML * 2, 7, 1.5, 1.5, 'F');
+        doc.setFont('helvetica', 'bold'); doc.setFontSize(9); doc.setTextColor(...WHITE);
+        doc.text(`${responsible}  —  ${jobs.length} job${jobs.length !== 1 ? 's' : ''}`, ML + 4, lblY + 5);
+
+        const rows = jobs.map((j: any, i: number) => [
+          i + 1,
+          (j.asset || '—').substring(0, 24),
+          (j.description || '—').substring(0, 52),
+          j.priority || '—',
+          j.status || '—',
+          fmtJD(j.createdDate),
+          (j.remarks || '—').substring(0, 38),
+        ]);
+        autoTable(doc, {
+          startY: lblY + 7,
+          head: [['#', 'Area', 'Description', 'Priority', 'Status', 'Created', 'Remarks']],
+          body: rows,
+          margin: { left: ML, right: ML },
+          styles: { fontSize: 8, cellPadding: 2.5, ...tblLine },
+          headStyles: { ...tblHead, fillColor: [31, 41, 55] as [number,number,number], fontSize: 8, cellPadding: { top: 2, bottom: 2, left: 3, right: 3 } },
+          columnStyles: pendColStyles,
+          alternateRowStyles: tblAlt,
+          tableLineColor: BORDER, tableLineWidth: 0.4,
+          didParseCell: pendDidParseCell,
+        });
       });
     } else {
       doc.setFontSize(9); doc.setTextColor(...NEUTRAL);
