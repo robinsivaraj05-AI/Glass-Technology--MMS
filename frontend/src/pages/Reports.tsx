@@ -1552,9 +1552,10 @@ async function generateManagementReport(dateFrom: string, dateTo: string, sectio
     y = subHeader(((doc as any).lastAutoTable?.finalY ?? y) + 8, `Pending Jobs by Responsible  (${restPending.length} jobs)`);
     if (restPending.length > 0) {
       const groupMap: Record<string, any[]> = {};
+      const groupLabel: Record<string, string> = {};
       restPending.forEach((j: any) => {
-        const key = j.assignedTo || 'Unassigned';
-        if (!groupMap[key]) groupMap[key] = [];
+        const key = (j.assignedTo || '').trim().toUpperCase() || 'UNASSIGNED';
+        if (!groupMap[key]) { groupMap[key] = []; groupLabel[key] = (j.assignedTo || 'Unassigned').trim(); }
         groupMap[key].push(j);
       });
 
@@ -1592,7 +1593,7 @@ async function generateManagementReport(dateFrom: string, dateTo: string, sectio
         doc.setFillColor(...PRIMARY);
         doc.roundedRect(ML, lblY, W - ML * 2, 7, 1.5, 1.5, 'F');
         doc.setFont('helvetica', 'bold'); doc.setFontSize(9); doc.setTextColor(...WHITE);
-        doc.text(`${responsible}  —  ${jobs.length} job${jobs.length !== 1 ? 's' : ''}`, ML + 4, lblY + 5);
+        doc.text(`${groupLabel[responsible] || responsible}  —  ${jobs.length} job${jobs.length !== 1 ? 's' : ''}`, ML + 4, lblY + 5);
 
         const rows = jobs.map((j: any, i: number) => [
           i + 1,
