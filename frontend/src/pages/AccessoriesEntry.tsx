@@ -1,5 +1,5 @@
 ﻿import { useState, useEffect, useCallback } from 'react';
-import { Plus, Edit2, Trash2, X, Save, Search, Fuel, ChevronDown, ChevronRight } from 'lucide-react';
+import { Plus, Edit2, Trash2, X, Save, Search, Fuel, ChevronDown, ChevronRight, Copy } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 interface EquipmentOption { _id: string; equipmentName: string; vendorCompany: string; }
@@ -134,6 +134,22 @@ export default function AccessoriesEntry() {
     });
     setItems(e.items.map(it => ({ ...it, id: `i${++rowKey}` })));
     setModal(true);
+  };
+
+  // Repeat: copy all details from an existing entry as a new entry with today's date
+  const openRepeat = (e: AccessoryEntry) => {
+    setEditing(null); // new entry, not an edit
+    setForm({
+      entryDate: new Date().toISOString().slice(0, 10), // today
+      equipmentId: e.equipmentId ?? '', equipmentName: e.equipmentName ?? '',
+      poNumber: '', // clear PO — user will enter new invoice
+      department: e.department, area: e.area,
+      approvedBy: e.approvedBy ?? '', remarks: '',
+      vatPercent: e.vatPercent ?? 5,
+    });
+    setItems(e.items.map(it => ({ ...it, id: `i${++rowKey}` })));
+    setModal(true);
+    toast('Entry duplicated — update date & PO number then save.', { icon: '📋' });
   };
 
   const updateItem = (id: string, patch: Partial<AccessoryItem>) => {
@@ -304,6 +320,7 @@ export default function AccessoriesEntry() {
                           ) : null}
                         </td>
                         <td style={{ ...tdStyle, whiteSpace: 'nowrap' }} onClick={ev => ev.stopPropagation()}>
+                          <button onClick={() => openRepeat(e)} title="Repeat — create new entry with same details" style={{ background: 'none', border: 'none', color: '#10b981', cursor: 'pointer', padding: 3 }}><Copy size={13}/></button>
                           <button onClick={() => openEdit(e)} style={{ background: 'none', border: 'none', color: '#3b82f6', cursor: 'pointer', padding: 3 }}><Edit2 size={13}/></button>
                           <button onClick={() => handleDelete(e._id)} style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', padding: 3 }}><Trash2 size={13}/></button>
                         </td>
