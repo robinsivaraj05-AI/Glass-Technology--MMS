@@ -659,7 +659,7 @@ async function generateManagementReport(dateFrom: string, dateTo: string, sectio
         tableWidth: W - ML * 2,
         styles: { fontSize: 8.5, cellPadding: { top: rPad, bottom: rPad, left: 3, right: 3 }, lineColor: [160, 195, 170], lineWidth: 0.2 },
         headStyles: { fillColor: SUCCESS, textColor: WHITE, fontStyle: 'bold', fontSize: 9, cellPadding: { top: 3, bottom: 3, left: 3, right: 3 } },
-        columnStyles: { 0: { halign: 'center', cellWidth: 8 }, 1: { halign: 'left' }, 2: { halign: 'center', cellWidth: 32 }, 3: { halign: 'center', cellWidth: 28 }, 4: { halign: 'center', cellWidth: 28 }, 5: { halign: 'right', cellWidth: 30 } },
+        columnStyles: { 0: { halign: 'center', cellWidth: 12 }, 1: { halign: 'left' }, 2: { halign: 'center', cellWidth: 32 }, 3: { halign: 'center', cellWidth: 28 }, 4: { halign: 'center', cellWidth: 28 }, 5: { halign: 'right', cellWidth: 30 } },
         alternateRowStyles: { fillColor: [240, 253, 244] },
         tableLineColor: [100, 160, 120], tableLineWidth: 0.5,
       });
@@ -786,7 +786,7 @@ async function generateManagementReport(dateFrom: string, dateTo: string, sectio
         styles: { fontSize: 7.5, cellPadding: 2.5, ...tblLine },
         headStyles: tblHead,
         columnStyles: {
-          0: { halign: 'center', cellWidth: 7 },
+          0: { halign: 'center', cellWidth: 12 },
           5: { halign: 'center' },
           6: { halign: 'right' },
           7: { halign: 'right' },
@@ -1410,7 +1410,6 @@ async function generateManagementReport(dateFrom: string, dateTo: string, sectio
       const flwRows = [...followupJobsList, ...completedFollowups].map((f: any, i: number) => [
         i + 1,
         (f.description || '—').substring(0, 50),
-        f.relatedJobId || '—',
         fmtJD(f.nextFollowupDate),
         f.status || '—',
         (f.responsiblePerson || '—').substring(0, 20),
@@ -1418,24 +1417,23 @@ async function generateManagementReport(dateFrom: string, dateTo: string, sectio
       ]);
       autoTable(doc, {
         startY: y,
-        head: [['Sl', 'Description', 'Job Ref', 'Follow-up Date', 'Status', 'Responsible', 'Comments']],
+        head: [['Sl', 'Description', 'Follow-up Date', 'Status', 'Responsible', 'Comments']],
         body: flwRows,
         margin: { left: ML, right: ML },
         styles: { fontSize: 9.5, cellPadding: 3, ...tblLine },
         headStyles: { ...tblHead, fillColor: PURPLE, fontSize: 9, cellPadding: { top: 2, bottom: 2, left: 3, right: 3 } },
         columnStyles: {
-          0: { cellWidth: 8,  halign: 'center' },
+          0: { cellWidth: 12, halign: 'center' },
           1: { cellWidth: 'auto' },
-          2: { cellWidth: 22, halign: 'center', fontStyle: 'bold', textColor: PRIMARY },
-          3: { cellWidth: 24, halign: 'center' },
-          4: { cellWidth: 26, halign: 'center' },
-          5: { cellWidth: 38 },
-          6: { cellWidth: 50 },
+          2: { cellWidth: 24, halign: 'center' },
+          3: { cellWidth: 26, halign: 'center' },
+          4: { cellWidth: 38 },
+          5: { cellWidth: 50 },
         },
         alternateRowStyles: tblAlt,
         tableLineColor: BORDER, tableLineWidth: 0.4,
         didParseCell: (data: any) => {
-          if (data.section === 'body' && data.column.index === 4) {
+          if (data.section === 'body' && data.column.index === 3) {
             const st = String(data.cell.raw || '');
             if (st === 'Completed')        { data.cell.styles.textColor = SUCCESS;  data.cell.styles.fontStyle = 'bold'; }
             else if (st === 'Pending')     { data.cell.styles.textColor = WARNING;  data.cell.styles.fontStyle = 'bold'; }
@@ -1472,7 +1470,7 @@ async function generateManagementReport(dateFrom: string, dateTo: string, sectio
         styles: { fontSize: 8, cellPadding: 2.5, ...tblLine },
         headStyles: { ...tblHead, fillColor: TEAL, fontSize: 8.5, cellPadding: { top: 2, bottom: 2, left: 3, right: 3 } },
         columnStyles: {
-          0: { cellWidth: 8,   halign: 'center' },
+          0: { cellWidth: 12,  halign: 'center' },
           1: { cellWidth: 30 },
           2: { cellWidth: 'auto' },
           3: { cellWidth: 20,  halign: 'center' },
@@ -1525,7 +1523,7 @@ async function generateManagementReport(dateFrom: string, dateTo: string, sectio
         styles: { fontSize: 8, cellPadding: 2.5, ...tblLine },
         headStyles: { ...tblHead, fillColor: SUCCESS, fontSize: 8.5, cellPadding: { top: 2, bottom: 2, left: 3, right: 3 } },
         columnStyles: {
-          0: { cellWidth: 8,   halign: 'center' },
+          0: { cellWidth: 12,  halign: 'center' },
           1: { cellWidth: 30 },
           2: { cellWidth: 'auto' },
           3: { cellWidth: 20,  halign: 'center' },
@@ -1561,7 +1559,7 @@ async function generateManagementReport(dateFrom: string, dateTo: string, sectio
       });
 
       const pendColStyles = {
-        0: { cellWidth: 8,   halign: 'center' as const },
+        0: { cellWidth: 12,  halign: 'center' as const },
         1: { cellWidth: 32 },
         2: { cellWidth: 'auto' as const },
         3: { cellWidth: 18,  halign: 'center' as const },
