@@ -22,7 +22,7 @@ const MONTHS = ['January','February','March','April','May','June',
                 'July','August','September','October','November','December'];
 
 // statuses that mean a PO has been raised (includes Payment Done — fully completed items)
-const PO_DONE_STATUSES = new Set(['PO done', 'Material Not Delivered', 'Material Received', 'Payment Done']);
+const PO_DONE_STATUSES = new Set(['PO done', 'Partially Received', 'Material Received', 'Payment Done']);
 // statuses that mean material has actually been received (cost used)
 const RECEIVED_STATUSES = new Set(['Material Received', 'Payment Done']);
 
@@ -74,7 +74,7 @@ export default function PurchaseCosting() {
   // Still in transit (PO done but material not received yet)
   const inTransit = useMemo(() =>
     records.filter(r =>
-      (r.currentStatus === 'PO done' || r.currentStatus === 'Material Not Delivered') &&
+      (r.currentStatus === 'PO done' || r.currentStatus === 'Partially Received') &&
       inMonth(r.requestDate, selYear, selMonth)
     ),
     [records, selYear, selMonth]
@@ -110,7 +110,7 @@ export default function PurchaseCosting() {
   );
   const carryOverBudg  = carryOver.reduce((s, r) => s + (r.budget || 0), 0);
   const carryOverPO    = carryOver.filter(r => PO_DONE_STATUSES.has(r.currentStatus));
-  const carryOverTran  = carryOver.filter(r => r.currentStatus === 'PO done' || r.currentStatus === 'Material Not Delivered');
+  const carryOverTran  = carryOver.filter(r => r.currentStatus === 'PO done' || r.currentStatus === 'Partially Received');
   const prevYear       = selYear - 1;
 
   // Yearly breakdown — one row per month
@@ -119,7 +119,7 @@ export default function PurchaseCosting() {
       const m = i + 1;
       const recv = records.filter(r => RECEIVED_STATUSES.has(r.currentStatus) && inMonth(r.requestDate, selYear, m));
       const po   = records.filter(r => PO_DONE_STATUSES.has(r.currentStatus) && inMonth(r.requestDate, selYear, m));
-      const tran = records.filter(r => (r.currentStatus === 'PO done' || r.currentStatus === 'Material Not Delivered') && inMonth(r.requestDate, selYear, m));
+      const tran = records.filter(r => (r.currentStatus === 'PO done' || r.currentStatus === 'Partially Received') && inMonth(r.requestDate, selYear, m));
       const budg = records.filter(r => inMonth(r.requestDate, selYear, m) && (r.budget || 0) > 0);
       return {
         month: name,

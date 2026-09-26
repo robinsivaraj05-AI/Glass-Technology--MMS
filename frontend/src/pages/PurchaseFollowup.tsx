@@ -44,7 +44,7 @@ const STATUS_WEB: Record<string, { bg: string; tc: string }> = {
   'Technical Review':      { bg: 'rgba(234,88,12,0.85)',   tc: '#fff' },
   'Quotation Received':    { bg: 'rgba(139,92,246,0.85)',  tc: '#fff' },
   'PO done':               { bg: 'rgba(180,130,0,0.90)',   tc: '#fff' },
-  'Material Not Delivered':{ bg: 'rgba(220,38,38,0.85)',   tc: '#fff' },
+  'Partially Received':{ bg: 'rgba(220,38,38,0.85)',   tc: '#fff' },
   'Rejected':              { bg: 'rgba(71,85,105,0.85)',   tc: '#fff' },
   'Material Received':     { bg: 'rgba(22,163,74,0.85)',   tc: '#fff' },
 };
@@ -54,7 +54,7 @@ const STATUS_XLS: Record<string, string> = {
   'Technical Review':      '#FFA500',
   'Quotation Received':    '#7030A0',
   'PO done':               '#B8860B',
-  'Material Not Delivered':'#FF0000',
+  'Partially Received':'#FF0000',
   'Rejected':              '#808080',
   'Material Received':     '#00B050',
 };
@@ -100,13 +100,13 @@ function mapRFQStatus(s: string): string {
   return ({ draft:'RFQ created', sent:'Technical Review', 'quotation-received':'Quotation Received', 'converted-to-po':'PO done', closed:'Material Received' } as Record<string,string>)[s] || s;
 }
 function mapPOStatus(s: string): string {
-  return ({ ordered:'PO done', acknowledged:'PO done', 'in-transit':'Material Not Delivered', 'partially-received':'Material Not Delivered', received:'Material Received', delayed:'Material Not Delivered', cancelled:'Rejected' } as Record<string,string>)[s] || s;
+  return ({ ordered:'PO done', acknowledged:'PO done', 'in-transit':'Partially Received', 'partially-received':'Partially Received', received:'Material Received', delayed:'Partially Received', cancelled:'Rejected' } as Record<string,string>)[s] || s;
 }
 
 // Higher rank = further along in the workflow. Sync never downgrades.
 const STATUS_RANK: Record<string, number> = {
   'RFQ created': 1, 'Technical Review': 2, 'Quotation Received': 3,
-  'PO done': 4, 'Material Not Delivered': 4,
+  'PO done': 4, 'Partially Received': 4,
   'Material Received': 5, 'Payment Done': 6, 'Rejected': 0,
 };
 function mapPriority(p: string): string {
@@ -115,9 +115,9 @@ function mapPriority(p: string): string {
 
 const SEED: FollowupRecord[] = [
   { id:'f1',  section:'', itemDescription:'RFQ-01(2026) Furnace Heat Up panel.',         requestDate:'2026-01-02', requiredTimeline:'Second Priority', currentStatus:'Material Received',     paymentStatus:'Payment Under-Progress', prNumber:'PR10000031',           reqDate:'2026-12-01', budget:5800, leadTime:'2 week execution',  workingTime:'',        source:'manual', remarks:'', receivedDate:'2026-03-10', paymentHistory:[] },
-  { id:'f2',  section:'', itemDescription:'RFQ-02(2026) Lehr thermocouple.',              requestDate:'2026-01-02', requiredTimeline:'Need',             currentStatus:'Material Not Delivered', paymentStatus:'',                      prNumber:'PR10000040',           reqDate:'2026-09-01', budget:6300, leadTime:'1 week execution',  workingTime:'',        source:'manual', remarks:'', receivedDate:'', paymentHistory:[] },
+  { id:'f2',  section:'', itemDescription:'RFQ-02(2026) Lehr thermocouple.',              requestDate:'2026-01-02', requiredTimeline:'Need',             currentStatus:'Partially Received', paymentStatus:'',                      prNumber:'PR10000040',           reqDate:'2026-09-01', budget:6300, leadTime:'1 week execution',  workingTime:'',        source:'manual', remarks:'', receivedDate:'', paymentHistory:[] },
   { id:'f3',  section:'', itemDescription:'Rolling Machine (Rail & Rope).',               requestDate:'2026-01-15', requiredTimeline:'Need',             currentStatus:'RFQ created',           paymentStatus:'',                      prNumber:'Waiting for Quotation',reqDate:'',          budget:0,    leadTime:'RFQ under progress', workingTime:'October', source:'manual', remarks:'', receivedDate:'', paymentHistory:[] },
-  { id:'f4',  section:'', itemDescription:'RFQ-07 (2026) Step Down Transformer.',         requestDate:'2026-02-10', requiredTimeline:'Primary Priority', currentStatus:'Material Not Delivered', paymentStatus:'',                      prNumber:'Older One',            reqDate:'',          budget:5800, leadTime:'1 week',             workingTime:'',        source:'manual', remarks:'', receivedDate:'', paymentHistory:[] },
+  { id:'f4',  section:'', itemDescription:'RFQ-07 (2026) Step Down Transformer.',         requestDate:'2026-02-10', requiredTimeline:'Primary Priority', currentStatus:'Partially Received', paymentStatus:'',                      prNumber:'Older One',            reqDate:'',          budget:5800, leadTime:'1 week',             workingTime:'',        source:'manual', remarks:'', receivedDate:'', paymentHistory:[] },
   { id:'f5',  section:'', itemDescription:'Double Edger - Siemens Drive.',                requestDate:'2026-02-12', requiredTimeline:'Needed',           currentStatus:'PO done',               paymentStatus:'',                      prNumber:'Service',              reqDate:'',          budget:3300, leadTime:'6 week delivery',   workingTime:'',        source:'manual', remarks:'', receivedDate:'', paymentHistory:[] },
   { id:'f6',  section:'', itemDescription:'RFQ for robot EMD Tool',                       requestDate:'',          requiredTimeline:'',                 currentStatus:'',                      paymentStatus:'',                      prNumber:'',                     reqDate:'',          budget:0,    leadTime:'',                  workingTime:'',        source:'manual', remarks:'', receivedDate:'', paymentHistory:[] },
   { id:'f7',  section:'', itemDescription:'Utility starter',                              requestDate:'',          requiredTimeline:'',                 currentStatus:'',                      paymentStatus:'',                      prNumber:'',                     reqDate:'',          budget:0,    leadTime:'',                  workingTime:'',        source:'manual', remarks:'', receivedDate:'', paymentHistory:[] },
@@ -382,7 +382,7 @@ export default function PurchaseFollowup() {
   const stats = {
     total:     records.length,
     rfqOrReview: records.filter(r => r.currentStatus === 'RFQ created' || r.currentStatus === 'Technical Review').length,
-    notDelivered: records.filter(r => r.currentStatus === 'Material Not Delivered').length,
+    notDelivered: records.filter(r => r.currentStatus === 'Partially Received').length,
     quotation: records.filter(r => r.currentStatus === 'Quotation Received' || r.currentStatus === 'PO done').length,
     received:  records.filter(r => r.currentStatus === 'Material Received').length,
     blank:     records.filter(r => !r.currentStatus).length,
