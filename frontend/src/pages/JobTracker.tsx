@@ -35,6 +35,7 @@ const PRIORITY_CFG: Record<string, { bg: string; tc: string }> = {
 };
 const JOB_STATUS_CFG: Record<string, { bg: string; tc: string }> = {
   'Open':           { bg: 'rgba(59,130,246,0.15)',  tc: '#3b82f6' },
+  'Ongoing':        { bg: 'rgba(20,184,166,0.15)',  tc: '#14b8a6' },
   'Completed':      { bg: 'rgba(34,197,94,0.15)',   tc: '#22c55e' },
   'Partially Done': { bg: 'rgba(245,158,11,0.15)',  tc: '#f59e0b' },
   'Follow Up':      { bg: 'rgba(168,85,247,0.15)',  tc: '#a855f7' },
@@ -57,7 +58,7 @@ const FREQ_COLORS: Record<string, string> = {
   Daily: '#60a5fa', Weekly: '#34d399', Monthly: '#a78bfa', Quarterly: '#f59e0b', Yearly: '#f472b6',
 };
 const FREQUENCIES  = ['Daily', 'Weekly', 'Monthly', 'Quarterly', 'Yearly'];
-const JOB_STATUSES     = ['Open', 'Completed', 'Partially Done', 'Follow Up'];
+const JOB_STATUSES     = ['Open', 'Ongoing', 'Completed', 'Partially Done', 'Follow Up'];
 const FLW_STATUSES     = ['Pending', 'In Progress', 'Completed', 'Cancelled'];
 const PRIORITIES       = ['Low', 'Medium', 'High', 'Critical'];
 const RESPONSIBLE_LIST = ['GT-E&I', 'EBC', 'Creative', 'GT-PUR', 'GT-IT', 'Contractor', 'GT-M&U', 'GT-PRD', 'OEM', 'Others'];
@@ -179,6 +180,7 @@ function downloadTemplate() {
   const wsRef = XLSX.utils.aoa_to_sheet([
     ['Status Options', 'Priority Options'],
     ['Open',           'Low'],
+    ['Ongoing',        'Medium'],
     ['Completed',      'Medium'],
     ['Partially Done', 'High'],
     ['Follow Up',      'Critical'],
@@ -312,7 +314,7 @@ export default function JobTracker() {
     const todayRems  = reminders.filter(r => r.dueDate === today && r.status !== 'Completed');
     const upcoming   = reminders.filter(r => { const u = daysUntil(r.dueDate); return u !== null && u >= 0 && u <= 7 && r.status !== 'Completed'; });
     const completed  = pendingJobs.filter(j => j.status === 'Completed');
-    const active     = pendingJobs.filter(j => j.status === 'Open' || j.status === 'In Progress');
+    const active     = pendingJobs.filter(j => j.status === 'Open' || j.status === 'Ongoing' || j.status === 'In Progress');
     const needFollow = followupJobs.filter(f => f.status === 'Pending' || f.status === 'In Progress');
     return { total: pendingJobs.length, active: active.length, overdue: overdue.length, completed: completed.length, followup: needFollow.length, todayRems: todayRems.length, upcoming: upcoming.length, overdueList: overdue, todayList: todayRems };
   }, [pendingJobs, followupJobs, reminders]);
