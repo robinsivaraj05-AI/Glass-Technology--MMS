@@ -1,4 +1,5 @@
 ﻿import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { useEffect } from 'react';
 import { Toaster } from 'react-hot-toast';
 import { AuthProvider } from './context/AuthContext';
 import { EmployeeProvider } from './context/EmployeeContext';
@@ -42,9 +43,20 @@ import FinanceEIPurReport from './pages/FinanceEIPurReport';
 import AMC from './pages/AMC';
 import JobTracker from './pages/JobTracker';
 
+function KeepAlive() {
+  useEffect(() => {
+    const ping = () => fetch('/api/health').catch(() => {});
+    ping();
+    const id = setInterval(ping, 10 * 60 * 1000); // every 10 minutes
+    return () => clearInterval(id);
+  }, []);
+  return null;
+}
+
 export default function App() {
   return (
     <AuthProvider>
+      <KeepAlive />
       <EmployeeProvider>
       <BrowserRouter>
         <Toaster

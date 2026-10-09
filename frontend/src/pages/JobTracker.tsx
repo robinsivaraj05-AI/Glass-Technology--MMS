@@ -521,8 +521,10 @@ export default function JobTracker() {
   };
   const deleteJob = async (id: string) => {
     if (!confirm('Delete this job?')) return;
-    await apiFetch(`/api/pending-jobs/${id}`, { method: 'DELETE' });
-    setPendingJobs(p => p.filter(x => x.id !== id));
+    try {
+      await apiFetch(`/api/pending-jobs/${id}`, { method: 'DELETE' });
+      setPendingJobs(p => p.filter(x => x.id !== id));
+    } catch (e: any) { alert(e.message || 'Failed to delete job'); }
   };
 
   // ── Excel upload (upload = add new, update = patch existing by description match) ──
