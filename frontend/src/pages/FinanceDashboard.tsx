@@ -8,6 +8,7 @@ import { DollarSign, Briefcase, Truck, Fuel, TrendingUp, RefreshCw, Filter, File
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import toast from 'react-hot-toast';
+import { apiFetch } from '../utils/api';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 interface OutEntry  { workDate: string; totalCost: number; contractName: string; contractorCompany: string; }
@@ -19,11 +20,6 @@ const fmt    = (n: number) => n.toLocaleString('en-AE');
 const fmtK   = (n: number) => n >= 1000 ? `AED ${(n/1000).toFixed(1)}K` : `AED ${fmt(n)}`;
 const MONTHS = ['','Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 
-async function apiFetch(url: string) {
-  const res = await fetch(url, { headers: { 'Content-Type': 'application/json' } });
-  if (!res.ok) throw new Error(await res.text());
-  return res.json();
-}
 
 function quarterRange(q: number, year: number): [string, string] {
   const s = [[1,1],[4,1],[7,1],[10,1]];

@@ -8,6 +8,7 @@ import {
 import { type FullEmployee } from '../data/employeeData';
 import { useEmployees } from '../context/EmployeeContext';
 import { exportOrgChartPDF } from '../utils/exportOrgPDF';
+import { apiFetch } from '../utils/api';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 interface OrgPos {
@@ -25,11 +26,6 @@ const RS_LABEL: Record<string, string> = {
 
 // ── API ───────────────────────────────────────────────────────────────────────
 const API = '/api/org-positions';
-async function apiFetch(path: string, opts?: RequestInit) {
-  const res = await fetch(path, { headers: { 'Content-Type': 'application/json' }, ...opts });
-  if (!res.ok) throw new Error(await res.text());
-  return res.json();
-}
 
 // ── Tree builder ──────────────────────────────────────────────────────────────
 function buildPosTree(positions: OrgPos[], employees: FullEmployee[]): OrgNode[] {

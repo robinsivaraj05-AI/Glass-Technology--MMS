@@ -1,6 +1,7 @@
 ﻿// @ts-nocheck
 import React, { useState, useCallback, useEffect, useMemo } from 'react';
 import { Plus, Search, Download, Edit2, Trash2, RefreshCw, X, Check, Maximize2 } from 'lucide-react';
+import { apiFetch } from '../utils/api';
 
 interface PaymentTransaction {
   id: string;
@@ -32,12 +33,6 @@ type TableRow =
   | { type: 'section'; label: string }
   | { type: 'data'; record: FollowupRecord; sl: number };
 
-// ── API helper ────────────────────────────────────────────────────────────────
-async function apiFetch(path, options: any = {}) {
-  const res = await fetch(path, { headers: { 'Content-Type': 'application/json' }, ...options });
-  if (!res.ok) { const e = await res.json().catch(() => ({ message: res.statusText })); throw new Error(e.message || 'Request failed'); }
-  return res.json();
-}
 
 const STATUS_WEB: Record<string, { bg: string; tc: string }> = {
   'RFQ created':           { bg: 'rgba(59,130,246,0.85)',  tc: '#fff' },

@@ -5,6 +5,7 @@ import {
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend,
 } from 'recharts';
 import toast from 'react-hot-toast';
+import { apiFetch } from '../utils/api';
 
 interface DashboardData {
   totalEntries:     number;
@@ -37,11 +38,6 @@ const currency = (n: number) => {
 };
 const fullCurrency = (n: number) => `AED ${n.toLocaleString('en-AE')}`;
 
-async function apiFetch(url: string) {
-  const res = await fetch(url);
-  if (!res.ok) throw new Error('Failed');
-  return res.json();
-}
 
 // KPI Card
 function KpiCard({ icon, label, value, sub, color, bg }: { icon: React.ReactNode; label: string; value: string | number; sub?: string; color: string; bg: string }) {

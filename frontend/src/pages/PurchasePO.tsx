@@ -3,6 +3,7 @@ import { useState, useCallback, useEffect, useRef } from 'react';
 import { Plus, Search, Download, Edit2, Trash2, Eye, X, Upload, FileCheck } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { extractPOFromPDF } from '../utils/pdfPOExtractor';
+import { apiFetch } from '../utils/api';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 interface POItem {
@@ -40,12 +41,6 @@ interface PO {
   remarks: string;
 }
 
-// ── API helper ────────────────────────────────────────────────────────────────
-async function apiFetch(path, options: any = {}) {
-  const res = await fetch(path, { headers: { 'Content-Type': 'application/json' }, ...options });
-  if (!res.ok) { const e = await res.json().catch(() => ({ message: res.statusText })); throw new Error(e.message || 'Request failed'); }
-  return res.json();
-}
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 const DEPARTMENTS = ['Electrical', 'Instrumentation', 'Mechanical', 'Utility', 'IT'];

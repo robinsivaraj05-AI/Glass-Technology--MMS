@@ -1,6 +1,7 @@
 ﻿import { useState, useEffect, useCallback } from 'react';
 import { Plus, Edit2, Trash2, X, Save, Search, Fuel, ChevronDown, ChevronRight, Copy } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { apiFetch } from '../utils/api';
 
 interface EquipmentOption { _id: string; equipmentName: string; vendorCompany: string; }
 
@@ -72,11 +73,6 @@ const BLANK_FORM: FormState = {
   vatPercent: 5,
 };
 
-async function apiFetch(url: string, opts?: RequestInit) {
-  const res = await fetch(url, { headers: { 'Content-Type': 'application/json' }, ...opts });
-  if (!res.ok) throw new Error(await res.text());
-  return res.json();
-}
 
 export default function AccessoriesEntry() {
   const [entries,   setEntries]   = useState<AccessoryEntry[]>([]);

@@ -1,6 +1,7 @@
 import { useState, useCallback, useEffect } from 'react';
 import { FileSpreadsheet, FileDown, Filter, RefreshCw, Truck, DollarSign, FileText, ChevronDown, ChevronRight, Fuel, Clock } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { apiFetch } from '../utils/api';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 interface EquipOption { _id: string; equipmentName: string; vendorCompany: string; equipmentType: string; }
@@ -51,11 +52,6 @@ const fmt   = (n: number) => n.toLocaleString('en-AE');
 const fmtD  = (d: string) => new Date(d).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
 const fmtS  = (d: string) => new Date(d).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: '2-digit' });
 
-async function apiFetch(url: string) {
-  const res = await fetch(url, { headers: { 'Content-Type': 'application/json' } });
-  if (!res.ok) throw new Error(await res.text());
-  return res.json();
-}
 
 function quarterRange(q: number, year: number): [string, string] {
   const s = [[1,1],[4,1],[7,1],[10,1]];

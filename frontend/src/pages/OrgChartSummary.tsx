@@ -5,6 +5,7 @@ import {
   Users, CheckCircle2, Clock, AlertCircle, RefreshCw, Download,
 } from 'lucide-react';
 import { exportOrgChartPDF } from '../utils/exportOrgPDF';
+import { apiFetch } from '../utils/api';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 interface OrgPos {
@@ -23,11 +24,6 @@ interface StatRow {
 
 // ── API ───────────────────────────────────────────────────────────────────────
 const API = '/api/org-positions';
-async function apiFetch(path: string, opts?: RequestInit) {
-  const res = await fetch(path, { headers: { 'Content-Type': 'application/json' }, ...opts });
-  if (!res.ok) throw new Error(await res.text());
-  return res.json();
-}
 
 // ── Role order — covers both roleCategory and role fallback values ────────────
 const ROLE_ORDER = [

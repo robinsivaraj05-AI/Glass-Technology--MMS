@@ -5,6 +5,7 @@ import {
   CheckCircle, XCircle, AlertTriangle, Edit2, Trash2, Eye, X,
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
+import { apiFetch } from '../utils/api';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 interface MachineRecord {
@@ -34,12 +35,6 @@ interface MachineRecord {
   remarks: string;
 }
 
-// ── API helper ────────────────────────────────────────────────────────────────
-async function apiFetch(path, options: any = {}) {
-  const res = await fetch(path, { headers: { 'Content-Type': 'application/json' }, ...options });
-  if (!res.ok) { const e = await res.json().catch(() => ({ message: res.statusText })); throw new Error(e.message || 'Request failed'); }
-  return res.json();
-}
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 const CATEGORIES  = ['Motor', 'Pump', 'Compressor', 'Fan / Blower', 'Conveyor', 'Crane / Hoist', 'Chiller', 'Cooling Tower', 'Boiler', 'Generator', 'Transformer', 'Panel / Switchgear', 'Other'];

@@ -1,6 +1,7 @@
 import { useState, useCallback, useEffect } from 'react';
 import { FileSpreadsheet, FileDown, Filter, RefreshCw, Users, DollarSign, FileText, ChevronDown, ChevronRight } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { apiFetch } from '../utils/api';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 interface WorkerItem {
@@ -59,11 +60,6 @@ async function loadLogoBase64(): Promise<string | null> {
   } catch { return null; }
 }
 
-async function apiFetch(url: string) {
-  const res = await fetch(url, { headers: { 'Content-Type': 'application/json' } });
-  if (!res.ok) throw new Error(await res.text());
-  return res.json();
-}
 
 const fmt  = (n: number) => n.toLocaleString('en-AE');
 const fmtD = (d: string) => new Date(d).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });

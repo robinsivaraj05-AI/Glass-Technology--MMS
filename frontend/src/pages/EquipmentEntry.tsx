@@ -2,6 +2,7 @@
 import { Plus, Edit2, Trash2, X, Save, Search, ClipboardList, Copy, FileDown, Upload } from 'lucide-react';
 import toast from 'react-hot-toast';
 import * as XLSX from 'xlsx';
+import { apiFetch } from '../utils/api';
 
 interface EquipmentOption {
   _id: string;
@@ -92,11 +93,6 @@ const statusStyle: Record<string, { bg: string; color: string }> = {
   'Pending':     { bg: '#fef9c3', color: '#a16207' },
 };
 
-async function apiFetch(url: string, opts?: RequestInit) {
-  const res = await fetch(url, { headers: { 'Content-Type': 'application/json' }, ...opts });
-  if (!res.ok) throw new Error(await res.text());
-  return res.json();
-}
 
 export default function EquipmentEntry() {
   const [entries,   setEntries]   = useState<Entry[]>([]);

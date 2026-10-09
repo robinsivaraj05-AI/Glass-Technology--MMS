@@ -2,6 +2,7 @@
 import { Plus, Edit2, Trash2, X, Save, Search, FileText, CheckCircle, Clock, XCircle, Building2 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useAuth } from '../context/AuthContext';
+import { apiFetch } from '../utils/api';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 interface Contract {
@@ -41,11 +42,6 @@ const statusStyle: Record<string, { bg: string; color: string; icon: React.React
   Closed:  { bg: '#fee2e2', color: '#dc2626', icon: <XCircle size={12}/> },
 };
 
-async function apiFetch(url: string, opts?: RequestInit) {
-  const res = await fetch(url, { headers: { 'Content-Type': 'application/json' }, ...opts });
-  if (!res.ok) throw new Error(await res.text());
-  return res.json();
-}
 
 export default function ContractMaster() {
   const { user } = useAuth();

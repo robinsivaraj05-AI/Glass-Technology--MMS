@@ -2,6 +2,7 @@
 import { Plus, Edit2, Trash2, X, Save, Search, ClipboardList, Filter, UserPlus, Copy, FileDown, Upload } from 'lucide-react';
 import toast from 'react-hot-toast';
 import * as XLSX from 'xlsx';
+import { apiFetch } from '../utils/api';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 interface Contract { _id: string; contractName: string; contractorCompany: string; paymentTerms: string; }
@@ -118,11 +119,6 @@ const statusStyle: Record<string, { bg: string; color: string }> = {
   Pending:       { bg: '#fef9c3', color: '#a16207' },
 };
 
-async function apiFetch(url: string, opts?: RequestInit) {
-  const res = await fetch(url, { headers: { 'Content-Type': 'application/json' }, ...opts });
-  if (!res.ok) throw new Error(await res.text());
-  return res.json();
-}
 
 const thStyle: React.CSSProperties = {
   padding: '8px 10px', textAlign: 'left', fontSize: 10, fontWeight: 700,

@@ -3,6 +3,7 @@ import React, { useState, useCallback, useEffect } from 'react';
 import { Plus, Search, Download, Edit2, Trash2, Eye, X, Printer } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { useEmployees } from '../context/EmployeeContext';
+import { apiFetch } from '../utils/api';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 interface RFQItem {
@@ -60,18 +61,6 @@ const STATUS_CFG: Record<string, { label: string; color: string; bg: string }> =
   'closed':             { label: 'Closed',             color: '#64748b', bg: 'rgba(100,116,139,0.12)' },
 };
 
-// ── API helper ────────────────────────────────────────────────────────────────
-async function apiFetch(path, options = {}) {
-  const res = await fetch(path, {
-    headers: { 'Content-Type': 'application/json' },
-    ...options,
-  });
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({ message: res.statusText }));
-    throw new Error(err.message || 'Request failed');
-  }
-  return res.json();
-}
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 function nextRFQNo(existing: RFQ[]): string {

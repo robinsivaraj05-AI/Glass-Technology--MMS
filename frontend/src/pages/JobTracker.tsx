@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import { apiFetch } from '../utils/api';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 interface PendingJob {
@@ -108,11 +109,6 @@ function isOverdue(dueDate: string, status: string) {
 }
 function autoId(prefix: string, list: any[]) {
   return `${prefix}-${new Date().getFullYear()}-${String(list.length + 1).padStart(3, '0')}`;
-}
-async function apiFetch(path: string, opts: any = {}) {
-  const res = await fetch(path, { headers: { 'Content-Type': 'application/json' }, ...opts });
-  if (!res.ok) { const e = await res.json().catch(() => ({ message: res.statusText })); throw new Error(e.message); }
-  return res.json();
 }
 
 // ── UI primitives ─────────────────────────────────────────────────────────────

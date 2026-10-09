@@ -5,6 +5,7 @@ import {
   Plus, Search, Download, FileSpreadsheet, Upload, XCircle, Trash2, Edit2, Info,
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
+import { apiFetch } from '../utils/api';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 interface CalibrationRecord {
@@ -23,12 +24,6 @@ interface CalibrationRecord {
   frequency: string;
 }
 
-// ── API helper ────────────────────────────────────────────────────────────────
-async function apiFetch(path, options: any = {}) {
-  const res = await fetch(path, { headers: { 'Content-Type': 'application/json' }, ...options });
-  if (!res.ok) { const e = await res.json().catch(() => ({ message: res.statusText })); throw new Error(e.message || 'Request failed'); }
-  return res.json();
-}
 
 const SEED_DATA: CalibrationRecord[] = [
   { id: '1', instrumentId: 'PT-023', name: 'Pressure Transmitter 0-10 bar',  location: 'Process Line 1',   type: 'External', vendor: 'Endress+Hauser',       lastDate: '2026-01-15', nextDate: '2026-07-28', status: 'due-soon', certificate: 'CAL-2026-001', range: '0-10 bar',       accuracy: '±0.1%',    frequency: 'Half Yearly' },
