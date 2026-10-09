@@ -18,12 +18,14 @@ export async function apiFetch(path: string, opts: RequestInit = {}): Promise<an
       });
       clearTimeout(timeout);
 
-      // Render returns 503 during cold start — treat as retryable network issue
-      if (res.status === 503 && attempt < maxRetries) {
+      // Render returns 503/429 during cold start or rate limiting — retry with backoff
+      if ((res.status === 503 || res.status === 429) && attempt < maxRetries) {
         if (!wakeToastId) {
           wakeToastId = toast.loading('Server is starting up, please wait…', { duration: 60000 });
         }
-        await new Promise(r => setTimeout(r, retryDelays[attempt]));
+        // 429 = rate limited, wait longer before retry
+        const wait = res.status === 429 ? retryDelays[attempt] * 2 : retryDelays[attempt];
+        await new Promise(r => setTimeout(r, wait));
         continue;
       }
 
