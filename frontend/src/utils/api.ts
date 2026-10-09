@@ -1,8 +1,44 @@
 import toast from 'react-hot-toast';
 
+// ── Server warm-up guard ───────────────────────────────────────────────────────
+// Before any API call fires, we confirm the server is reachable.
+// All calls queue up here during cold start; once the server responds they all proceed.
+let serverReady = false;
+let warmupPromise: Promise<void> | null = null;
+
+async function warmupServer(): Promise<void> {
+  for (let i = 0; i < 10; i++) {
+    try {
+      const controller = new AbortController();
+      const t = setTimeout(() => controller.abort(), 35000);
+      const res = await fetch('/api/health', { signal: controller.signal });
+      clearTimeout(t);
+      if (res.ok || res.status < 500) { serverReady = true; return; }
+    } catch {}
+    if (i < 9) await new Promise(r => setTimeout(r, 6000));
+  }
+}
+
+export function startServerWarmup() {
+  if (!warmupPromise) {
+    warmupPromise = warmupServer();
+  }
+}
+// ─────────────────────────────────────────────────────────────────────────────
+
 let wakeToastId: string | null = null;
 
 export async function apiFetch(path: string, opts: RequestInit = {}): Promise<any> {
+  // Wait for server to be confirmed ready before sending any real API request
+  if (!serverReady) {
+    if (!warmupPromise) startServerWarmup();
+    if (!wakeToastId) {
+      wakeToastId = toast.loading('Server is starting up, please wait…', { duration: 120000 });
+    }
+    await warmupPromise;
+    if (wakeToastId) { toast.dismiss(wakeToastId); wakeToastId = null; }
+  }
+
   const maxRetries = 4;
   const retryDelays = [5000, 10000, 15000, 20000]; // 5s, 10s, 15s, 20s between retries
 

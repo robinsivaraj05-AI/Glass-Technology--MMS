@@ -1,6 +1,10 @@
 ﻿import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { useEffect } from 'react';
 import { Toaster } from 'react-hot-toast';
+import { startServerWarmup } from './utils/api';
+
+// Kick off server warm-up immediately at module load — before any component mounts
+startServerWarmup();
 import { AuthProvider } from './context/AuthContext';
 import { EmployeeProvider } from './context/EmployeeContext';
 import Layout from './components/layout/Layout';
@@ -46,8 +50,7 @@ import JobTracker from './pages/JobTracker';
 function KeepAlive() {
   useEffect(() => {
     const ping = () => fetch('/api/health').catch(() => {});
-    ping();
-    const id = setInterval(ping, 10 * 60 * 1000); // every 10 minutes
+    const id = setInterval(ping, 8 * 60 * 1000); // every 8 minutes (Render sleeps at 15 min)
     return () => clearInterval(id);
   }, []);
   return null;
