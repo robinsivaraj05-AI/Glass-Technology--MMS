@@ -9,7 +9,7 @@ export async function apiFetch(path: string, opts: RequestInit = {}): Promise<an
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
     try {
       const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 25000); // 25s timeout
+      const timeout = setTimeout(() => controller.abort(), 40000); // 40s timeout
 
       const res = await fetch(path, {
         headers: { 'Content-Type': 'application/json' },
@@ -17,6 +17,15 @@ export async function apiFetch(path: string, opts: RequestInit = {}): Promise<an
         signal: controller.signal,
       });
       clearTimeout(timeout);
+
+      // Render returns 503 during cold start — treat as retryable network issue
+      if (res.status === 503 && attempt < maxRetries) {
+        if (!wakeToastId) {
+          wakeToastId = toast.loading('Server is starting up, please wait…', { duration: 60000 });
+        }
+        await new Promise(r => setTimeout(r, retryDelays[attempt]));
+        continue;
+      }
 
       // Dismiss wake-up toast on success
       if (wakeToastId) { toast.dismiss(wakeToastId); wakeToastId = null; }
@@ -29,7 +38,8 @@ export async function apiFetch(path: string, opts: RequestInit = {}): Promise<an
     } catch (err: any) {
       const isLast = attempt === maxRetries;
       const isAbort = err.name === 'AbortError';
-      const isNetwork = err.message === 'Failed to fetch' || isAbort;
+      // TypeError covers all browsers: Chrome "Failed to fetch", Firefox "NetworkError...", Safari "Load failed"
+      const isNetwork = err instanceof TypeError || isAbort;
 
       if (isNetwork && !isLast) {
         // Show "server waking up" toast only on first retry

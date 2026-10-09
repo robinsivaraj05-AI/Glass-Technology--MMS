@@ -209,6 +209,7 @@ const BLANK = (): Omit<FollowupRecord,'id'> => ({
 export default function PurchaseFollowup() {
   const [records, setRecords]     = useState<FollowupRecord[]>([]);
   const [loading, setLoading]     = useState(true);
+  const [loadError, setLoadError] = useState('');
   const [search, setSearch]       = useState('');
   const [statusFilter, setStatus] = useState('all');
   const [listTab, setListTab]     = useState<'pending' | 'payment' | 'completed'>('pending');
@@ -220,16 +221,15 @@ export default function PurchaseFollowup() {
   const sections = useMemo(() => [...new Set(records.map(r => r.section).filter(Boolean))], [records]);
 
   // ── Load on mount ──
-  useEffect(() => {
-    (async () => {
-      try {
-        await fetch('/api/health');
-        const data = await apiFetch('/api/purchase-followup');
-        setRecords(data);
-      } catch (e) { console.error('Failed to load followup records', e); }
-      finally { setLoading(false); }
-    })();
-  }, []);
+  const loadData = async () => {
+    setLoading(true); setLoadError('');
+    try {
+      const data = await apiFetch('/api/purchase-followup');
+      setRecords(data);
+    } catch (e: any) { setLoadError(e.message || 'Failed to load records'); }
+    finally { setLoading(false); }
+  };
+  useEffect(() => { loadData(); }, []);
 
   const updateStatusDirect = async (id, status) => {
     try {
@@ -455,6 +455,12 @@ export default function PurchaseFollowup() {
     <div style={{ display:'flex', alignItems:'center', justifyContent:'center', height:300, flexDirection:'column', gap:16 }}>
       <div style={{ width:40, height:40, border:'3px solid rgba(59,130,246,0.3)', borderTopColor:'#3b82f6', borderRadius:'50%', animation:'spin 0.8s linear infinite' }} />
       <div style={{ color:'#64748b', fontSize:14 }}>Loading purchase follow-up…</div>
+    </div>
+  );
+  if (loadError) return (
+    <div style={{ display:'flex', alignItems:'center', justifyContent:'center', height:300, flexDirection:'column', gap:16 }}>
+      <div style={{ color:'#ef4444', fontSize:14 }}>⚠ {loadError}</div>
+      <button onClick={loadData} style={{ padding:'8px 20px', borderRadius:8, background:'#3b82f6', color:'#fff', border:'none', cursor:'pointer', fontSize:13 }}>Retry</button>
     </div>
   );
 
