@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import type { FullEmployee } from '../data/employeeData';
 import { useEmployees } from '../context/EmployeeContext';
+import { apiFetch } from '../utils/api';
 
 // ─── Column definitions ───────────────────────────────────────────────────────
 
@@ -282,12 +283,10 @@ export default function EmployeeBulkUpload({ onClose }: { onClose: () => void })
     const payload = parseResult.validRows.map(r => r.data);
 
     try {
-      const res = await fetch('/api/employees/bulk', {
+      const result: ImportResult = await apiFetch('/api/employees/bulk', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
       });
-      const result: ImportResult = await res.json();
       setImportResult(result);
       await refetch();
     } catch {

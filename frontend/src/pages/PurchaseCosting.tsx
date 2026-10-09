@@ -3,6 +3,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { RefreshCw, CheckCircle2, Truck, TrendingUp, Package, FileDown } from 'lucide-react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import { apiFetch } from '../utils/api';
 
 interface FollowupRecord {
   id: string;
@@ -51,7 +52,7 @@ export default function PurchaseCosting() {
   const fetchRecords = async () => {
     setLoading(true);
     try {
-      const data = await fetch('/api/purchase-followup').then(r => r.json());
+      const data = await apiFetch('/api/purchase-followup');
       setRecords(Array.isArray(data) ? data : []);
     } catch (e) { console.error('Failed to load data', e); setRecords([]); }
     finally { setLoading(false); }

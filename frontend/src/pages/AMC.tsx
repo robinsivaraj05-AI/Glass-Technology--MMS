@@ -14,6 +14,7 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer, PieChart, Pie, Cell, Legend,
 } from 'recharts';
+import { apiFetch } from '../utils/api';
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
@@ -477,9 +478,7 @@ export default function AMC() {
   const fetchAmc = async () => {
     setLoadingAmc(true);
     try {
-      const r = await fetch(`${API}`);
-      if (!r.ok) throw new Error('Failed to load AMC records');
-      setAmcList(await r.json());
+      setAmcList(await apiFetch(`${API}`));
     } catch (e: unknown) {
       toast.error(e instanceof Error ? e.message : 'Failed to load AMC records');
     } finally {
@@ -489,26 +488,21 @@ export default function AMC() {
 
   const fetchVendors = async () => {
     try {
-      const r = await fetch('/api/contracts');
-      if (r.ok) {
-        const data = await r.json();
-        setVendors(data.map((c: any) => ({
-          _id: c._id,
-          contractorCompany: c.contractorCompany || '',
-          contactPerson:     c.contactPerson    || '',
-          mobile:            c.mobile           || '',
-          email:             c.email            || '',
-        })));
-      }
+      const data = await apiFetch('/api/contracts');
+      setVendors(data.map((c: any) => ({
+        _id: c._id,
+        contractorCompany: c.contractorCompany || '',
+        contactPerson:     c.contactPerson    || '',
+        mobile:            c.mobile           || '',
+        email:             c.email            || '',
+      })));
     } catch {}
   };
 
   const fetchSchedules = async () => {
     setLoadingSch(true);
     try {
-      const r = await fetch(`${API}/schedules/all`);
-      if (!r.ok) throw new Error('Failed to load schedules');
-      setSchedules(await r.json());
+      setSchedules(await apiFetch(`${API}/schedules/all`));
     } catch (e: unknown) {
       toast.error(e instanceof Error ? e.message : 'Failed to load schedules');
     } finally {
@@ -519,9 +513,7 @@ export default function AMC() {
   const fetchBudgets = async () => {
     try {
       const url = budgetYear ? `${API}/budget/all?year=${budgetYear}` : `${API}/budget/all`;
-      const r = await fetch(url);
-      if (!r.ok) throw new Error('Failed to load budgets');
-      setBudgets(await r.json());
+      setBudgets(await apiFetch(url));
     } catch (e: unknown) {
       toast.error(e instanceof Error ? e.message : 'Failed to load budgets');
     }
@@ -531,9 +523,7 @@ export default function AMC() {
     try {
       const params = new URLSearchParams();
       if (paymentStatusFilter !== 'All') params.set('status', paymentStatusFilter);
-      const r = await fetch(`${API}/payments/all?${params}`);
-      if (!r.ok) throw new Error('Failed to load payments');
-      setPayments(await r.json());
+      setPayments(await apiFetch(`${API}/payments/all?${params}`));
     } catch (e: unknown) {
       toast.error(e instanceof Error ? e.message : 'Failed to load payments');
     }
@@ -651,23 +641,21 @@ export default function AMC() {
         if (uploadMode === 'update') {
           const existing = amcList.find(a => a.equipmentCode && a.equipmentCode === rec.equipmentCode);
           if (existing?._id) {
-            const r = await fetch(`${API}/${existing._id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...rec, _id: existing._id }) });
-            if (r.ok) {
-              const saved: AMCRecord = await r.json();
+            try {
+              const saved: AMCRecord = await apiFetch(`${API}/${existing._id}`, { method: 'PUT', body: JSON.stringify({ ...rec, _id: existing._id }) });
               await regenerateSchedules(saved);
               success++;
-            } else { failed++; }
+            } catch { failed++; }
           } else {
             failed++; // no match by Equipment Code — skip, do not create
           }
           continue;
         }
-        const r = await fetch(API, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(rec) });
-        if (r.ok) {
-          const saved: AMCRecord = await r.json();
+        try {
+          const saved: AMCRecord = await apiFetch(API, { method: 'POST', body: JSON.stringify(rec) });
           await regenerateSchedules(saved);
           success++;
-        } else { failed++; }
+        } catch { failed++; }
       } catch { failed++; }
     }
     setUploading(false);
@@ -763,8 +751,7 @@ export default function AMC() {
 
   const openAdd = async () => {
     try {
-      const r = await fetch(`${API}/next-number`);
-      const data = await r.json();
+      const data = await apiFetch(`${API}/next-number`);
       setForm({ ...BLANK, amcNumber: data.amcNumber });
     } catch {
       setForm({ ...BLANK });
@@ -806,12 +793,11 @@ export default function AMC() {
   // ── Regenerate schedules for an AMC (clears pending, keeps Completed) ────────
   const regenerateSchedules = async (amc: AMCRecord) => {
     if (!amc._id || !amc.startDate || !amc.endDate) return 0;
-    await fetch(`${API}/schedules/by-amc/${amc._id}`, { method: 'DELETE' });
+    await apiFetch(`${API}/schedules/by-amc/${amc._id}`, { method: 'DELETE' });
     const scheds = generateSchedules(amc);
     if (scheds.length === 0) return 0;
-    await fetch(`${API}/schedules`, {
+    await apiFetch(`${API}/schedules`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(scheds),
     });
     return scheds.length;
@@ -826,16 +812,10 @@ export default function AMC() {
     try {
       const method = editRecord ? 'PUT' : 'POST';
       const url = editRecord ? `${API}/${editRecord._id}` : `${API}`;
-      const r = await fetch(url, {
+      const saved: AMCRecord = await apiFetch(url, {
         method,
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(form),
       });
-      if (!r.ok) {
-        const err = await r.json();
-        throw new Error(err.message || 'Save failed');
-      }
-      const saved: AMCRecord = await r.json();
       toast.success(editRecord ? 'AMC updated' : 'AMC created');
       setShowModal(false);
 
@@ -854,8 +834,7 @@ export default function AMC() {
 
   const deleteAmc = async (id: string) => {
     try {
-      const r = await fetch(`${API}/${id}`, { method: 'DELETE' });
-      if (!r.ok) throw new Error('Delete failed');
+      await apiFetch(`${API}/${id}`, { method: 'DELETE' });
       toast.success('AMC deleted');
       setDeleteTarget(null);
       fetchAmc();
@@ -897,16 +876,14 @@ export default function AMC() {
   const saveComplete = async () => {
     if (!completingSchedule) return;
     try {
-      const r = await fetch(`${API}/schedules/${completingSchedule._id}`, {
+      await apiFetch(`${API}/schedules/${completingSchedule._id}`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           ...completeForm,
           status: 'Completed',
           completionDate: new Date().toISOString().split('T')[0],
         }),
       });
-      if (!r.ok) throw new Error('Failed to mark complete');
       toast.success('Visit marked as completed');
       setShowCompleteModal(false);
       fetchSchedules();
@@ -934,12 +911,10 @@ export default function AMC() {
   const saveEditSchedule = async () => {
     if (!editingSchedule?._id) return;
     try {
-      const r = await fetch(`${API}/schedules/${editingSchedule._id}`, {
+      await apiFetch(`${API}/schedules/${editingSchedule._id}`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(editSchedForm),
       });
-      if (!r.ok) throw new Error('Failed to update schedule');
       toast.success('Schedule updated');
       setEditingSchedule(null);
       fetchSchedules();
@@ -951,7 +926,7 @@ export default function AMC() {
   const deleteSchedule = async (id: string) => {
     if (!window.confirm('Delete this schedule entry?')) return;
     try {
-      await fetch(`${API}/schedules/${id}`, { method: 'DELETE' });
+      await apiFetch(`${API}/schedules/${id}`, { method: 'DELETE' });
       toast.success('Schedule deleted');
       fetchSchedules();
     } catch {
@@ -966,12 +941,10 @@ export default function AMC() {
     try {
       const method = editBudget ? 'PUT' : 'POST';
       const url = editBudget ? `${API}/budget/${editBudget._id}` : `${API}/budget`;
-      const r = await fetch(url, {
+      await apiFetch(url, {
         method,
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(budgetForm),
       });
-      if (!r.ok) throw new Error('Save failed');
       toast.success(editBudget ? 'Budget updated' : 'Budget added');
       setShowBudgetModal(false);
       fetchBudgets();
@@ -982,7 +955,7 @@ export default function AMC() {
 
   const deleteBudget = async (id: string) => {
     try {
-      await fetch(`${API}/budget/${id}`, { method: 'DELETE' });
+      await apiFetch(`${API}/budget/${id}`, { method: 'DELETE' });
       toast.success('Budget deleted');
       fetchBudgets();
     } catch {
@@ -1002,12 +975,10 @@ export default function AMC() {
         amcId: paymentForm.amcId || amcList.find(a => a.amcNumber === paymentForm.amcNumber)?._id || '',
         balance: (paymentForm.invoiceAmount || 0) - (paymentForm.paidAmount || 0),
       };
-      const r = await fetch(url, {
+      await apiFetch(url, {
         method,
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
       });
-      if (!r.ok) throw new Error('Save failed');
       toast.success(editPayment ? 'Payment updated' : 'Payment recorded');
       setShowPaymentModal(false);
       fetchPayments();
@@ -1018,7 +989,7 @@ export default function AMC() {
 
   const deletePayment = async (id: string) => {
     try {
-      await fetch(`${API}/payments/${id}`, { method: 'DELETE' });
+      await apiFetch(`${API}/payments/${id}`, { method: 'DELETE' });
       toast.success('Payment deleted');
       fetchPayments();
     } catch {

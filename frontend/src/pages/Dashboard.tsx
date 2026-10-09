@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { apiFetch } from '../utils/api';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 const NOW    = new Date();
@@ -176,8 +177,8 @@ export default function Dashboard() {
   const [liveCostData,  setLiveCostData]  = useState<any[]>([]);
 
   useEffect(() => {
-    fetch('/api/org-positions').then(r => r.json()).then(d => setOrgPositions(Array.isArray(d) ? d : [])).catch(() => {});
-    fetch('/api/pending-jobs').then(r => r.json()).then(d => {
+    apiFetch('/api/org-positions').then(d => setOrgPositions(Array.isArray(d) ? d : [])).catch(() => {});
+    apiFetch('/api/pending-jobs').then(d => {
       if (Array.isArray(d)) {
         const active = d.filter((j: any) => j.status !== 'Completed')
           .sort((a: any, b: any) => {
@@ -187,7 +188,7 @@ export default function Dashboard() {
         setDashJobs(active.slice(0, 5));
       }
     }).catch(() => {});
-    fetch('/api/followup-jobs').then(r => r.json()).then(d => {
+    apiFetch('/api/followup-jobs').then(d => {
       if (Array.isArray(d)) setDashFollowups(d.filter((f: any) => f.status !== 'Completed' && f.status !== 'Cancelled').slice(0, 5));
     }).catch(() => {});
 
@@ -202,10 +203,10 @@ export default function Dashboard() {
       map[`${yr}-${String(i).padStart(2,'0')}`] = { m: MON[i - 1], outsource: 0, rental: 0, purchase: 0 };
     }
     Promise.all([
-      fetch('/api/outsource/dashboard').then(r => r.json()).catch(() => ({})),
-      fetch(`/api/equipment-entries?from=${from}&to=${to}&limit=2000`).then(r => r.json()).catch(() => ({ entries: [] })),
-      fetch(`/api/accessories?from=${from}&to=${to}&limit=2000`).then(r => r.json()).catch(() => ({ entries: [] })),
-      fetch('/api/purchase-followup').then(r => r.json()).catch(() => []),
+      apiFetch('/api/outsource/dashboard').catch(() => ({})),
+      apiFetch(`/api/equipment-entries?from=${from}&to=${to}&limit=2000`).catch(() => ({ entries: [] })),
+      apiFetch(`/api/accessories?from=${from}&to=${to}&limit=2000`).catch(() => ({ entries: [] })),
+      apiFetch('/api/purchase-followup').catch(() => []),
     ]).then(([outDash, eqData, accData, purData]) => {
       const slot = (monthNum: number, year: number) => {
         const key = `${year}-${String(monthNum).padStart(2,'0')}`;

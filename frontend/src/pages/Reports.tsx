@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { Download, Calendar } from 'lucide-react';
 import { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import { monthlyBreakdowns, pmComplianceData, mockKPIs, departmentEnergyData } from '../data/mockData';
+import { apiFetch } from '../utils/api';
 
 const REPORT_TYPES = [
   { id: 'monthly',    label: 'Monthly Maintenance Report',   icon: '📋', color: '#3b82f6', desc: 'Complete maintenance summary for the month' },
@@ -90,19 +91,19 @@ async function generateManagementReport(dateFrom: string, dateTo: string, sectio
 
   // â”€â”€ Fetch only what's needed â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const [spareParts, empRes, attRes, teamOrderRes, outsourceRes, rentalRes, followupRes, poRes, projectRes, accessoriesRes, otRes, pendingJobsRes, followupJobsRes] = await Promise.all([
-    need('spares')                                          ? fetch('/api/spare-parts?limit=5000').then(r => r.json()).catch(() => ({ items: [] })) : { items: [] },
-    need('attendance')                                      ? fetch('/api/employees').then(r => r.json()).catch(() => []) : [],
-    (need('attendance') || need('overtime')) ? fetch(`/api/attendance?year=${year}&month=${month}`).then(r => r.json()).catch(() => []) : [],
-    (need('attendance') || need('overtime')) ? fetch('/api/attendance/team').then(r => r.json()).catch(() => []) : [],
-    (need('outsource') || need('costing'))                  ? fetch(`/api/outsource?from=${dateFrom}&to=${dateTo}&limit=2000`).then(r => r.json()).catch(() => ({ entries: [] })) : { entries: [] },
-    (need('rental') || need('costing'))                     ? fetch(`/api/equipment-entries?from=${dateFrom}&to=${dateTo}&limit=2000`).then(r => r.json()).catch(() => ({ entries: [] })) : { entries: [] },
-    (need('purchase') || need('payment'))                   ? fetch('/api/purchase-followup').then(r => r.json()).catch(() => []) : [],
-    (need('po') || need('cost'))                            ? fetch('/api/purchase-po').then(r => r.json()).catch(() => []) : [],
-    need('projects')                                        ? fetch('/api/projects').then(r => r.json()).catch(() => []) : [],
-    (need('costing') || need('cost'))                       ? fetch(`/api/accessories?from=${dateFrom}&to=${dateTo}&limit=2000`).then(r => r.json()).catch(() => ({ entries: [] })) : { entries: [] },
-    (need('overtime') || need('remarks'))                   ? fetch(`/api/overtime?year=${year}&month=${month}`).then(r => r.json()).catch(() => []) : [],
-    need('jobtracker')                                      ? fetch('/api/pending-jobs').then(r => r.json()).catch(() => []) : [],
-    need('jobtracker')                                      ? fetch('/api/followup-jobs').then(r => r.json()).catch(() => []) : [],
+    need('spares')                                          ? apiFetch('/api/spare-parts?limit=5000').catch(() => ({ items: [] })) : { items: [] },
+    need('attendance')                                      ? apiFetch('/api/employees').catch(() => []) : [],
+    (need('attendance') || need('overtime')) ? apiFetch(`/api/attendance?year=${year}&month=${month}`).catch(() => []) : [],
+    (need('attendance') || need('overtime')) ? apiFetch('/api/attendance/team').catch(() => []) : [],
+    (need('outsource') || need('costing'))                  ? apiFetch(`/api/outsource?from=${dateFrom}&to=${dateTo}&limit=2000`).catch(() => ({ entries: [] })) : { entries: [] },
+    (need('rental') || need('costing'))                     ? apiFetch(`/api/equipment-entries?from=${dateFrom}&to=${dateTo}&limit=2000`).catch(() => ({ entries: [] })) : { entries: [] },
+    (need('purchase') || need('payment'))                   ? apiFetch('/api/purchase-followup').catch(() => []) : [],
+    (need('po') || need('cost'))                            ? apiFetch('/api/purchase-po').catch(() => []) : [],
+    need('projects')                                        ? apiFetch('/api/projects').catch(() => []) : [],
+    (need('costing') || need('cost'))                       ? apiFetch(`/api/accessories?from=${dateFrom}&to=${dateTo}&limit=2000`).catch(() => ({ entries: [] })) : { entries: [] },
+    (need('overtime') || need('remarks'))                   ? apiFetch(`/api/overtime?year=${year}&month=${month}`).catch(() => []) : [],
+    need('jobtracker')                                      ? apiFetch('/api/pending-jobs').catch(() => []) : [],
+    need('jobtracker')                                      ? apiFetch('/api/followup-jobs').catch(() => []) : [],
   ]);
 
   const allSpares      = spareParts?.items || (Array.isArray(spareParts) ? spareParts : []);

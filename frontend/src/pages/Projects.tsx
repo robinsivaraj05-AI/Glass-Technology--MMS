@@ -4,6 +4,7 @@ import { mockProjects } from '../data/mockData';
 import type { Project } from '../types';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { useEmployees } from '../context/EmployeeContext';
+import { apiFetch } from '../utils/api';
 
 const EMPTY_FORM = {
   name: '', type: 'electrical', priority: 'high', projectManager: '',
@@ -86,14 +87,9 @@ export default function Projects() {
 
   const fetchProjects = async () => {
     try {
-      const r = await fetch(API);
-      if (r.ok) {
-        const data = await r.json();
-        // map _id → id for frontend compatibility
-        setProjects(data.map((p: any) => ({ ...p, id: p._id || p.id })));
-      } else {
-        setProjects(mockProjects);
-      }
+      const data = await apiFetch(API);
+      // map _id → id for frontend compatibility
+      setProjects(data.map((p: any) => ({ ...p, id: p._id || p.id })));
     } catch {
       setProjects(mockProjects);
     } finally {
@@ -192,17 +188,15 @@ ${p.teamMembers?.length ? `<div class="field"><div class="label">Team Members</d
       const payload = editingProject
         ? { ...basePayload, projectNo: editingProject.projectNo, spent: Number(form.spent) || 0, progress: Number(form.progress) || 0 }
         : { ...basePayload, projectNo: `PRJ-${new Date().getFullYear()}-${String(projects.length + 1).padStart(3, '0')}`, spent: 0, progress: 0 };
-      const r = await fetch(
+      await apiFetch(
         editingProject ? `${API}/${editingProject.id}` : API,
-        { method: editingProject ? 'PUT' : 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) },
+        { method: editingProject ? 'PUT' : 'POST', body: JSON.stringify(payload) },
       );
-      if (r.ok) {
-        await fetchProjects();
-        setShowCreate(false);
-        setForm({ ...EMPTY_FORM });
-        setEditingProject(null);
-        setSelected(null);
-      }
+      await fetchProjects();
+      setShowCreate(false);
+      setForm({ ...EMPTY_FORM });
+      setEditingProject(null);
+      setSelected(null);
     } catch (e) {
       console.error('Failed to save project', e);
     } finally {
@@ -222,7 +216,7 @@ ${p.teamMembers?.length ? `<div class="field"><div class="label">Team Members</d
   const confirmDelete = async () => {
     if (!deleteTarget) return;
     try {
-      await fetch(`${API}/${deleteTarget.id}`, { method: 'DELETE' });
+      await apiFetch(`${API}/${deleteTarget.id}`, { method: 'DELETE' });
       if (selected?.id === deleteTarget.id) setSelected(null);
       setDeleteTarget(null);
       await fetchProjects();

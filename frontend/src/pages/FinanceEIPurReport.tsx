@@ -3,6 +3,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { Download, RefreshCw, CheckCircle, AlertCircle, TrendingUp } from 'lucide-react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import { apiFetch } from '../utils/api';
 
 interface PaymentTransaction {
   id: string;
@@ -122,7 +123,7 @@ export default function FinanceEIPurReport() {
     setLoading(true);
     try {
       await fetch('/api/health');
-      const data = await fetch('/api/purchase-followup').then(r => r.json());
+      const data = await apiFetch('/api/purchase-followup');
       setRecords(data);
     } catch (e) { console.error('Failed to load finance report data', e); }
     finally { setLoading(false); }

@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Plus, Pencil, Trash2, Save, X, Calendar, CalendarRange, Clock, CheckCircle2, AlertCircle } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import { apiFetch } from '../utils/api';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 export interface TeamMember { empId: string; empName: string; role: string; sortOrder: number; }
@@ -78,8 +79,7 @@ export default function OvertimeTab({ year, month, team, canEdit }: Props) {
       setApprovers(merged);
     };
 
-    fetch('/api/auth/approvers')
-      .then(r => r.ok ? r.json() : [])
+    apiFetch('/api/auth/approvers')
       .then((data: Approver[]) => buildList(data))
       .catch(() => buildList([]));
   }, [user]);
@@ -91,8 +91,7 @@ export default function OvertimeTab({ year, month, team, canEdit }: Props) {
       const url = mode === 'yearly'
         ? `/api/overtime/yearly?year=${year}`
         : `/api/overtime?year=${year}&month=${month}`;
-      const r = await fetch(url);
-      setRecords(await r.json());
+      setRecords(await apiFetch(url));
     } catch { /* ignore */ }
     finally { setLoading(false); }
   }, [year, month, mode]);
@@ -125,8 +124,7 @@ export default function OvertimeTab({ year, month, team, canEdit }: Props) {
     try {
       const body = { empId, empName, day, month: recMonth, year: recYear, startTime, endTime, reason: form.reason, approvedBy: form.approvedBy, totalHours: calcHours(startTime, endTime) };
       const url  = editId ? `/api/overtime/${editId}` : '/api/overtime';
-      const r = await fetch(url, { method: editId ? 'PUT' : 'POST', headers: { 'Content-Type':'application/json' }, body: JSON.stringify(body) });
-      if (!r.ok) { const err = await r.json(); setFormErr(err.error || 'Failed'); return; }
+      await apiFetch(url, { method: editId ? 'PUT' : 'POST', body: JSON.stringify(body) });
       setShowModal(false); load();
     } catch (e) { setFormErr(String(e)); }
     finally { setSaving(false); }
@@ -134,7 +132,7 @@ export default function OvertimeTab({ year, month, team, canEdit }: Props) {
 
   const handleDelete = async (id: string, name: string) => {
     if (!confirm(`Delete OT record for ${name}?`)) return;
-    await fetch(`/api/overtime/${id}`, { method:'DELETE' });
+    await apiFetch(`/api/overtime/${id}`, { method:'DELETE' });
     load();
   };
 
