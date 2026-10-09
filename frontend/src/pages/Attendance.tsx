@@ -4,6 +4,7 @@ import { ChevronLeft, ChevronRight, Save, RefreshCw, X, Lock, CalendarDays, BarC
 import { useAuth } from '../context/AuthContext';
 import OvertimeTab from './OvertimeTab';
 import { exportAttendancePDF } from '../utils/generatePDF';
+import { apiFetch } from '../utils/api';
 
 // ── Attendance codes ──────────────────────────────────────────────────────────
 interface CodeDef { code: string; label: string; bg: string; text: string; border: string; }
@@ -54,6 +55,7 @@ export default function Attendance() {
   const [saving,    setSaving]    = useState(false);
   const [loading,   setLoading]   = useState(false);
   const [exporting, setExporting] = useState(false);
+  const [teamError, setTeamError] = useState('');
 
   // Multi-cell selection: keys are "empId:day"
   const [selCells, setSelCells] = useState<Set<string>>(new Set());
@@ -75,10 +77,10 @@ export default function Attendance() {
 
   // ── Data loading ─────────────────────────────────────────────────────────
   const loadTeam = useCallback(() => {
-    fetch('/api/attendance/team')
-      .then(r => r.json())
+    setTeamError('');
+    apiFetch('/api/attendance/team')
       .then((d: TeamMember[]) => setTeam(d.sort((a, b) => a.sortOrder - b.sortOrder)))
-      .catch(console.error);
+      .catch((e: any) => setTeamError(e.message || 'Failed to load team'));
   }, []);
 
   useEffect(() => { loadTeam(); }, [loadTeam]);
@@ -86,15 +88,15 @@ export default function Attendance() {
   const loadYearly = useCallback(async () => {
     setLoadingYearly(true);
     try {
-      const r = await fetch(`/api/attendance/yearly?year=${year}`);
-      const records: Array<{ empId: string; entries: { day: number; code: string }[] }> = await r.json();
+      const records: Array<{ empId: string; entries: { day: number; code: string }[] }> =
+        await apiFetch(`/api/attendance/yearly?year=${year}`);
       const map: Entries = {};
       records.forEach(rec => {
         map[rec.empId] = {};
         rec.entries.forEach(e => { map[rec.empId][e.day] = e.code; });
       });
       setYearlyEntries(map);
-    } catch (e) { console.error(e); }
+    } catch (e: any) { console.error(e); }
     finally { setLoadingYearly(false); }
   }, [year]);
 
@@ -103,8 +105,8 @@ export default function Attendance() {
   const loadAttendance = useCallback(async () => {
     setLoading(true);
     try {
-      const r = await fetch(`/api/attendance?year=${year}&month=${month}`);
-      const records: Array<{ empId: string; entries: { day: number; code: string; remark?: string }[] }> = await r.json();
+      const records: Array<{ empId: string; entries: { day: number; code: string; remark?: string }[] }> =
+        await apiFetch(`/api/attendance?year=${year}&month=${month}`);
       const map: Entries = {};
       const remarksMap: Remarks = {};
       records.forEach(rec => {
@@ -120,7 +122,7 @@ export default function Attendance() {
       setDirty(new Set());
       setSelCells(new Set());
       setAnchor(null);
-    } catch (e) { console.error(e); }
+    } catch (e: any) { console.error(e); }
     finally { setLoading(false); }
   }, [year, month]);
 
@@ -208,23 +210,20 @@ export default function Attendance() {
     }
     setAddSaving(true); setAddError('');
     try {
-      const r = await fetch('/api/attendance/team', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(newEmp),
-      });
-      if (!r.ok) { const d = await r.json(); setAddError(d.error || 'Failed'); return; }
+      await apiFetch('/api/attendance/team', { method: 'POST', body: JSON.stringify(newEmp) });
       setShowAddModal(false);
       setNewEmp({ empId:'', empName:'', role:'' });
       loadTeam();
-    } catch (e) { setAddError(String(e)); }
+    } catch (e: any) { setAddError(e.message || 'Failed'); }
     finally { setAddSaving(false); }
   };
 
   const removeEmployee = async (empId: string, empName: string) => {
     if (!confirm(`Remove ${empName} from the team?`)) return;
-    await fetch(`/api/attendance/team/${empId}`, { method: 'DELETE' });
-    loadTeam();
+    try {
+      await apiFetch(`/api/attendance/team/${empId}`, { method: 'DELETE' });
+      loadTeam();
+    } catch (e: any) { alert(e.message || 'Failed to remove employee'); }
   };
 
   // ── Save ──────────────────────────────────────────────────────────────────
@@ -239,13 +238,9 @@ export default function Attendance() {
           remark: remarks[m.empId]?.[Number(day)] || '',
         })),
       }));
-      await fetch('/api/attendance', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ year, month, records }),
-      });
+      await apiFetch('/api/attendance', { method: 'PUT', body: JSON.stringify({ year, month, records }) });
       setDirty(new Set());
-    } catch (e) { console.error(e); }
+    } catch (e: any) { alert(e.message || 'Failed to save attendance'); }
     finally { setSaving(false); }
   };
 
@@ -347,6 +342,13 @@ export default function Attendance() {
   return (
     <div style={{ background:'#f1f5f9', height:'calc(100vh - 60px)', padding:'14px 18px', display:'flex', flexDirection:'column', gap:10, overflow:'hidden' }}>
       {ctrlBar}
+
+      {teamError && (
+        <div style={{ display:'flex', alignItems:'center', gap:12, background:'#fef2f2', border:'1px solid #fca5a5', borderRadius:10, padding:'12px 18px' }}>
+          <span style={{ color:'#dc2626', fontSize:13 }}>⚠ Failed to load employees: {teamError}</span>
+          <button onClick={loadTeam} style={{ padding:'5px 14px', borderRadius:7, background:'#dc2626', color:'#fff', border:'none', cursor:'pointer', fontSize:12 }}>Retry</button>
+        </div>
+      )}
 
       {tab === 'entry' ? (
         <EntryTab
