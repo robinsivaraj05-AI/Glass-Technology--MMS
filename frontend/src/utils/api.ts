@@ -3,8 +3,8 @@ import toast from 'react-hot-toast';
 let wakeToastId: string | null = null;
 
 export async function apiFetch(path: string, opts: RequestInit = {}): Promise<any> {
-  const maxRetries = 3;
-  const retryDelays = [3000, 6000, 10000]; // 3s, 6s, 10s between retries
+  const maxRetries = 4;
+  const retryDelays = [5000, 10000, 15000, 20000]; // 5s, 10s, 15s, 20s between retries
 
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
     try {
