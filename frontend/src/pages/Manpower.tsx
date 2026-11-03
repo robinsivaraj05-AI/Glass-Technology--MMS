@@ -14,20 +14,30 @@ interface Employee {
 interface MatrixEmployee {
   id: string; name: string; empId: string; position: string;
   experience: number; isNA: boolean;
+  // E&I technical skills
   electricalSafety: number; motorTroubleshooting: number; vfdProgramming: number;
   plcAutomation: number; calibration: number; servoDrive: number;
   industrialNetworking: number; maintenanceMgmt: number; panelTroubleshoot: number;
+  // IT skills
+  networkAdmin: number; serverMgmt: number; softwareSupport: number;
+  cybersecurity: number; erpMms: number; dbMgmt: number;
+  hwSupport: number; cloudBackup: number; itHelpdesk: number;
 }
 interface PosGroup { position: string; slots: number; }
 
-const MATRIX_POSITIONS: PosGroup[] = [
+const EI_POSITIONS: PosGroup[] = [
   { position:'Shift Engineer',          slots:4 },
   { position:'Junior Engineer',         slots:3 },
   { position:'Technician',              slots:5 },
-  { position:'IT Engineer',             slots:1 },
   { position:'Automation Engineer',     slots:1 },
   { position:'General Shift Engineer',  slots:1 },
 ];
+
+const IT_POSITIONS: PosGroup[] = [
+  { position:'IT Engineer', slots:1 },
+];
+
+const ALL_POSITIONS = [...EI_POSITIONS, ...IT_POSITIONS];
 
 const MSKILLS: { key: keyof MatrixEmployee; label: string }[] = [
   { key:'electricalSafety',     label:'Electrical Safety' },
@@ -41,16 +51,31 @@ const MSKILLS: { key: keyof MatrixEmployee; label: string }[] = [
   { key:'panelTroubleshoot',    label:'Panel Troubleshoot' },
 ];
 
+const IT_SKILLS: { key: keyof MatrixEmployee; label: string }[] = [
+  { key:'networkAdmin',     label:'Network Administration' },
+  { key:'serverMgmt',      label:'Server Management' },
+  { key:'softwareSupport', label:'Software Support' },
+  { key:'cybersecurity',   label:'Cybersecurity' },
+  { key:'erpMms',          label:'ERP / MMS Systems' },
+  { key:'dbMgmt',          label:'Database Management' },
+  { key:'hwSupport',       label:'Hardware Support' },
+  { key:'cloudBackup',     label:'Cloud & Backup' },
+  { key:'itHelpdesk',      label:'IT Helpdesk' },
+];
+
+const EI_ZERO = { electricalSafety:0, motorTroubleshooting:0, vfdProgramming:0, plcAutomation:0, calibration:0, servoDrive:0, industrialNetworking:0, maintenanceMgmt:0, panelTroubleshoot:0 };
+const IT_ZERO = { networkAdmin:0, serverMgmt:0, softwareSupport:0, cybersecurity:0, erpMms:0, dbMgmt:0, hwSupport:0, cloudBackup:0, itHelpdesk:0 };
+
 const initialMatrix: MatrixEmployee[] = [
-  { id:'m1', name:'Mr. Praveen Kumar',    empId:'GT026', position:'Shift Engineer',         experience:14, isNA:false, electricalSafety:5, motorTroubleshooting:5, vfdProgramming:5, plcAutomation:4, calibration:5, servoDrive:4, industrialNetworking:4, maintenanceMgmt:5, panelTroubleshoot:5 },
-  { id:'m2', name:'Mr. HariKrishna',      empId:'GT051', position:'Shift Engineer',         experience:13, isNA:false, electricalSafety:5, motorTroubleshooting:4, vfdProgramming:4, plcAutomation:4, calibration:3, servoDrive:3, industrialNetworking:3, maintenanceMgmt:4, panelTroubleshoot:5 },
-  { id:'m3', name:'Mr. Arun',             empId:'GT062', position:'Shift Engineer',         experience:10, isNA:false, electricalSafety:5, motorTroubleshooting:4, vfdProgramming:4, plcAutomation:4, calibration:3, servoDrive:3, industrialNetworking:3, maintenanceMgmt:4, panelTroubleshoot:5 },
-  { id:'m4', name:'Mr. Mohit S Talaviya',empId:'GT035', position:'Junior Engineer',        experience:5,  isNA:false, electricalSafety:4, motorTroubleshooting:3, vfdProgramming:2, plcAutomation:2, calibration:3, servoDrive:2, industrialNetworking:2, maintenanceMgmt:3, panelTroubleshoot:3 },
-  { id:'m5', name:'Mr. Vivek Singh',      empId:'GT033', position:'Junior Engineer',        experience:4,  isNA:false, electricalSafety:4, motorTroubleshooting:3, vfdProgramming:2, plcAutomation:2, calibration:3, servoDrive:2, industrialNetworking:2, maintenanceMgmt:3, panelTroubleshoot:3 },
-  { id:'m6', name:'Mr. Ankat',            empId:'GT074', position:'Junior Engineer',        experience:3,  isNA:false, electricalSafety:4, motorTroubleshooting:3, vfdProgramming:2, plcAutomation:2, calibration:3, servoDrive:2, industrialNetworking:2, maintenanceMgmt:3, panelTroubleshoot:3 },
-  { id:'m7', name:'Mr. Ravi Kannan',      empId:'GT046', position:'Technician',             experience:8,  isNA:false, electricalSafety:3, motorTroubleshooting:3, vfdProgramming:3, plcAutomation:2, calibration:2, servoDrive:2, industrialNetworking:2, maintenanceMgmt:3, panelTroubleshoot:3 },
-  { id:'m8', name:'Mr. Krishna',          empId:'GT053', position:'Technician',             experience:4,  isNA:false, electricalSafety:3, motorTroubleshooting:3, vfdProgramming:3, plcAutomation:2, calibration:2, servoDrive:2, industrialNetworking:2, maintenanceMgmt:3, panelTroubleshoot:3 },
-  { id:'m9', name:'Mr. Casetro',          empId:'GT069', position:'IT Engineer',            experience:20, isNA:true,  electricalSafety:0, motorTroubleshooting:0, vfdProgramming:0, plcAutomation:0, calibration:0, servoDrive:0, industrialNetworking:0, maintenanceMgmt:0, panelTroubleshoot:0 },
+  { id:'m1', name:'Mr. Praveen Kumar',    empId:'GT026', position:'Shift Engineer',        experience:14, isNA:false, electricalSafety:5, motorTroubleshooting:5, vfdProgramming:5, plcAutomation:4, calibration:5, servoDrive:4, industrialNetworking:4, maintenanceMgmt:5, panelTroubleshoot:5, ...IT_ZERO },
+  { id:'m2', name:'Mr. HariKrishna',      empId:'GT051', position:'Shift Engineer',        experience:13, isNA:false, electricalSafety:5, motorTroubleshooting:4, vfdProgramming:4, plcAutomation:4, calibration:3, servoDrive:3, industrialNetworking:3, maintenanceMgmt:4, panelTroubleshoot:5, ...IT_ZERO },
+  { id:'m3', name:'Mr. Arun',             empId:'GT062', position:'Shift Engineer',        experience:10, isNA:false, electricalSafety:5, motorTroubleshooting:4, vfdProgramming:4, plcAutomation:4, calibration:3, servoDrive:3, industrialNetworking:3, maintenanceMgmt:4, panelTroubleshoot:5, ...IT_ZERO },
+  { id:'m4', name:'Mr. Mohit S Talaviya', empId:'GT035', position:'Junior Engineer',       experience:5,  isNA:false, electricalSafety:4, motorTroubleshooting:3, vfdProgramming:2, plcAutomation:2, calibration:3, servoDrive:2, industrialNetworking:2, maintenanceMgmt:3, panelTroubleshoot:3, ...IT_ZERO },
+  { id:'m5', name:'Mr. Vivek Singh',      empId:'GT033', position:'Junior Engineer',       experience:4,  isNA:false, electricalSafety:4, motorTroubleshooting:3, vfdProgramming:2, plcAutomation:2, calibration:3, servoDrive:2, industrialNetworking:2, maintenanceMgmt:3, panelTroubleshoot:3, ...IT_ZERO },
+  { id:'m6', name:'Mr. Ankat',            empId:'GT074', position:'Junior Engineer',       experience:3,  isNA:false, electricalSafety:4, motorTroubleshooting:3, vfdProgramming:2, plcAutomation:2, calibration:3, servoDrive:2, industrialNetworking:2, maintenanceMgmt:3, panelTroubleshoot:3, ...IT_ZERO },
+  { id:'m7', name:'Mr. Ravi Kannan',      empId:'GT046', position:'Technician',            experience:8,  isNA:false, electricalSafety:3, motorTroubleshooting:3, vfdProgramming:3, plcAutomation:2, calibration:2, servoDrive:2, industrialNetworking:2, maintenanceMgmt:3, panelTroubleshoot:3, ...IT_ZERO },
+  { id:'m8', name:'Mr. Krishna',          empId:'GT053', position:'Technician',            experience:4,  isNA:false, electricalSafety:3, motorTroubleshooting:3, vfdProgramming:3, plcAutomation:2, calibration:2, servoDrive:2, industrialNetworking:2, maintenanceMgmt:3, panelTroubleshoot:3, ...IT_ZERO },
+  { id:'m9', name:'Mr. Casetro',          empId:'GT069', position:'IT Engineer',           experience:20, isNA:false, ...EI_ZERO, networkAdmin:4, serverMgmt:4, softwareSupport:5, cybersecurity:3, erpMms:5, dbMgmt:4, hwSupport:4, cloudBackup:3, itHelpdesk:5 },
 ];
 
 function ratingBg(r: number): string {
@@ -68,10 +93,15 @@ function getAvg(row: MatrixEmployee): number {
   const vals = MSKILLS.map(s => row[s.key] as number);
   return Math.round(vals.reduce((a, b) => a + b, 0) / vals.length);
 }
+function getITAvg(row: MatrixEmployee): number {
+  const vals = IT_SKILLS.map(s => row[s.key] as number);
+  return Math.round(vals.reduce((a, b) => a + b, 0) / vals.length);
+}
 const emptyMatrix: MatrixEmployee = {
   id:'', name:'', empId:'', position:'Shift Engineer', experience:0, isNA:false,
   electricalSafety:3, motorTroubleshooting:3, vfdProgramming:3, plcAutomation:3,
   calibration:3, servoDrive:3, industrialNetworking:3, maintenanceMgmt:3, panelTroubleshoot:3,
+  networkAdmin:3, serverMgmt:3, softwareSupport:3, cybersecurity:3, erpMms:3, dbMgmt:3, hwSupport:3, cloudBackup:3, itHelpdesk:3,
 };
 
 const SHIFT_LABELS: Record<string, string> = {
@@ -84,7 +114,6 @@ const SHIFT_ORDER = ['A', 'B', 'C', 'G'];
 
 const STATUS_COLOR: Record<string,string> = { present:'#22c55e', leave:'#f59e0b', absent:'#ef4444' };
 const DEPT_COLOR:  Record<string,string>  = { 'Electrical & Instrumentation':'#3b82f6', IT:'#8b5cf6' };
-const DEPARTMENTS = ['Electrical & Instrumentation', 'IT'];
 
 function guessRole(designation: string): string {
   const d = designation.toLowerCase();
@@ -212,19 +241,19 @@ export default function Manpower() {
     const yr = today.getFullYear();
     const ds = today.toLocaleDateString('en-GB', { day:'2-digit', month:'short', year:'numeric' });
 
+    // ── E&I Section ──
     doc.setFillColor(30, 58, 138); doc.rect(0, 0, 297, 16, 'F');
     doc.setFontSize(12); doc.setFont('helvetica','bold'); doc.setTextColor(255,255,255);
-    doc.text('E & I — IT Skill Matrix', 148.5, 10, { align:'center' });
+    doc.text('E & I Skill Matrix', 148.5, 10, { align:'center' });
     doc.setFontSize(8); doc.text(`${yr}  |  ${ds}`, 291, 10, { align:'right' });
 
     const head = [['Sl.No','Name','Emp ID','Position','Exp',...MSKILLS.map(s=>s.label),'Avg']];
     const body: (string|number)[][] = [];
-    MATRIX_POSITIONS.forEach(pg => {
+    EI_POSITIONS.forEach(pg => {
       const emps = matrix.filter(r => r.position === pg.position);
       emps.forEach((row, i) => {
-        const avg = row.isNA ? 'NA' : getAvg(row);
         body.push([i+1, row.name, row.empId, row.position, row.experience,
-          ...MSKILLS.map(s => row.isNA ? 'NA' : (row[s.key] as number)), avg]);
+          ...MSKILLS.map(s => (row[s.key] as number)), getAvg(row)]);
       });
       for (let i = 0; i < Math.max(0, pg.slots - emps.length); i++)
         body.push([emps.length+i+1, pg.position, '', '', '', ...MSKILLS.map(()=>''), '']);
@@ -249,7 +278,41 @@ export default function Manpower() {
       },
       theme:'grid',
     });
-    doc.save(`EI_Skill_Matrix_${yr}.pdf`);
+
+    // ── IT Section ──
+    const itY = (doc as any).lastAutoTable.finalY + 12;
+    doc.setFillColor(30, 27, 75); doc.rect(0, itY - 8, 297, 10, 'F');
+    doc.setFontSize(11); doc.setFont('helvetica','bold'); doc.setTextColor(255,255,255);
+    doc.text('IT Skills Matrix', 148.5, itY - 2, { align:'center' });
+
+    const itHead = [['Sl.No','Name','Emp ID','Position','Exp',...IT_SKILLS.map(s=>s.label),'Avg']];
+    const itBody: (string|number)[][] = [];
+    IT_POSITIONS.forEach(pg => {
+      const emps = matrix.filter(r => r.position === pg.position);
+      emps.forEach((row, i) => {
+        itBody.push([i+1, row.name, row.empId, row.position, row.experience,
+          ...IT_SKILLS.map(s => (row[s.key] as number)), getITAvg(row)]);
+      });
+      for (let i = 0; i < Math.max(0, pg.slots - emps.length); i++)
+        itBody.push([emps.length+i+1, pg.position, '', '', '', ...IT_SKILLS.map(()=>''), '']);
+    });
+    autoTable(doc, {
+      startY: itY + 2, head: itHead, body: itBody,
+      styles:{ fontSize:6.5, cellPadding:[1.5,1], halign:'center', valign:'middle' },
+      headStyles:{ fillColor:[30,27,75], textColor:255, fontStyle:'bold', fontSize:6.5 },
+      columnStyles:{ 0:{cellWidth:7}, 1:{cellWidth:30,halign:'left'}, 2:{cellWidth:12}, 3:{cellWidth:26,halign:'left'}, 4:{cellWidth:8} },
+      didParseCell(data) {
+        const v = Number(data.cell.raw);
+        if (!isNaN(v) && v>=1 && v<=5 && data.section!=='head') {
+          data.cell.styles.fillColor = C[v];
+          data.cell.styles.textColor = (v===4||v===3||v===2) ? [127,29,29] : [255,255,255];
+          data.cell.styles.fontStyle = 'bold';
+        }
+      },
+      theme:'grid',
+    });
+
+    doc.save(`EI_IT_Skill_Matrix_${yr}.pdf`);
   };
 
   const inp: React.CSSProperties = {
@@ -259,7 +322,6 @@ export default function Manpower() {
   const lbl: React.CSSProperties = { fontSize:11, color:'#64748b', marginBottom:4, display:'block', fontWeight:500 };
   const r2:  React.CSSProperties = { display:'grid', gridTemplateColumns:'1fr 1fr', gap:12 };
   const sec: React.CSSProperties = { fontSize:11, color:'#3b82f6', fontWeight:600, textTransform:'uppercase', letterSpacing:1, marginTop:6, display:'flex', alignItems:'center', gap:6 };
-  const vline = (h=20) => <div style={{ width:2, height:h, background:'rgba(59,130,246,0.25)', alignSelf:'center' }} />;
 
   const Avatar = ({ emp, size=30 }: { emp: Employee; size?: number }) =>
     emp.photo ? (
@@ -269,6 +331,115 @@ export default function Manpower() {
         {emp.name.split(' ').map((n:string) => n[0]).join('')}
       </div>
     );
+
+  // ── Skill table block (reused for E&I and IT) ──
+  const renderSkillTable = (
+    positions: PosGroup[],
+    skills: { key: keyof MatrixEmployee; label: string }[],
+    avgFn: (r: MatrixEmployee) => number,
+    headerTitle: string,
+    headerSubtitle: string,
+    headerColor: string,
+    subColor: string,
+  ) => (
+    <div style={{ overflowX:'auto', borderRadius:10, border:'1px solid rgba(255,255,255,0.08)' }}>
+      <table style={{ width:'100%', borderCollapse:'collapse', minWidth:1200 }}>
+        <thead>
+          <tr>
+            <th colSpan={5} style={{ background:headerColor, color:'white', padding:'8px 12px', fontSize:14, fontWeight:700, textAlign:'center', borderRight:'2px solid rgba(255,255,255,0.15)' }}>
+              {headerTitle}
+            </th>
+            <th colSpan={skills.length} style={{ background:headerColor, color:subColor, padding:'8px 12px', fontSize:11, fontWeight:600, textAlign:'center', borderRight:'2px solid rgba(255,255,255,0.15)' }}>
+              {headerSubtitle}
+            </th>
+            <th style={{ background:'#ca8a04', color:'white', padding:'8px', fontSize:12, fontWeight:700, textAlign:'center', borderRight:'2px solid rgba(255,255,255,0.15)' }}>
+              {new Date().getFullYear()}
+            </th>
+            <th style={{ background:'#ef4444', color:'white', padding:'8px', fontSize:10, fontWeight:700, textAlign:'center' }}>
+              {new Date().toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'})}
+            </th>
+          </tr>
+          <tr>
+            {['Sl.No','Name','Emp ID','Position','Exp'].map(h => (
+              <th key={h} style={{ background:'#166534', color:'white', padding:'7px 8px', fontSize:10, fontWeight:700, textAlign:'center', borderRight:'1px solid rgba(255,255,255,0.15)', whiteSpace:'nowrap', minWidth: h==='Name'?140:h==='Position'?120:undefined }}>
+                {h}
+              </th>
+            ))}
+            {skills.map(s => {
+              const idx = s.label.indexOf(' ');
+              const top = idx > -1 ? s.label.slice(0, idx) : s.label;
+              const bot = idx > -1 ? s.label.slice(idx + 1) : '';
+              return (
+                <th key={s.key} style={{ background:'#166534', color:'white', padding:'6px 4px', fontSize:9, fontWeight:700, textAlign:'center', borderRight:'1px solid rgba(255,255,255,0.15)', minWidth:72, lineHeight:1.4 }}>
+                  <span style={{ display:'block' }}>{top}</span>
+                  <span style={{ display:'block' }}>{bot}</span>
+                </th>
+              );
+            })}
+            <th style={{ background:'#166534', color:'white', padding:'7px 8px', fontSize:10, fontWeight:700, textAlign:'center', borderRight:'1px solid rgba(255,255,255,0.15)' }}>Avg</th>
+            <th style={{ background:'#1e293b', color:'#64748b', padding:'7px 6px', fontSize:10, textAlign:'center', minWidth:68 }}>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {positions.map(pg => {
+            const emps = matrix.filter(r => r.position === pg.position);
+            const vacancies = Math.max(0, pg.slots - emps.length);
+            const totalCols = 5 + skills.length + 2;
+            return (
+              <React.Fragment key={pg.position}>
+                {emps.map((row, i) => {
+                  const avg = avgFn(row);
+                  return (
+                    <tr key={row.id} style={{ borderBottom:'1px solid rgba(255,255,255,0.05)' }}>
+                      <td style={{ textAlign:'center', fontSize:11, padding:'5px 6px', color:'#94a3b8' }}>{i+1}</td>
+                      <td style={{ fontSize:12, padding:'5px 10px', color:'#0f172a', fontWeight:700, whiteSpace:'nowrap', background:'rgba(255,255,255,0.92)' }}>{row.name}</td>
+                      <td style={{ fontSize:10, padding:'5px 6px', color:'#60a5fa', textAlign:'center', fontFamily:'monospace' }}>{row.empId}</td>
+                      <td style={{ fontSize:10, padding:'5px 8px', color:'#94a3b8' }}>{row.position}</td>
+                      <td style={{ textAlign:'center', fontSize:11, padding:'5px 6px', color:'#e2e8f0', fontWeight:600 }}>{row.experience}</td>
+                      {skills.map(s => {
+                        const v = row[s.key] as number;
+                        return (
+                          <td key={s.key} style={{ textAlign:'center', padding:'4px 2px', background:ratingBg(v), color:ratingTxt(v), fontSize:12, fontWeight:700, borderLeft:'1px solid rgba(255,255,255,0.06)' }}>
+                            {v}
+                          </td>
+                        );
+                      })}
+                      <td style={{ textAlign:'center', padding:'4px 2px', background:ratingBg(avg), color:ratingTxt(avg), fontSize:12, fontWeight:700, borderLeft:'1px solid rgba(255,255,255,0.06)' }}>
+                        {avg}
+                      </td>
+                      <td style={{ textAlign:'center', padding:'4px 6px' }}>
+                        <div style={{ display:'flex', gap:4, justifyContent:'center' }}>
+                          <button onClick={() => openMatrixEdit(row)} title="Edit" style={{ background:'none',border:'none',cursor:'pointer',color:'#60a5fa',padding:'2px 4px' }}><Edit size={13}/></button>
+                          <button onClick={() => deleteMatrixRow(row.id)} title="Delete" style={{ background:'none',border:'none',cursor:'pointer',color:'#ef4444',padding:'2px 4px' }}><Trash2 size={13}/></button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+                {Array.from({ length: vacancies }).map((_, i) => (
+                  <tr key={`vac-${pg.position}-${i}`} style={{ background:'rgba(239,68,68,0.06)', borderBottom:'1px solid rgba(255,255,255,0.04)' }}>
+                    <td style={{ textAlign:'center', fontSize:11, padding:'5px 6px', color:'#475569' }}>{emps.length+i+1}</td>
+                    <td style={{ fontSize:11, padding:'5px 10px', color:'#ef4444', fontWeight:500, fontStyle:'italic' }}>{pg.position}</td>
+                    <td style={{ fontSize:10, padding:'5px 6px', color:'#334155', textAlign:'center', fontFamily:'monospace' }}>—</td>
+                    <td style={{ fontSize:10, padding:'5px 8px', color:'#334155' }}>— vacancy —</td>
+                    <td style={{ textAlign:'center', fontSize:10, padding:'5px 6px', color:'#334155' }}>—</td>
+                    {skills.map(s => (
+                      <td key={s.key} style={{ textAlign:'center', padding:'4px 2px', color:'rgba(255,255,255,0.25)', fontSize:11, fontStyle:'italic', borderLeft:'1px solid rgba(255,255,255,0.04)', fontWeight:400 }}>
+                        Nil
+                      </td>
+                    ))}
+                    <td style={{ textAlign:'center', padding:'4px 2px', color:'rgba(255,255,255,0.25)', fontSize:11, fontStyle:'italic', borderLeft:'1px solid rgba(255,255,255,0.04)' }}>Nil</td>
+                    <td style={{ textAlign:'center', padding:'4px 6px' }}/>
+                  </tr>
+                ))}
+                <tr><td colSpan={totalCols} style={{ height:8, background:'rgba(255,255,255,0.015)' }}/></tr>
+              </React.Fragment>
+            );
+          })}
+        </tbody>
+      </table>
+    </div>
+  );
 
   return (
     <div style={{ display:'flex', flexDirection:'column', gap:16 }}>
@@ -304,9 +475,7 @@ export default function Manpower() {
         ))}
       </div>
 
-
-
-      {/* ── SHIFT PLANNING (live from org chart data) ── */}
+      {/* ── SHIFT PLANNING ── */}
       {tab === 'shift' && (() => {
         const shiftGroups = SHIFT_ORDER.map(key => {
           const emps = employees.filter(e => e.shift === key);
@@ -324,7 +493,6 @@ export default function Manpower() {
 
         return (
           <div style={{ display:'flex', flexDirection:'column', gap:14 }}>
-            {/* Summary header */}
             <div className="glass-card" style={{ padding:'12px 18px', display:'flex', gap:24, alignItems:'center', flexWrap:'wrap' }}>
               <div style={{ fontSize:12, color:'#60a5fa', fontWeight:600, textTransform:'uppercase', letterSpacing:1 }}>
                 Shift Distribution — {employees.length} staff across {shiftGroups.length} shift{shiftGroups.length !== 1 ? 's' : ''}
@@ -340,13 +508,10 @@ export default function Manpower() {
 
             {shiftGroups.map(g => (
               <div key={g.key} className="glass-card" style={{ padding:16 }}>
-                {/* Shift header */}
                 <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:14 }}>
                   <div style={{ fontSize:14, fontWeight:700, color:'#f1f5f9' }}>{g.label}</div>
                   <span className="badge badge-blue">{g.emps.length} staff</span>
                 </div>
-
-                {/* Count breakdown */}
                 <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:8, marginBottom:14 }}>
                   {[
                     { label:'Engineers',   count: g.engineers.length,   color:'#3b82f6' },
@@ -360,15 +525,12 @@ export default function Manpower() {
                     </div>
                   ))}
                 </div>
-
-                {/* Employee list */}
                 <div style={{ display:'flex', flexWrap:'wrap', gap:8 }}>
                   {g.emps.map(emp => (
                     <div key={emp.id} onClick={() => setViewEmp(emp)} style={{
                       display:'flex', alignItems:'center', gap:8, cursor:'pointer',
                       background:'rgba(255,255,255,0.04)', border:'1px solid rgba(255,255,255,0.08)',
-                      borderRadius:8, padding:'6px 10px', minWidth:180,
-                      transition:'background 0.15s',
+                      borderRadius:8, padding:'6px 10px', minWidth:180, transition:'background 0.15s',
                     }}
                       onMouseEnter={e => (e.currentTarget.style.background='rgba(59,130,246,0.1)')}
                       onMouseLeave={e => (e.currentTarget.style.background='rgba(255,255,255,0.04)')}
@@ -398,7 +560,7 @@ export default function Manpower() {
 
       {/* ── SKILL MATRIX ── */}
       {tab === 'skills' && (
-        <div style={{ display:'flex', flexDirection:'column', gap:12 }}>
+        <div style={{ display:'flex', flexDirection:'column', gap:16 }}>
 
           {/* Toolbar */}
           <div style={{ display:'flex', justifyContent:'flex-end', alignItems:'center', gap:8 }}>
@@ -410,105 +572,27 @@ export default function Manpower() {
             </button>
           </div>
 
-          {/* Matrix Table */}
-          <div style={{ overflowX:'auto', borderRadius:10, border:'1px solid rgba(255,255,255,0.08)' }}>
-            <table style={{ width:'100%', borderCollapse:'collapse', minWidth:1200 }}>
-              <thead>
-                {/* Title row */}
-                <tr>
-                  <th colSpan={5} style={{ background:'#1e3a5f', color:'white', padding:'8px 12px', fontSize:14, fontWeight:700, textAlign:'center', borderRight:'2px solid rgba(255,255,255,0.15)' }}>
-                    E & I — IT Skill Matrix
-                  </th>
-                  <th colSpan={9} style={{ background:'#1e3a5f', color:'#86efac', padding:'8px 12px', fontSize:11, fontWeight:600, textAlign:'center', borderRight:'2px solid rgba(255,255,255,0.15)' }}>
-                    Technical Skills (Rating 1–5)
-                  </th>
-                  <th style={{ background:'#ca8a04', color:'white', padding:'8px', fontSize:12, fontWeight:700, textAlign:'center', borderRight:'2px solid rgba(255,255,255,0.15)' }}>
-                    {new Date().getFullYear()}
-                  </th>
-                  <th style={{ background:'#ef4444', color:'white', padding:'8px', fontSize:10, fontWeight:700, textAlign:'center' }}>
-                    {new Date().toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'})}
-                  </th>
-                </tr>
-                {/* Column headers */}
-                <tr>
-                  {['Sl.No','Name','Emp ID','Position','Exp'].map(h => (
-                    <th key={h} style={{ background:'#166534', color:'white', padding:'7px 8px', fontSize:10, fontWeight:700, textAlign:'center', borderRight:'1px solid rgba(255,255,255,0.15)', whiteSpace:'nowrap', minWidth: h==='Name'?140:h==='Position'?120:undefined }}>
-                      {h}
-                    </th>
-                  ))}
-                  {MSKILLS.map(s => {
-                    const idx = s.label.indexOf(' ');
-                    const top = idx > -1 ? s.label.slice(0, idx) : s.label;
-                    const bot = idx > -1 ? s.label.slice(idx + 1) : '';
-                    return (
-                      <th key={s.key} style={{ background:'#166534', color:'white', padding:'6px 4px', fontSize:9, fontWeight:700, textAlign:'center', borderRight:'1px solid rgba(255,255,255,0.15)', minWidth:72, lineHeight:1.4 }}>
-                        <span style={{ display:'block' }}>{top}</span>
-                        <span style={{ display:'block' }}>{bot}</span>
-                      </th>
-                    );
-                  })}
-                  <th style={{ background:'#166534', color:'white', padding:'7px 8px', fontSize:10, fontWeight:700, textAlign:'center', borderRight:'1px solid rgba(255,255,255,0.15)' }}>Avg</th>
-                  <th style={{ background:'#1e293b', color:'#64748b', padding:'7px 6px', fontSize:10, textAlign:'center', minWidth:68 }}>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {MATRIX_POSITIONS.map(pg => {
-                  const emps = matrix.filter(r => r.position === pg.position);
-                  const vacancies = Math.max(0, pg.slots - emps.length);
-                  return (
-                    <React.Fragment key={pg.position}>
-                      {emps.map((row, i) => {
-                        const avg = row.isNA ? null : getAvg(row);
-                        return (
-                          <tr key={row.id} style={{ borderBottom:'1px solid rgba(255,255,255,0.05)' }}>
-                            <td style={{ textAlign:'center', fontSize:11, padding:'5px 6px', color:'#94a3b8' }}>{i+1}</td>
-                            <td style={{ fontSize:11, padding:'5px 10px', color:'#f1f5f9', fontWeight:600, whiteSpace:'nowrap' }}>{row.name}</td>
-                            <td style={{ fontSize:10, padding:'5px 6px', color:'#60a5fa', textAlign:'center', fontFamily:'monospace' }}>{row.empId}</td>
-                            <td style={{ fontSize:10, padding:'5px 8px', color:'#94a3b8' }}>{row.position}</td>
-                            <td style={{ textAlign:'center', fontSize:11, padding:'5px 6px', color:'#e2e8f0', fontWeight:600 }}>{row.experience}</td>
-                            {MSKILLS.map(s => {
-                              const v = row[s.key] as number;
-                              return (
-                                <td key={s.key} style={{ textAlign:'center', padding:'4px 2px', background:row.isNA?'transparent':ratingBg(v), color:row.isNA?'#475569':ratingTxt(v), fontSize:12, fontWeight:700, borderLeft:'1px solid rgba(255,255,255,0.06)' }}>
-                                  {row.isNA ? 'NA' : v}
-                                </td>
-                              );
-                            })}
-                            <td style={{ textAlign:'center', padding:'4px 2px', background:avg!=null?ratingBg(avg):'transparent', color:avg!=null?ratingTxt(avg):'#475569', fontSize:12, fontWeight:700, borderLeft:'1px solid rgba(255,255,255,0.06)' }}>
-                              {row.isNA ? 'NA' : avg}
-                            </td>
-                            <td style={{ textAlign:'center', padding:'4px 6px' }}>
-                              <div style={{ display:'flex', gap:4, justifyContent:'center' }}>
-                                <button onClick={() => openMatrixEdit(row)} title="Edit" style={{ background:'none',border:'none',cursor:'pointer',color:'#60a5fa',padding:'2px 4px' }}><Edit size={13}/></button>
-                                <button onClick={() => deleteMatrixRow(row.id)} title="Delete" style={{ background:'none',border:'none',cursor:'pointer',color:'#ef4444',padding:'2px 4px' }}><Trash2 size={13}/></button>
-                              </div>
-                            </td>
-                          </tr>
-                        );
-                      })}
-                      {Array.from({ length: vacancies }).map((_, i) => (
-                        <tr key={`vac-${pg.position}-${i}`} style={{ background:'rgba(239,68,68,0.06)', borderBottom:'1px solid rgba(255,255,255,0.04)' }}>
-                          <td style={{ textAlign:'center', fontSize:11, padding:'5px 6px', color:'#475569' }}>{emps.length+i+1}</td>
-                          <td style={{ fontSize:11, padding:'5px 10px', color:'#ef4444', fontWeight:500, fontStyle:'italic' }}>{pg.position}</td>
-                          <td style={{ fontSize:10, padding:'5px 6px', color:'#334155', textAlign:'center', fontFamily:'monospace' }}>—</td>
-                          <td style={{ fontSize:10, padding:'5px 8px', color:'#334155' }}>— vacancy —</td>
-                          <td style={{ textAlign:'center', fontSize:10, padding:'5px 6px', color:'#334155' }}>—</td>
-                          {MSKILLS.map(s => (
-                            <td key={s.key} style={{ textAlign:'center', padding:'4px 2px', color:'rgba(255,255,255,0.25)', fontSize:11, fontStyle:'italic', borderLeft:'1px solid rgba(255,255,255,0.04)', fontWeight:400 }}>
-                              Nil
-                            </td>
-                          ))}
-                          <td style={{ textAlign:'center', padding:'4px 2px', color:'rgba(255,255,255,0.25)', fontSize:11, fontStyle:'italic', borderLeft:'1px solid rgba(255,255,255,0.04)' }}>Nil</td>
-                          <td style={{ textAlign:'center', padding:'4px 6px' }}/>
-                        </tr>
-                      ))}
-                      <tr><td colSpan={16} style={{ height:8, background:'rgba(255,255,255,0.015)' }}/></tr>
-                    </React.Fragment>
-                  );
-                })}
-              </tbody>
-            </table>
+          {/* E&I Matrix Table */}
+          {renderSkillTable(
+            EI_POSITIONS, MSKILLS, getAvg,
+            'E & I — Skill Matrix',
+            'Technical Skills (Rating 1–5)',
+            '#1e3a5f', '#86efac',
+          )}
+
+          {/* IT Matrix Table */}
+          <div style={{ display:'flex', alignItems:'center', gap:10, marginTop:8 }}>
+            <div style={{ flex:1, height:1, background:'rgba(139,92,246,0.3)' }}/>
+            <span style={{ fontSize:11, color:'#a78bfa', fontWeight:600, textTransform:'uppercase', letterSpacing:1.5 }}>IT Department</span>
+            <div style={{ flex:1, height:1, background:'rgba(139,92,246,0.3)' }}/>
           </div>
+          {renderSkillTable(
+            IT_POSITIONS, IT_SKILLS, getITAvg,
+            'IT — Skill Matrix',
+            'IT Technical Skills (Rating 1–5)',
+            '#1e1b4b', '#c4b5fd',
+          )}
+
           {/* Rating Scale Legend */}
           <div className="glass-card" style={{ padding:'14px 20px' }}>
             <div style={{ fontSize:11, color:'#60a5fa', fontWeight:600, textTransform:'uppercase', letterSpacing:1, marginBottom:12 }}>
@@ -547,7 +631,6 @@ export default function Manpower() {
             </h3>
 
             <div style={{ display:'flex',flexDirection:'column',gap:14 }}>
-              {/* Basic info */}
               <div style={{ display:'grid',gridTemplateColumns:'1fr 1fr',gap:12 }}>
                 <div>
                   <label style={lbl}>Full Name *</label>
@@ -562,7 +645,7 @@ export default function Manpower() {
                 <div>
                   <label style={lbl}>Position</label>
                   <select style={inp} value={matrixForm.position} onChange={e => setMF('position',e.target.value)}>
-                    {MATRIX_POSITIONS.map(p => <option key={p.position}>{p.position}</option>)}
+                    {ALL_POSITIONS.map(p => <option key={p.position}>{p.position}</option>)}
                   </select>
                 </div>
                 <div>
@@ -570,19 +653,44 @@ export default function Manpower() {
                   <input style={inp} type="number" min={0} max={50} value={matrixForm.experience} onChange={e => setMF('experience',Number(e.target.value))}/>
                 </div>
               </div>
-              <div style={{ display:'flex',alignItems:'center',gap:10 }}>
-                <input type="checkbox" id="isNA" checked={matrixForm.isNA} onChange={e => setMF('isNA',e.target.checked)} style={{ width:16,height:16,cursor:'pointer' }}/>
-                <label htmlFor="isNA" style={{ fontSize:12,color:'#94a3b8',cursor:'pointer' }}>IT / Non-Technical role (all skills = NA)</label>
-              </div>
 
-              {/* Skill ratings */}
-              {!matrixForm.isNA && (
+              {/* E&I Skill ratings */}
+              {matrixForm.position !== 'IT Engineer' && (
                 <>
                   <div style={{ fontSize:11,color:'#3b82f6',fontWeight:600,textTransform:'uppercase',letterSpacing:1,marginTop:4 }}>
-                    Skill Ratings (1 = Beginner · 5 = Expert)
+                    E&I Skill Ratings (1 = Beginner · 5 = Expert)
                   </div>
                   <div style={{ display:'grid',gridTemplateColumns:'1fr 1fr',gap:10 }}>
                     {MSKILLS.map(s => (
+                      <div key={s.key}>
+                        <label style={lbl}>{s.label}</label>
+                        <div style={{ display:'flex',gap:6 }}>
+                          {[1,2,3,4,5].map(v => {
+                            const cur = matrixForm[s.key] as number;
+                            return (
+                              <button key={v} onClick={() => setMF(s.key, v)} style={{
+                                width:36,height:36,borderRadius:6,border:'2px solid',fontWeight:700,fontSize:13,cursor:'pointer',
+                                background: cur === v ? ratingBg(v) : 'rgba(255,255,255,0.04)',
+                                color: cur === v ? ratingTxt(v) : '#64748b',
+                                borderColor: cur === v ? ratingBg(v) : 'rgba(255,255,255,0.1)',
+                              }}>{v}</button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </>
+              )}
+
+              {/* IT Skill ratings */}
+              {matrixForm.position === 'IT Engineer' && (
+                <>
+                  <div style={{ fontSize:11,color:'#8b5cf6',fontWeight:600,textTransform:'uppercase',letterSpacing:1,marginTop:4 }}>
+                    IT Skill Ratings (1 = Beginner · 5 = Expert)
+                  </div>
+                  <div style={{ display:'grid',gridTemplateColumns:'1fr 1fr',gap:10 }}>
+                    {IT_SKILLS.map(s => (
                       <div key={s.key}>
                         <label style={lbl}>{s.label}</label>
                         <div style={{ display:'flex',gap:6 }}>
@@ -624,8 +732,6 @@ export default function Manpower() {
         <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.75)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:1000, padding:20 }}>
           <div className="glass-card" style={{ width:'100%', maxWidth:580, maxHeight:'92vh', overflowY:'auto', padding:24, position:'relative' }}>
             <button onClick={() => setViewEmp(null)} style={{ position:'absolute', top:16, right:16, background:'none', border:'none', color:'#64748b', cursor:'pointer' }}><X size={18}/></button>
-
-            {/* Header */}
             <div style={{ display:'flex', alignItems:'center', gap:16, marginBottom:20 }}>
               {viewEmp.photo ? (
                 <img src={viewEmp.photo} alt={viewEmp.name} style={{ width:68, height:68, borderRadius:'50%', objectFit:'cover', border:'2px solid #3b82f6', flexShrink:0 }}/>
@@ -640,17 +746,12 @@ export default function Manpower() {
                 <div style={{ fontSize:11, color: DEPT_COLOR[viewEmp.department]||'#64748b', marginTop:2 }}>{viewEmp.department} Department</div>
               </div>
             </div>
-
             <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10, marginBottom:12 }}>
               {[
-                ['Role', viewEmp.role],
-                ['Shift', viewEmp.shift+' Shift'],
-                ['Status', viewEmp.status],
-                ['Experience', viewEmp.experience+' years'],
-                ['Nationality', viewEmp.nationality],
-                ['Country of Origin', viewEmp.countryOfOrigin||'—'],
-                ['Email', viewEmp.email],
-                ['Date of Joining', viewEmp.dateOfJoining],
+                ['Role', viewEmp.role], ['Shift', viewEmp.shift+' Shift'],
+                ['Status', viewEmp.status], ['Experience', viewEmp.experience+' years'],
+                ['Nationality', viewEmp.nationality], ['Country of Origin', viewEmp.countryOfOrigin||'—'],
+                ['Email', viewEmp.email], ['Date of Joining', viewEmp.dateOfJoining],
               ].map(([l,v]) => (
                 <div key={l} style={{ background:'rgba(255,255,255,0.03)', borderRadius:8, padding:'10px 14px' }}>
                   <div style={{ fontSize:10, color:'#64748b', marginBottom:2 }}>{l}</div>
@@ -658,14 +759,12 @@ export default function Manpower() {
                 </div>
               ))}
             </div>
-
             {viewEmp.address && (
               <div style={{ background:'rgba(255,255,255,0.03)', borderRadius:8, padding:'10px 14px', marginBottom:12 }}>
                 <div style={{ fontSize:10, color:'#64748b', marginBottom:4, display:'flex', alignItems:'center', gap:5 }}><MapPin size={11}/> Residential Address</div>
                 <div style={{ fontSize:13, color:'#e2e8f0' }}>{viewEmp.address}</div>
               </div>
             )}
-
             <div style={{ background:'rgba(255,255,255,0.03)', borderRadius:8, padding:'12px 14px', marginBottom:12 }}>
               <div style={{ fontSize:11, color:'#64748b', marginBottom:8, display:'flex', alignItems:'center', gap:6 }}><Phone size={12}/> Contact Numbers</div>
               {[['India Number', viewEmp.indiaPhone], ['UAE Personal Number', viewEmp.uaePhone], ['UAE Company Number', viewEmp.uaeCompanyPhone]].map(([l,v]) => (
@@ -675,12 +774,10 @@ export default function Manpower() {
                 </div>
               ))}
             </div>
-
             <div style={{ background:'rgba(255,255,255,0.03)', borderRadius:8, padding:'10px 14px', marginBottom:16 }}>
               <div style={{ fontSize:10, color:'#64748b', marginBottom:4 }}>Skills</div>
               <div style={{ fontSize:13, color:'#e2e8f0' }}>{viewEmp.skill||'—'}</div>
             </div>
-
             <div style={{ display:'flex', gap:8, justifyContent:'flex-end' }}>
               <button className="btn-primary" onClick={() => { setViewEmp(null); openEdit(viewEmp); }} style={{ fontSize:12, display:'flex', alignItems:'center', gap:4 }}>
                 <Edit size={12}/> Edit Employee
@@ -690,7 +787,7 @@ export default function Manpower() {
         </div>
       )}
 
-      {/* ── ADD / EDIT MODAL ── */}
+      {/* ── ADD / EDIT EMPLOYEE MODAL ── */}
       {modal && (
         <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.8)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:1000, padding:20 }}>
           <div className="glass-card" style={{ width:'100%', maxWidth:640, maxHeight:'92vh', overflowY:'auto', padding:24, position:'relative' }}>
@@ -698,10 +795,7 @@ export default function Manpower() {
             <h3 style={{ margin:'0 0 20px', fontSize:16, fontWeight:700, color:'#f1f5f9' }}>
               {modal === 'add' ? 'Add New Employee' : 'Edit Employee'}
             </h3>
-
             <div style={{ display:'flex', flexDirection:'column', gap:14 }}>
-
-              {/* Photo */}
               <div>
                 <label style={lbl}>Profile Photo</label>
                 <div style={{ display:'flex', alignItems:'center', gap:14 }}>
@@ -728,7 +822,6 @@ export default function Manpower() {
                   <input ref={fileRef} type="file" accept="image/*" style={{ display:'none' }} onChange={handlePhoto}/>
                 </div>
               </div>
-
               <div style={sec}>Basic Information</div>
               <div style={r2}>
                 <div><label style={lbl}>Full Name *</label><input style={inp} value={form.name} onChange={e => set('name',e.target.value)} placeholder="Employee Full Name"/></div>
@@ -778,18 +871,15 @@ export default function Manpower() {
                 <div><label style={lbl}>Country of Origin</label><input style={inp} value={form.countryOfOrigin||''} onChange={e => set('countryOfOrigin',e.target.value)} placeholder="e.g. India, Philippines"/></div>
               </div>
               <div><label style={lbl}>Skills</label><input style={inp} value={form.skill} onChange={e => set('skill',e.target.value)} placeholder="PLC, SCADA, VFD..."/></div>
-
               <div style={sec}><MapPin size={12}/> Address</div>
               <div>
                 <label style={lbl}>Residential Address</label>
                 <textarea style={{ ...inp, minHeight:70, resize:'vertical' }} value={form.address||''} onChange={e => set('address',e.target.value)} placeholder="Full residential address..."/>
               </div>
-
               <div style={sec}><Phone size={12}/> Contact Numbers</div>
               <div><label style={lbl}>India Phone Number</label><input style={inp} value={form.indiaPhone} onChange={e => set('indiaPhone',e.target.value)} placeholder="+91 XXXXX XXXXX"/></div>
               <div><label style={lbl}>UAE Personal Number</label><input style={inp} value={form.uaePhone} onChange={e => set('uaePhone',e.target.value)} placeholder="+971 5X XXX XXXX"/></div>
               <div><label style={lbl}>UAE Company Number</label><input style={inp} value={form.uaeCompanyPhone} onChange={e => set('uaeCompanyPhone',e.target.value)} placeholder="+971 4 XXX XXXX"/></div>
-
               <div style={{ display:'flex', gap:10, justifyContent:'flex-end', marginTop:6 }}>
                 <button className="btn-secondary" onClick={() => setModal(null)} style={{ fontSize:13 }}>Cancel</button>
                 <button onClick={handleSave} style={{
