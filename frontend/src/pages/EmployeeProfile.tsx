@@ -5,7 +5,7 @@ import {
   ArrowLeft, Edit, Save, X, Plus, Trash2, Upload, Download, Eye,
   User, Briefcase, GraduationCap, Award, Star, FileText, BarChart3,
   Calendar, Clock, TrendingUp, Phone, MapPin, Shield,
-  CheckCircle, Camera,
+  CheckCircle, Camera, UserX,
 } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 import {
@@ -646,6 +646,27 @@ export default function EmployeeProfile() {
           </button>
         </div>
       </div>
+
+      {/* Resigned banner */}
+      {emp.status === 'resigned' && (
+        <div style={{ background: 'rgba(100,116,139,0.1)', border: '1px solid rgba(100,116,139,0.3)', borderRadius: 10, padding: '12px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <UserX size={16} color="#64748b" />
+            <div>
+              <div style={{ fontSize: 13, fontWeight: 600, color: '#475569' }}>This employee has resigned</div>
+              {emp.resignation && (
+                <div style={{ fontSize: 11, color: '#64748b' }}>
+                  Resigned: {emp.resignation.resignationDate || '—'} · Last day: {emp.resignation.lastWorkingDate || '—'}{emp.resignation.reason ? ` · ${emp.resignation.reason}` : ''}
+                </div>
+              )}
+            </div>
+          </div>
+          <button onClick={() => navigate('/employees', { state: { tab: 'resigned' } })}
+            style={{ padding: '6px 14px', fontSize: 12, background: 'rgba(100,116,139,0.15)', border: '1px solid rgba(100,116,139,0.3)', borderRadius: 7, color: '#94a3b8', cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0 }}>
+            ← Resigned Folder
+          </button>
+        </div>
+      )}
 
       {/* Tab bar */}
       <div style={{ display:'flex', gap:2, overflowX:'auto', paddingBottom:4 }}>

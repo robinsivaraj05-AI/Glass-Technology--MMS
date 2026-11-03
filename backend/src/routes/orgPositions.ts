@@ -131,6 +131,21 @@ router.post('/fix-tree', async (_req: Request, res: Response) => {
   }
 });
 
+// POST clear-person — clear personName from org positions when an employee resigns
+router.post('/clear-person', async (req: Request, res: Response) => {
+  try {
+    const { name } = req.body;
+    if (!name) return res.status(400).json({ message: 'name is required' });
+    const result = await OrgPosition.updateMany(
+      { personName: { $regex: name.trim(), $options: 'i' } },
+      { $set: { personName: '', recruitmentStatus: 'pending' } }
+    );
+    res.json({ cleared: result.modifiedCount });
+  } catch (err: any) {
+    res.status(500).json({ message: 'Failed to clear person', error: err.message });
+  }
+});
+
 // POST add new position
 router.post('/', async (req: Request, res: Response) => {
   try {

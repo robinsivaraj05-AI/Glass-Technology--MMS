@@ -1,5 +1,5 @@
 ﻿import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import {
   Users, UserCheck, UserX, UserPlus, AlertTriangle, Search, Download,
@@ -15,6 +15,7 @@ import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { type FullEmployee, type ResignationDetails } from '../data/employeeData';
 import { useEmployees } from '../context/EmployeeContext';
+import { apiFetch } from '../utils/api';
 
 const STATUS_COLOR: Record<string, string> = {
   active: '#22c55e', on_leave: '#f59e0b', suspended: '#ef4444', resigned: '#64748b', not_joined: '#f97316',
@@ -102,7 +103,10 @@ export default function Employees() {
   const { user } = useAuth();
   const isAdmin = user?.role === 'manager';
 
-  const [tab, setTab]               = useState<'directory' | 'resigned'>('directory');
+  const location = useLocation();
+  const [tab, setTab]               = useState<'directory' | 'resigned'>(
+    (location.state as any)?.tab === 'resigned' ? 'resigned' : 'directory',
+  );
   const [search, setSearch]         = useState('');
   const [filterDept, setFilterDept] = useState('all');
   const [filterStatus, setFilterStatus] = useState('all');
@@ -121,6 +125,7 @@ export default function Employees() {
   const [showAddResign, setShowAddResign] = useState(false);
   const [resignForm, setResignForm] = useState({ ...BLANK_RESIGN_FORM });
   const setRF = (f: string, v: string) => setResignForm(p => ({ ...p, [f]: v }));
+  const [resignedDetailTab, setResignedDetailTab] = useState<'overview' | 'attendance' | 'training' | 'skills'>('overview');
 
   if (loading) return (
     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: 400, flexDirection: 'column', gap: 12 }}>
@@ -252,6 +257,7 @@ export default function Employees() {
       'IT Clearance', 'HR Clearance', 'Administration Clearance',
     ].map(item => ({ item, completed: false }));
 
+    const resigningEmp = employees.find(e => e.id === resignForm.empId);
     updateEmployee(resignForm.empId, {
       status: 'resigned',
       resignation: {
@@ -265,6 +271,13 @@ export default function Employees() {
         clearance,
       },
     });
+    if (resigningEmp?.name) {
+      apiFetch('/api/org-positions/clear-person', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: resigningEmp.name }),
+      }).catch(() => {});
+    }
     setResignForm({ ...BLANK_RESIGN_FORM });
     setShowAddResign(false);
   };
@@ -493,7 +506,7 @@ export default function Employees() {
                   const pct   = Math.round((done / total) * 100);
                   const svc   = Math.round((new Date(res.lastWorkingDate).getTime() - new Date(e.joiningDate).getTime()) / 31536000000);
                   return (
-                    <tr key={e.id} style={{ cursor: 'pointer' }} onClick={() => setSelectedResignedId(e.id)}>
+                    <tr key={e.id} style={{ cursor: 'pointer' }} onClick={() => { setResignedDetailTab('overview'); setSelectedResignedId(e.id); }}>
                       <td style={{ fontFamily: 'monospace', color: '#60a5fa', fontSize: 11 }}>{e.empId}</td>
                       <td style={{ fontWeight: 600, color: '#374151' }}>{e.name}</td>
                       <td style={{ fontSize: 11, color: '#94a3b8' }}>{e.department}</td>
@@ -521,7 +534,7 @@ export default function Employees() {
                       <td><span style={{ fontSize: 10, color: '#22c55e', fontWeight: 600 }}>Eligible</span></td>
                       <td onClick={ev => ev.stopPropagation()}>
                         <div style={{ display: 'flex', gap: 4 }}>
-                          <button onClick={() => setSelectedResignedId(e.id)} className="btn-secondary" style={{ padding: '4px 10px', fontSize: 11, display: 'flex', alignItems: 'center', gap: 4 }}>
+                          <button onClick={() => { setResignedDetailTab('overview'); setSelectedResignedId(e.id); }} className="btn-secondary" style={{ padding: '4px 10px', fontSize: 11, display: 'flex', alignItems: 'center', gap: 4 }}>
                             <Eye size={11} /> Details
                           </button>
                           <button
@@ -548,74 +561,221 @@ export default function Employees() {
             const done  = res.clearance.filter(c => c.completed).length;
             const total = res.clearance.length || 1;
             const pct   = Math.round((done / total) * 100);
+            const att   = selectedResigned.attendance;
+            const DETAIL_TABS = [
+              { key: 'overview',    label: 'Overview' },
+              { key: 'attendance',  label: 'Attendance' },
+              { key: 'training',    label: 'Training' },
+              { key: 'skills',      label: 'Skills & Certs' },
+            ];
             return (
               <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.8)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: 20 }}>
-                <div className="glass-card" style={{ width: '100%', maxWidth: 700, maxHeight: '92vh', overflowY: 'auto', padding: 24, position: 'relative' }}>
+                <div className="glass-card" style={{ width: '100%', maxWidth: 780, maxHeight: '92vh', overflowY: 'auto', padding: 24, position: 'relative' }}>
                   <button onClick={() => setSelectedResignedId(null)} style={{ position: 'absolute', top: 16, right: 16, background: 'none', border: 'none', color: '#64748b', cursor: 'pointer' }}><X size={18} /></button>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 20 }}>
-                    <div style={{ width: 52, height: 52, borderRadius: '50%', background: 'linear-gradient(135deg,#64748b,#475569)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, fontWeight: 700, color: 'white' }}>
-                      {selectedResigned.name.split(' ').map(n => n[0]).join('')}
+
+                  {/* Header */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 16 }}>
+                    <div style={{ width: 52, height: 52, borderRadius: '50%', background: 'linear-gradient(135deg,#64748b,#475569)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, fontWeight: 700, color: 'white', flexShrink: 0 }}>
+                      {selectedResigned.name.split(' ').map((n: string) => n[0]).join('')}
                     </div>
-                    <div style={{ flex: 1 }}>
+                    <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ fontSize: 16, fontWeight: 700, color: '#1e293b' }}>{selectedResigned.name}</div>
                       <div style={{ fontSize: 12, color: '#64748b' }}>{selectedResigned.designation} · {selectedResigned.empId}</div>
+                      <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 2 }}>Last Working Day: {res.lastWorkingDate || '—'}</div>
                     </div>
-                    <button
-                      onClick={() => { setSelectedResignedId(null); navigate(`/employees/${selectedResigned.id}`); }}
-                      style={{ padding: '6px 12px', fontSize: 12, background: 'rgba(59,130,246,0.15)', border: '1px solid rgba(59,130,246,0.3)', borderRadius: 7, color: '#60a5fa', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}
-                    >
+                    <button onClick={() => { setSelectedResignedId(null); navigate(`/employees/${selectedResigned.id}`); }}
+                      style={{ padding: '6px 12px', fontSize: 12, background: 'rgba(59,130,246,0.15)', border: '1px solid rgba(59,130,246,0.3)', borderRadius: 7, color: '#60a5fa', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
                       <Eye size={13} /> Full Profile
                     </button>
-                    <button
-                      onClick={() => { if (window.confirm(`Delete ${selectedResigned.name}'s record permanently?`)) handleDeleteResigned(selectedResigned.id); }}
-                      style={{ padding: '6px 12px', fontSize: 12, background: 'rgba(239,68,68,0.15)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: 7, color: '#ef4444', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}
-                    >
-                      <Trash2 size={13} /> Delete Record
+                    <button onClick={() => { if (window.confirm(`Delete ${selectedResigned.name}'s record permanently?`)) handleDeleteResigned(selectedResigned.id); }}
+                      style={{ padding: '6px 12px', fontSize: 12, background: 'rgba(239,68,68,0.15)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: 7, color: '#ef4444', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
+                      <Trash2 size={13} /> Delete
                     </button>
                   </div>
 
-                  <div style={{ fontSize: 11, color: '#3b82f6', fontWeight: 600, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 10 }}>Resignation Information</div>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 16 }}>
-                    {[
-                      ['Resignation Date', res.resignationDate], ['Notice Period', res.noticePeriod],
-                      ['Last Working Date', res.lastWorkingDate], ['Submitted To', res.submittedTo],
-                      ['Approved By', res.approvedBy], ['Approval Date', res.approvalDate],
-                      ['Exit Interview Date', res.exitInterviewDate], ['Reason', res.reason],
-                    ].map(([l, v]) => (
-                      <div key={l} style={{ background: 'rgba(255,255,255,0.03)', borderRadius: 8, padding: '10px 14px' }}>
-                        <div style={{ fontSize: 10, color: '#64748b', marginBottom: 2 }}>{l}</div>
-                        <div style={{ fontSize: 13, color: '#374151', fontWeight: 500 }}>{v || '—'}</div>
-                      </div>
+                  {/* Tab bar */}
+                  <div style={{ display: 'flex', gap: 4, marginBottom: 16, borderBottom: '1px solid rgba(255,255,255,0.08)', paddingBottom: 8 }}>
+                    {DETAIL_TABS.map(t => (
+                      <button key={t.key} onClick={() => setResignedDetailTab(t.key as any)} style={{
+                        padding: '6px 16px', borderRadius: 7, border: 'none', cursor: 'pointer', fontSize: 12, fontWeight: 500,
+                        background: resignedDetailTab === t.key ? '#3b82f6' : 'rgba(255,255,255,0.05)',
+                        color: resignedDetailTab === t.key ? 'white' : '#94a3b8',
+                      }}>{t.label}</button>
                     ))}
                   </div>
 
-                  {[
-                    ['Employee Remarks', res.employeeRemarks],
-                    ['Manager Comments', res.managerComments],
-                    ['HR Comments', res.hrComments],
-                    ['Root Cause Analysis', res.rootCause],
-                    ['Lessons Learned', res.lessonsLearned],
-                  ].map(([l, v]) => (
-                    <div key={l} style={{ background: 'rgba(255,255,255,0.03)', borderRadius: 8, padding: '10px 14px', marginBottom: 8 }}>
-                      <div style={{ fontSize: 10, color: '#64748b', marginBottom: 4 }}>{l}</div>
-                      <div style={{ fontSize: 12, color: '#94a3b8', lineHeight: 1.6 }}>{v || '—'}</div>
+                  {/* ── OVERVIEW TAB ── */}
+                  {resignedDetailTab === 'overview' && <>
+                    <div style={{ fontSize: 11, color: '#3b82f6', fontWeight: 600, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 10 }}>Resignation Information</div>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 16 }}>
+                      {([
+                        ['Resignation Date', res.resignationDate], ['Notice Period', res.noticePeriod],
+                        ['Last Working Date', res.lastWorkingDate], ['Submitted To', res.submittedTo],
+                        ['Approved By', res.approvedBy], ['Approval Date', res.approvalDate],
+                        ['Exit Interview Date', res.exitInterviewDate], ['Reason', res.reason],
+                      ] as [string, string][]).map(([l, v]) => (
+                        <div key={l} style={{ background: 'rgba(255,255,255,0.03)', borderRadius: 8, padding: '10px 14px' }}>
+                          <div style={{ fontSize: 10, color: '#64748b', marginBottom: 2 }}>{l}</div>
+                          <div style={{ fontSize: 13, color: '#374151', fontWeight: 500 }}>{v || '—'}</div>
+                        </div>
+                      ))}
                     </div>
-                  ))}
-
-                  <div style={{ fontSize: 11, color: '#3b82f6', fontWeight: 600, textTransform: 'uppercase', letterSpacing: 1, marginTop: 16, marginBottom: 10 }}>
-                    Final Clearance — {pct}% Complete
-                  </div>
-                  <div style={{ height: 6, background: 'rgba(255,255,255,0.08)', borderRadius: 3, marginBottom: 12 }}>
-                    <div style={{ width: `${pct}%`, height: '100%', background: pct === 100 ? '#22c55e' : '#f59e0b', borderRadius: 3, transition: 'width 0.4s' }} />
-                  </div>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
-                    {res.clearance.map((c, i) => (
-                      <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px', background: 'rgba(255,255,255,0.03)', borderRadius: 8 }}>
-                        {c.completed ? <CheckCircle size={14} color="#22c55e" /> : <XCircle size={14} color="#ef4444" />}
-                        <span style={{ fontSize: 12, color: c.completed ? '#94a3b8' : '#f1f5f9' }}>{c.item}</span>
+                    {([
+                      ['Employee Remarks', res.employeeRemarks],
+                      ['Manager Comments', res.managerComments],
+                      ['HR Comments', res.hrComments],
+                      ['Root Cause Analysis', res.rootCause],
+                      ['Lessons Learned', res.lessonsLearned],
+                    ] as [string, string][]).map(([l, v]) => (
+                      <div key={l} style={{ background: 'rgba(255,255,255,0.03)', borderRadius: 8, padding: '10px 14px', marginBottom: 8 }}>
+                        <div style={{ fontSize: 10, color: '#64748b', marginBottom: 4 }}>{l}</div>
+                        <div style={{ fontSize: 12, color: '#94a3b8', lineHeight: 1.6 }}>{v || '—'}</div>
                       </div>
                     ))}
-                  </div>
+                    <div style={{ fontSize: 11, color: '#3b82f6', fontWeight: 600, textTransform: 'uppercase', letterSpacing: 1, marginTop: 16, marginBottom: 10 }}>
+                      Final Clearance — {pct}% Complete
+                    </div>
+                    <div style={{ height: 6, background: 'rgba(255,255,255,0.08)', borderRadius: 3, marginBottom: 12 }}>
+                      <div style={{ width: `${pct}%`, height: '100%', background: pct === 100 ? '#22c55e' : '#f59e0b', borderRadius: 3, transition: 'width 0.4s' }} />
+                    </div>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
+                      {res.clearance.map((c, i) => (
+                        <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px', background: 'rgba(255,255,255,0.03)', borderRadius: 8 }}>
+                          {c.completed ? <CheckCircle size={14} color="#22c55e" /> : <XCircle size={14} color="#ef4444" />}
+                          <span style={{ fontSize: 12, color: c.completed ? '#94a3b8' : '#f1f5f9' }}>{c.item}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </>}
+
+                  {/* ── ATTENDANCE TAB ── */}
+                  {resignedDetailTab === 'attendance' && <>
+                    {!att || att.workingDays === 0 ? (
+                      <div style={{ textAlign: 'center', color: '#475569', padding: 40, fontSize: 13 }}>No attendance records available</div>
+                    ) : <>
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 10, marginBottom: 20 }}>
+                        {[
+                          { label: 'Working Days', val: att.workingDays, color: '#3b82f6' },
+                          { label: 'Present', val: att.present, color: '#22c55e' },
+                          { label: 'Absent', val: att.absent, color: '#ef4444' },
+                          { label: 'Leave', val: att.leave, color: '#f59e0b' },
+                          { label: 'Late Entry', val: att.lateEntry, color: '#f97316' },
+                          { label: 'Early Exit', val: att.earlyExit, color: '#8b5cf6' },
+                          { label: 'Overtime', val: att.overtime, color: '#22c55e' },
+                        ].map(({ label, val, color }) => (
+                          <div key={label} style={{ background: 'rgba(255,255,255,0.04)', borderRadius: 8, padding: '12px 14px', textAlign: 'center', border: '1px solid rgba(255,255,255,0.06)' }}>
+                            <div style={{ fontSize: 24, fontWeight: 700, color }}>{val}</div>
+                            <div style={{ fontSize: 10, color: '#64748b', marginTop: 2 }}>{label}</div>
+                          </div>
+                        ))}
+                      </div>
+                      {att.monthly && att.monthly.length > 0 ? (
+                        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+                          <thead>
+                            <tr style={{ background: 'rgba(59,130,246,0.12)' }}>
+                              {['Month', 'Present', 'Absent', 'Leave'].map(h => (
+                                <th key={h} style={{ padding: '8px 14px', textAlign: h === 'Month' ? 'left' : 'center', color: '#93c5fd', fontWeight: 600 }}>{h}</th>
+                              ))}
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {att.monthly.map((m, i) => (
+                              <tr key={i} style={{ borderTop: '1px solid rgba(255,255,255,0.05)' }}>
+                                <td style={{ padding: '7px 14px', color: '#cbd5e1' }}>{m.month}</td>
+                                <td style={{ padding: '7px 14px', textAlign: 'center', color: '#86efac' }}>{m.present}</td>
+                                <td style={{ padding: '7px 14px', textAlign: 'center', color: '#fca5a5' }}>{m.absent}</td>
+                                <td style={{ padding: '7px 14px', textAlign: 'center', color: '#fde68a' }}>{m.leave}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      ) : (
+                        <div style={{ textAlign: 'center', color: '#475569', padding: 16, fontSize: 13 }}>No monthly breakdown available</div>
+                      )}
+                    </>}
+                  </>}
+
+                  {/* ── TRAINING TAB ── */}
+                  {resignedDetailTab === 'training' && <>
+                    {!selectedResigned.training || selectedResigned.training.length === 0 ? (
+                      <div style={{ textAlign: 'center', color: '#475569', padding: 40, fontSize: 13 }}>No training records</div>
+                    ) : (
+                      <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+                        <thead>
+                          <tr style={{ background: 'rgba(59,130,246,0.12)' }}>
+                            {['Training', 'Type', 'Mode', 'Trainer', 'Date', 'Duration', 'Result'].map(h => (
+                              <th key={h} style={{ padding: '8px 12px', textAlign: 'left', color: '#93c5fd', fontWeight: 600 }}>{h}</th>
+                            ))}
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {selectedResigned.training.map((t, i) => (
+                            <tr key={(t as any).id ?? i} style={{ borderTop: '1px solid rgba(255,255,255,0.05)' }}>
+                              <td style={{ padding: '8px 12px', color: '#e2e8f0', fontWeight: 500 }}>{t.name}</td>
+                              <td style={{ padding: '8px 12px', color: '#94a3b8' }}>{t.type || '—'}</td>
+                              <td style={{ padding: '8px 12px', color: '#94a3b8' }}>{t.mode || '—'}</td>
+                              <td style={{ padding: '8px 12px', color: '#94a3b8' }}>{t.trainer || '—'}</td>
+                              <td style={{ padding: '8px 12px', color: '#94a3b8' }}>{t.date || '—'}</td>
+                              <td style={{ padding: '8px 12px', color: '#94a3b8' }}>{t.duration || '—'}</td>
+                              <td style={{ padding: '8px 12px' }}>
+                                <span style={{ color: t.result === 'Pass' ? '#22c55e' : '#f59e0b', fontWeight: 600, fontSize: 11 }}>{t.result || '—'}</span>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    )}
+                  </>}
+
+                  {/* ── SKILLS & CERTS TAB ── */}
+                  {resignedDetailTab === 'skills' && <>
+                    {selectedResigned.skills && selectedResigned.skills.length > 0 && <>
+                      <div style={{ fontSize: 11, color: '#3b82f6', fontWeight: 600, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 10 }}>Skills & Competencies</div>
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 20 }}>
+                        {selectedResigned.skills.map((s, i) => (
+                          <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'rgba(255,255,255,0.05)', borderRadius: 8, padding: '6px 12px', border: '1px solid rgba(255,255,255,0.08)' }}>
+                            <span style={{ fontSize: 12, color: '#cbd5e1', fontWeight: 500 }}>{s.name}</span>
+                            {s.category && <span style={{ fontSize: 10, color: '#64748b' }}>({s.category})</span>}
+                            <div style={{ display: 'flex', gap: 2 }}>
+                              {[1,2,3,4,5].map(n => (
+                                <div key={n} style={{ width: 8, height: 8, borderRadius: 2, background: n <= s.rating ? '#f59e0b' : '#334155' }} />
+                              ))}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </>}
+                    {selectedResigned.qualifications && selectedResigned.qualifications.length > 0 ? (
+                      <>
+                        <div style={{ fontSize: 11, color: '#3b82f6', fontWeight: 600, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 10 }}>Certifications & Qualifications</div>
+                        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+                          <thead>
+                            <tr style={{ background: 'rgba(59,130,246,0.12)' }}>
+                              {['Certificate', 'Category', 'Institute', 'Completed', 'Expiry', 'Result'].map(h => (
+                                <th key={h} style={{ padding: '8px 12px', textAlign: 'left', color: '#93c5fd', fontWeight: 600 }}>{h}</th>
+                              ))}
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {selectedResigned.qualifications.map((q, i) => (
+                              <tr key={(q as any).id ?? i} style={{ borderTop: '1px solid rgba(255,255,255,0.05)' }}>
+                                <td style={{ padding: '8px 12px', color: '#e2e8f0', fontWeight: 500 }}>{q.courseName}</td>
+                                <td style={{ padding: '8px 12px', color: '#94a3b8' }}>{q.category || '—'}</td>
+                                <td style={{ padding: '8px 12px', color: '#94a3b8' }}>{q.institute || '—'}</td>
+                                <td style={{ padding: '8px 12px', color: '#94a3b8' }}>{q.completionDate || '—'}</td>
+                                <td style={{ padding: '8px 12px', color: '#94a3b8' }}>{q.expiryDate || 'No Expiry'}</td>
+                                <td style={{ padding: '8px 12px' }}>
+                                  <span style={{ color: q.result === 'Pass' ? '#22c55e' : '#94a3b8', fontSize: 11 }}>{q.result || '—'}</span>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </>
+                    ) : !selectedResigned.skills?.length ? (
+                      <div style={{ textAlign: 'center', color: '#475569', padding: 40, fontSize: 13 }}>No skill or qualification records</div>
+                    ) : null}
+                  </>}
                 </div>
               </div>
             );
