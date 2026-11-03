@@ -613,6 +613,13 @@ export default function OrgChart() {
           await apiFetch(`${API}/fix-vacancies`, { method: 'POST' });
           data = await apiFetch(API);
         }
+        // Auto-fix Team B Team Member if it's parented to wrong node
+        const teamBJSE = data.find(p => p.role === 'Junior Shift Engineer' && p.team === 'Team B');
+        const teamBMemberOk = teamBJSE && data.some(p => p.role === 'Team Member' && p.team === 'Team B' && p.parentId === teamBJSE.posId);
+        if (!teamBMemberOk) {
+          await apiFetch(`${API}/fix-tree`, { method: 'POST' });
+          data = await apiFetch(API);
+        }
         setPositions(data);
       } catch { setPositions([]); } finally { setLoading(false); }
     })();

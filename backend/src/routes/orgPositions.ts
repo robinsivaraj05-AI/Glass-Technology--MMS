@@ -79,6 +79,58 @@ router.post('/fix-vacancies', async (_req: Request, res: Response) => {
   }
 });
 
+// POST fix-tree — fix Team B Team Member parentId so it sits directly under Team B Junior Shift Engineer
+router.post('/fix-tree', async (_req: Request, res: Response) => {
+  try {
+    const all = await OrgPosition.find().lean();
+
+    // Find key anchors
+    const teamBSE  = all.find(p => p.role === 'Shift Engineer'       && p.team === 'Team B');
+    const teamBJSE = all.find(p => p.role === 'Junior Shift Engineer' && p.team === 'Team B');
+    if (!teamBJSE) return res.json({ fixed: 0, message: 'Team B Junior Shift Engineer not found' });
+
+    // Team Members that belong to Team B but are NOT under the JSE (wrong parent)
+    const wrong = all.filter(p =>
+      p.role === 'Team Member' &&
+      p.team === 'Team B' &&
+      p.parentId !== teamBJSE.posId
+    );
+
+    let fixed = 0;
+    for (const pos of wrong) {
+      await OrgPosition.findOneAndUpdate(
+        { posId: pos.posId },
+        { $set: { parentId: teamBJSE.posId, sortOrder: 0, urgent: false } }
+      );
+      fixed++;
+    }
+
+    // If no Team B Team Member exists at all under JSE, create one
+    const existing = all.find(p => p.role === 'Team Member' && p.team === 'Team B' && p.parentId === teamBJSE.posId);
+    if (!existing && fixed === 0) {
+      const count = await OrgPosition.countDocuments();
+      const newPos = new OrgPosition({
+        posId: `pos-tb-member-${Date.now()}`,
+        parentId: teamBJSE.posId,
+        role: 'Team Member',
+        team: 'Team B',
+        personName: '',
+        urgent: false,
+        sortOrder: 0,
+        roleCategory: 'Technician',
+        recruitmentStatus: 'pending',
+        department: teamBSE?.department || '',
+      });
+      await newPos.save();
+      fixed = 1;
+    }
+
+    res.json({ fixed, message: `Fixed ${fixed} Team B Team Member position(s)` });
+  } catch (err: any) {
+    res.status(500).json({ message: 'Fix tree failed', error: err.message });
+  }
+});
+
 // POST add new position
 router.post('/', async (req: Request, res: Response) => {
   try {
