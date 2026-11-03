@@ -104,13 +104,31 @@ const emptyMatrix: MatrixEmployee = {
   networkAdmin:3, serverMgmt:3, softwareSupport:3, cybersecurity:3, erpMms:3, dbMgmt:3, hwSupport:3, cloudBackup:3, itHelpdesk:3,
 };
 
-const SHIFT_LABELS: Record<string, string> = {
-  A: 'A Shift  (06:00 – 14:00)',
-  B: 'B Shift  (14:00 – 22:00)',
-  C: 'C Shift  (22:00 – 06:00)',
-  G: 'General  (09:00 – 17:00)',
+const SHIFT_DEFS = [
+  { key:'A', label:'A Shift', time:'06:00 – 14:00', color:'#3b82f6', light:'#eff6ff', border:'#bfdbfe' },
+  { key:'B', label:'B Shift', time:'14:00 – 22:00', color:'#8b5cf6', light:'#f5f3ff', border:'#ddd6fe' },
+  { key:'C', label:'C Shift', time:'22:00 – 06:00', color:'#ec4899', light:'#fdf4ff', border:'#f0abfc' },
+  { key:'G', label:'General', time:'09:00 – 17:00', color:'#22c55e', light:'#f0fdf4', border:'#bbf7d0' },
+];
+
+// Shift assignment by EmpID — Team A→A, Team B→B, Team C→C, others→G
+const EMP_SHIFT: Record<string, string> = {
+  'GT026': 'A', 'GT051': 'B', 'GT062': 'C',   // Shift Engineers
+  'GT033': 'A', 'GT035': 'B', 'GT074': 'C',   // Junior Engineers
+  'GT046': 'A', 'GT053': 'A',                  // Technicians / Team Members
 };
-const SHIFT_ORDER = ['A', 'B', 'C', 'G'];
+function assignShift(empId: string, designation: string): string {
+  if (EMP_SHIFT[empId]) return EMP_SHIFT[empId];
+  const d = designation.toLowerCase();
+  if (d.includes('manager') || d.includes('it ') || d.includes('it s') || d.includes('deputy') || d.includes('general e')) return 'G';
+  return 'G';
+}
+
+const ROLE_COLORS: Record<string, string> = {
+  Engineer:'#3b82f6', 'IT Engineer':'#8b5cf6',
+  Manager:'#0ea5e9', 'Deputy Manager':'#0ea5e9',
+  Supervisor:'#22c55e', Technician:'#f59e0b', Helper:'#64748b',
+};
 
 const STATUS_COLOR: Record<string,string> = { present:'#22c55e', leave:'#f59e0b', absent:'#ef4444' };
 const DEPT_COLOR:  Record<string,string>  = { 'Electrical & Instrumentation':'#3b82f6', IT:'#8b5cf6' };
@@ -160,7 +178,7 @@ export default function Manpower() {
           name: e.name,
           role: guessRole(e.designation),
           department: e.department,
-          shift: 'G',
+          shift: assignShift(e.empId, e.designation),
           status: mapStatus(e.status),
           skill: (e.skills || []).map(s => s.name).join(', '),
           experience: e.yearsOfExperience || 0,
@@ -476,87 +494,99 @@ export default function Manpower() {
       </div>
 
       {/* ── SHIFT PLANNING ── */}
-      {tab === 'shift' && (() => {
-        const shiftGroups = SHIFT_ORDER.map(key => {
-          const emps = employees.filter(e => e.shift === key);
-          const engineers   = emps.filter(e => e.role === 'Engineer' || e.role === 'IT Engineer');
-          const supervisors = emps.filter(e => e.role === 'Supervisor');
-          const technicians = emps.filter(e => e.role === 'Technician');
-          const helpers     = emps.filter(e => e.role === 'Helper');
-          return { key, label: SHIFT_LABELS[key], emps, engineers, supervisors, technicians, helpers };
-        }).filter(g => g.emps.length > 0);
+      {tab === 'shift' && (
+        <div style={{ display:'flex', flexDirection:'column', gap:14 }}>
 
-        const ROLE_COLORS: Record<string,string> = {
-          Engineer:'#3b82f6', 'IT Engineer':'#8b5cf6',
-          Supervisor:'#22c55e', Technician:'#f59e0b', Helper:'#64748b',
-        };
-
-        return (
-          <div style={{ display:'flex', flexDirection:'column', gap:14 }}>
-            <div className="glass-card" style={{ padding:'12px 18px', display:'flex', gap:24, alignItems:'center', flexWrap:'wrap' }}>
-              <div style={{ fontSize:12, color:'#60a5fa', fontWeight:600, textTransform:'uppercase', letterSpacing:1 }}>
-                Shift Distribution — {employees.length} staff across {shiftGroups.length} shift{shiftGroups.length !== 1 ? 's' : ''}
-              </div>
-              {shiftGroups.map(g => (
-                <div key={g.key} style={{ display:'flex', alignItems:'center', gap:6, fontSize:12 }}>
-                  <div style={{ width:8, height:8, borderRadius:'50%', background:'#3b82f6' }}/>
-                  <span style={{ color:'#94a3b8' }}>{g.key} Shift:</span>
-                  <span style={{ color:'#f1f5f9', fontWeight:700 }}>{g.emps.length}</span>
-                </div>
-              ))}
-            </div>
-
-            {shiftGroups.map(g => (
-              <div key={g.key} className="glass-card" style={{ padding:16 }}>
-                <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:14 }}>
-                  <div style={{ fontSize:14, fontWeight:700, color:'#f1f5f9' }}>{g.label}</div>
-                  <span className="badge badge-blue">{g.emps.length} staff</span>
-                </div>
-                <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:8, marginBottom:14 }}>
-                  {[
-                    { label:'Engineers',   count: g.engineers.length,   color:'#3b82f6' },
-                    { label:'Supervisors', count: g.supervisors.length, color:'#22c55e' },
-                    { label:'Technicians', count: g.technicians.length, color:'#f59e0b' },
-                    { label:'Helpers',     count: g.helpers.length,     color:'#64748b' },
-                  ].map(r => (
-                    <div key={r.label} style={{ textAlign:'center', padding:'8px 4px', background:'rgba(255,255,255,0.03)', borderRadius:8 }}>
-                      <div style={{ fontSize:22, fontWeight:700, color:r.color }}>{r.count}</div>
-                      <div style={{ fontSize:11, color:'#64748b' }}>{r.label}</div>
+          {/* Coverage summary row */}
+          <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:10 }}>
+            {SHIFT_DEFS.map(s => {
+              const emps = employees.filter(e => e.shift === s.key);
+              const engineers   = emps.filter(e => ['Engineer','IT Engineer','Manager','Deputy Manager'].includes(e.role)).length;
+              const technicians = emps.filter(e => e.role === 'Technician').length;
+              return (
+                <div key={s.key} style={{ background:s.light, border:`1px solid ${s.border}`, borderTop:`3px solid ${s.color}`, borderRadius:10, padding:'12px 16px' }}>
+                  <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start' }}>
+                    <div>
+                      <div style={{ fontSize:13, fontWeight:700, color:s.color }}>{s.label}</div>
+                      <div style={{ fontSize:10, color:'#64748b', marginTop:2 }}>{s.time}</div>
                     </div>
-                  ))}
-                </div>
-                <div style={{ display:'flex', flexWrap:'wrap', gap:8 }}>
-                  {g.emps.map(emp => (
-                    <div key={emp.id} onClick={() => setViewEmp(emp)} style={{
-                      display:'flex', alignItems:'center', gap:8, cursor:'pointer',
-                      background:'rgba(255,255,255,0.04)', border:'1px solid rgba(255,255,255,0.08)',
-                      borderRadius:8, padding:'6px 10px', minWidth:180, transition:'background 0.15s',
-                    }}
-                      onMouseEnter={e => (e.currentTarget.style.background='rgba(59,130,246,0.1)')}
-                      onMouseLeave={e => (e.currentTarget.style.background='rgba(255,255,255,0.04)')}
-                    >
-                      <Avatar emp={emp} size={28}/>
-                      <div style={{ overflow:'hidden' }}>
-                        <div style={{ fontSize:12, fontWeight:600, color:'#e2e8f0', whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>{emp.name}</div>
-                        <div style={{ fontSize:10, color: ROLE_COLORS[emp.role] || '#64748b' }}>{emp.designation || emp.role}</div>
-                      </div>
-                      <div style={{ marginLeft:'auto', flexShrink:0 }}>
-                        <div style={{ width:7, height:7, borderRadius:'50%', background: STATUS_COLOR[emp.status] ?? '#64748b' }}/>
-                      </div>
+                    <div style={{ fontSize:26, fontWeight:800, color:'#1e293b', lineHeight:1 }}>{emps.length}</div>
+                  </div>
+                  <div style={{ display:'flex', gap:10, marginTop:10, paddingTop:8, borderTop:`1px solid ${s.border}` }}>
+                    <div style={{ fontSize:11, color:'#475569' }}>
+                      <span style={{ fontWeight:700, color:s.color }}>{engineers}</span> Engineers
                     </div>
-                  ))}
+                    <div style={{ fontSize:11, color:'#475569' }}>
+                      <span style={{ fontWeight:700, color:'#f59e0b' }}>{technicians}</span> Technicians
+                    </div>
+                  </div>
                 </div>
-              </div>
-            ))}
-
-            {shiftGroups.length === 0 && (
-              <div className="glass-card" style={{ padding:40, textAlign:'center', color:'#475569', fontSize:13 }}>
-                {empLoading ? 'Loading employees…' : 'No employees assigned to shifts yet. Use Edit to assign shifts.'}
-              </div>
-            )}
+              );
+            })}
           </div>
-        );
-      })()}
+
+          {/* 4-column shift grid */}
+          <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:12, alignItems:'start' }}>
+            {SHIFT_DEFS.map(s => {
+              const emps = employees.filter(e => e.shift === s.key);
+              return (
+                <div key={s.key} style={{ display:'flex', flexDirection:'column', gap:0, borderRadius:10, overflow:'hidden', border:`1px solid ${s.border}`, boxShadow:'0 1px 4px rgba(0,0,0,0.06)' }}>
+                  {/* Column header */}
+                  <div style={{ background:s.color, padding:'10px 14px', display:'flex', alignItems:'center', justifyContent:'space-between' }}>
+                    <div>
+                      <div style={{ fontSize:13, fontWeight:700, color:'white' }}>{s.label}</div>
+                      <div style={{ fontSize:10, color:'rgba(255,255,255,0.8)', marginTop:1 }}>{s.time}</div>
+                    </div>
+                    <div style={{ background:'rgba(255,255,255,0.25)', borderRadius:20, padding:'2px 10px', fontSize:12, fontWeight:700, color:'white' }}>
+                      {emps.length}
+                    </div>
+                  </div>
+
+                  {/* Employee cards */}
+                  <div style={{ display:'flex', flexDirection:'column', gap:0, background:s.light }}>
+                    {emps.length === 0 ? (
+                      <div style={{ padding:'24px 14px', textAlign:'center', color:'#94a3b8', fontSize:11, fontStyle:'italic' }}>
+                        No staff assigned
+                      </div>
+                    ) : emps.map((emp, idx) => (
+                      <div key={emp.id} onClick={() => setViewEmp(emp)} style={{
+                        display:'flex', alignItems:'center', gap:10, cursor:'pointer',
+                        padding:'10px 12px',
+                        borderTop: idx > 0 ? `1px solid ${s.border}` : 'none',
+                        background:'white',
+                        transition:'background 0.12s',
+                      }}
+                        onMouseEnter={e => (e.currentTarget.style.background = s.light)}
+                        onMouseLeave={e => (e.currentTarget.style.background = 'white')}
+                      >
+                        <Avatar emp={emp} size={34}/>
+                        <div style={{ flex:1, minWidth:0 }}>
+                          <div style={{ fontSize:12, fontWeight:700, color:'#1e293b', lineHeight:1.4, wordBreak:'break-word' }}>
+                            {emp.name}
+                          </div>
+                          <div style={{ fontSize:10, color: ROLE_COLORS[emp.role] || '#64748b', marginTop:2, fontWeight:500 }}>
+                            {emp.designation || emp.role}
+                          </div>
+                        </div>
+                        <div style={{ display:'flex', flexDirection:'column', alignItems:'center', gap:3, flexShrink:0 }}>
+                          <div style={{ width:8, height:8, borderRadius:'50%', background: STATUS_COLOR[emp.status] ?? '#94a3b8' }}/>
+                          <div style={{ fontSize:9, color:'#94a3b8', textTransform:'capitalize' }}>{emp.status}</div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          {employees.length === 0 && (
+            <div className="glass-card" style={{ padding:40, textAlign:'center', color:'#475569', fontSize:13 }}>
+              {empLoading ? 'Loading employees…' : 'No employees found.'}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* ── SKILL MATRIX ── */}
       {tab === 'skills' && (
