@@ -608,6 +608,11 @@ export default function OrgChart() {
       try {
         let data: OrgPos[] = await apiFetch(API);
         if (!data.length) { await apiFetch(`${API}/seed`, { method:'POST' }); data = await apiFetch(API); }
+        // Auto-fix any Team Member accidentally re-added with urgent=true
+        if (data.some(p => p.role === 'Team Member' && p.urgent && !p.personName)) {
+          await apiFetch(`${API}/fix-vacancies`, { method: 'POST' });
+          data = await apiFetch(API);
+        }
         setPositions(data);
       } catch { setPositions([]); } finally { setLoading(false); }
     })();

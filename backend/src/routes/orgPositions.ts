@@ -66,6 +66,19 @@ router.post('/reset', async (_req: Request, res: Response) => {
   }
 });
 
+// POST fix-vacancies — clear urgent flag on any Team Member that was accidentally re-added as urgent
+router.post('/fix-vacancies', async (_req: Request, res: Response) => {
+  try {
+    const result = await OrgPosition.updateMany(
+      { role: 'Team Member', urgent: true, personName: '' },
+      { $set: { urgent: false } }
+    );
+    res.json({ fixed: result.modifiedCount });
+  } catch (err: any) {
+    res.status(500).json({ message: 'Fix failed', error: err.message });
+  }
+});
+
 // POST add new position
 router.post('/', async (req: Request, res: Response) => {
   try {
