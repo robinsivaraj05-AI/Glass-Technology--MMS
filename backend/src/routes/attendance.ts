@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import AttendanceRecord from '../models/Attendance';
 import TeamMember from '../models/TeamMember';
+import Employee from '../models/Employee';
 
 const router = Router();
 
@@ -38,6 +39,18 @@ router.get('/team', async (_req, res) => {
       { $set: { role: 'Technician' } }
     );
     members = await TeamMember.find().sort({ sortOrder: 1 });
+
+    // Remove any team members who are now marked resigned in the Employee collection
+    const resignedEmps = await Employee.find({ status: 'resigned' }).lean().select('empId');
+    const resignedIds = new Set(resignedEmps.map((e: any) => e.empId).filter(Boolean));
+    if (resignedIds.size > 0) {
+      const stale = members.filter(m => resignedIds.has(m.empId));
+      if (stale.length > 0) {
+        await TeamMember.deleteMany({ empId: { $in: stale.map(m => m.empId) } });
+        members = members.filter(m => !resignedIds.has(m.empId));
+      }
+    }
+
     res.json(members);
   } catch (err) { res.status(500).json({ error: String(err) }); }
 });

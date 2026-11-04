@@ -1,5 +1,6 @@
 import { Router, Request, Response } from 'express';
 import Employee from '../models/Employee';
+import TeamMember from '../models/TeamMember';
 
 const router = Router();
 
@@ -62,6 +63,10 @@ router.patch('/:id', async (req: Request, res: Response) => {
       { new: true, runValidators: false }
     ).lean();
     if (!emp) return res.status(404).json({ message: 'Employee not found' });
+    // When an employee is resigned, remove them from the attendance team roster
+    if (req.body.status === 'resigned' && (emp as any).empId) {
+      await TeamMember.findOneAndDelete({ empId: (emp as any).empId });
+    }
     res.json(emp);
   } catch (err: any) {
     res.status(500).json({ message: 'Failed to update employee', error: err.message });
