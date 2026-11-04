@@ -100,6 +100,16 @@ router.delete('/team/:empId', async (req, res) => {
 
 // ── Attendance routes ─────────────────────────────────────────────────────────
 
+// GET /api/attendance/employee/:empId — full history for one employee (for resigned folder)
+router.get('/employee/:empId', async (req, res) => {
+  try {
+    const records = await AttendanceRecord.find({ empId: req.params.empId })
+      .sort({ year: -1, month: -1 })
+      .lean();
+    res.json(records);
+  } catch (err) { res.status(500).json({ error: String(err) }); }
+});
+
 // GET /api/attendance?year=&month=
 router.get('/', async (req, res) => {
   try {

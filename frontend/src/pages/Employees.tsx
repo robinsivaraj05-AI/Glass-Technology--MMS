@@ -1,4 +1,4 @@
-﻿import { useState } from 'react';
+﻿import { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import {
@@ -126,6 +126,23 @@ export default function Employees() {
   const [resignForm, setResignForm] = useState({ ...BLANK_RESIGN_FORM });
   const setRF = (f: string, v: string) => setResignForm(p => ({ ...p, [f]: v }));
   const [resignedDetailTab, setResignedDetailTab] = useState<'overview' | 'attendance' | 'training' | 'skills'>('overview');
+  const [resignedAttRecords, setResignedAttRecords] = useState<any[]>([]);
+  const [loadingResignedAtt, setLoadingResignedAtt] = useState(false);
+
+  // Fetch real attendance records from AttendanceRecord collection when Attendance tab is open
+  useEffect(() => {
+    if (resignedDetailTab !== 'attendance' || !selectedResignedId) {
+      setResignedAttRecords([]);
+      return;
+    }
+    const emp = employees.find(e => e.id === selectedResignedId);
+    if (!emp?.empId) return;
+    setLoadingResignedAtt(true);
+    apiFetch(`/api/attendance/employee/${emp.empId}`)
+      .then((data: any[]) => setResignedAttRecords(Array.isArray(data) ? data : []))
+      .catch(() => setResignedAttRecords([]))
+      .finally(() => setLoadingResignedAtt(false));
+  }, [resignedDetailTab, selectedResignedId, employees]);
 
   if (loading) return (
     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: 400, flexDirection: 'column', gap: 12 }}>
@@ -658,51 +675,85 @@ export default function Employees() {
                   </>}
 
                   {/* ── ATTENDANCE TAB ── */}
-                  {resignedDetailTab === 'attendance' && <>
-                    {!att || att.workingDays === 0 ? (
+                  {resignedDetailTab === 'attendance' && (() => {
+                    const MONTH_NAMES = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+                    const WORK_CODES  = new Set(['PR','WH','SD','OD','A','B','C','RP']);
+                    const LEAVE_CODES = new Set(['AL','PL','SL','CO']);
+
+                    if (loadingResignedAtt) return (
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 40, gap: 10 }}>
+                        <div style={{ width: 20, height: 20, border: '2px solid rgba(59,130,246,0.3)', borderTopColor: '#3b82f6', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }}/>
+                        <span style={{ color: '#64748b', fontSize: 13 }}>Loading attendance…</span>
+                      </div>
+                    );
+
+                    if (!resignedAttRecords.length) return (
                       <div style={{ textAlign: 'center', color: '#475569', padding: 40, fontSize: 13 }}>No attendance records available</div>
-                    ) : <>
+                    );
+
+                    // Compute totals and per-month summary from raw records
+                    let totalPresent = 0, totalLeave = 0, totalWO = 0, totalNH = 0, totalDays = 0;
+                    const rows = resignedAttRecords.map((rec: any) => {
+                      const present = rec.entries.filter((e: any) => WORK_CODES.has(e.code)).length;
+                      const leave   = rec.entries.filter((e: any) => LEAVE_CODES.has(e.code)).length;
+                      const wo      = rec.entries.filter((e: any) => e.code === 'WO').length;
+                      const nh      = rec.entries.filter((e: any) => e.code === 'NH').length;
+                      totalPresent += present; totalLeave += leave; totalWO += wo; totalNH += nh;
+                      totalDays += rec.entries.length;
+                      return { year: rec.year, month: rec.month, present, leave, wo, nh, total: rec.entries.length };
+                    });
+
+                    return <>
+                      {/* Summary tiles */}
                       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 10, marginBottom: 20 }}>
                         {[
-                          { label: 'Working Days', val: att.workingDays, color: '#3b82f6' },
-                          { label: 'Present', val: att.present, color: '#22c55e' },
-                          { label: 'Absent', val: att.absent, color: '#ef4444' },
-                          { label: 'Leave', val: att.leave, color: '#f59e0b' },
-                          { label: 'Late Entry', val: att.lateEntry, color: '#f97316' },
-                          { label: 'Early Exit', val: att.earlyExit, color: '#8b5cf6' },
-                          { label: 'Overtime', val: att.overtime, color: '#22c55e' },
+                          { label: 'Total Days Recorded', val: totalDays,    color: '#3b82f6' },
+                          { label: 'Present / On Duty',   val: totalPresent, color: '#22c55e' },
+                          { label: 'Leave',               val: totalLeave,   color: '#f59e0b' },
+                          { label: 'Weekly Off',          val: totalWO,      color: '#94a3b8' },
                         ].map(({ label, val, color }) => (
                           <div key={label} style={{ background: 'rgba(255,255,255,0.04)', borderRadius: 8, padding: '12px 14px', textAlign: 'center', border: '1px solid rgba(255,255,255,0.06)' }}>
-                            <div style={{ fontSize: 24, fontWeight: 700, color }}>{val}</div>
+                            <div style={{ fontSize: 22, fontWeight: 700, color }}>{val}</div>
                             <div style={{ fontSize: 10, color: '#64748b', marginTop: 2 }}>{label}</div>
                           </div>
                         ))}
                       </div>
-                      {att.monthly && att.monthly.length > 0 ? (
-                        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
-                          <thead>
-                            <tr style={{ background: 'rgba(59,130,246,0.12)' }}>
-                              {['Month', 'Present', 'Absent', 'Leave'].map(h => (
-                                <th key={h} style={{ padding: '8px 14px', textAlign: h === 'Month' ? 'left' : 'center', color: '#93c5fd', fontWeight: 600 }}>{h}</th>
-                              ))}
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {att.monthly.map((m, i) => (
-                              <tr key={i} style={{ borderTop: '1px solid rgba(255,255,255,0.05)' }}>
-                                <td style={{ padding: '7px 14px', color: '#cbd5e1' }}>{m.month}</td>
-                                <td style={{ padding: '7px 14px', textAlign: 'center', color: '#86efac' }}>{m.present}</td>
-                                <td style={{ padding: '7px 14px', textAlign: 'center', color: '#fca5a5' }}>{m.absent}</td>
-                                <td style={{ padding: '7px 14px', textAlign: 'center', color: '#fde68a' }}>{m.leave}</td>
-                              </tr>
+
+                      {/* Monthly breakdown table */}
+                      <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+                        <thead>
+                          <tr style={{ background: 'rgba(59,130,246,0.12)' }}>
+                            {['Month', 'Year', 'Present', 'Leave', 'Weekly Off', 'Holiday', 'Total'].map(h => (
+                              <th key={h} style={{ padding: '8px 12px', textAlign: h === 'Month' || h === 'Year' ? 'left' : 'center', color: '#93c5fd', fontWeight: 600 }}>{h}</th>
                             ))}
-                          </tbody>
-                        </table>
-                      ) : (
-                        <div style={{ textAlign: 'center', color: '#475569', padding: 16, fontSize: 13 }}>No monthly breakdown available</div>
-                      )}
-                    </>}
-                  </>}
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {rows.map((r: any, i: number) => (
+                            <tr key={i} style={{ borderTop: '1px solid rgba(255,255,255,0.05)', background: i % 2 === 0 ? 'rgba(255,255,255,0.01)' : 'transparent' }}>
+                              <td style={{ padding: '7px 12px', color: '#cbd5e1', fontWeight: 500 }}>{MONTH_NAMES[r.month - 1]}</td>
+                              <td style={{ padding: '7px 12px', color: '#94a3b8' }}>{r.year}</td>
+                              <td style={{ padding: '7px 12px', textAlign: 'center', color: '#86efac', fontWeight: 600 }}>{r.present}</td>
+                              <td style={{ padding: '7px 12px', textAlign: 'center', color: '#fde68a' }}>{r.leave}</td>
+                              <td style={{ padding: '7px 12px', textAlign: 'center', color: '#94a3b8' }}>{r.wo}</td>
+                              <td style={{ padding: '7px 12px', textAlign: 'center', color: '#818cf8' }}>{r.nh}</td>
+                              <td style={{ padding: '7px 12px', textAlign: 'center', color: '#64748b' }}>{r.total}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                        <tfoot>
+                          <tr style={{ borderTop: '2px solid rgba(59,130,246,0.2)', background: 'rgba(59,130,246,0.06)' }}>
+                            <td colSpan={2} style={{ padding: '8px 12px', color: '#93c5fd', fontWeight: 700, fontSize: 11 }}>TOTAL</td>
+                            <td style={{ padding: '8px 12px', textAlign: 'center', color: '#86efac', fontWeight: 700 }}>{totalPresent}</td>
+                            <td style={{ padding: '8px 12px', textAlign: 'center', color: '#fde68a', fontWeight: 700 }}>{totalLeave}</td>
+                            <td style={{ padding: '8px 12px', textAlign: 'center', color: '#94a3b8', fontWeight: 700 }}>{totalWO}</td>
+                            <td style={{ padding: '8px 12px', textAlign: 'center', color: '#818cf8', fontWeight: 700 }}>{totalNH}</td>
+                            <td style={{ padding: '8px 12px', textAlign: 'center', color: '#64748b', fontWeight: 700 }}>{totalDays}</td>
+                          </tr>
+                        </tfoot>
+                      </table>
+                    </>;
+                  })()}
 
                   {/* ── TRAINING TAB ── */}
                   {resignedDetailTab === 'training' && <>
