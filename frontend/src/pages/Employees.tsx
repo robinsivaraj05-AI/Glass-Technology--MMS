@@ -271,12 +271,21 @@ export default function Employees() {
         clearance,
       },
     });
-    if (resigningEmp?.name) {
-      apiFetch('/api/org-positions/clear-person', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: resigningEmp.name }),
-      }).catch(() => {});
+    if (resigningEmp) {
+      // Remove from org chart positions
+      if (resigningEmp.name) {
+        apiFetch('/api/org-positions/clear-person', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name: resigningEmp.name }),
+        }).catch(() => {});
+      }
+      // Remove directly from attendance team roster
+      if (resigningEmp.empId) {
+        apiFetch(`/api/attendance/team/${resigningEmp.empId}`, {
+          method: 'DELETE',
+        }).catch(() => {});
+      }
     }
     setResignForm({ ...BLANK_RESIGN_FORM });
     setShowAddResign(false);

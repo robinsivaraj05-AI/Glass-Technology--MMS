@@ -41,14 +41,18 @@ router.get('/team', async (_req, res) => {
     members = await TeamMember.find().sort({ sortOrder: 1 });
 
     // Remove any team members who are now marked resigned in the Employee collection
-    const resignedEmps = await Employee.find({ status: 'resigned' }).lean().select('empId');
-    const resignedIds = new Set(resignedEmps.map((e: any) => e.empId).filter(Boolean));
-    if (resignedIds.size > 0) {
-      const stale = members.filter(m => resignedIds.has(m.empId));
-      if (stale.length > 0) {
-        await TeamMember.deleteMany({ empId: { $in: stale.map(m => m.empId) } });
-        members = members.filter(m => !resignedIds.has(m.empId));
-      }
+    // Match by empId OR by name to catch all cases
+    const resignedEmps = await Employee.find({ status: 'resigned' }).lean().select('empId name');
+    const resignedEmpIds  = new Set(resignedEmps.map((e: any) => e.empId).filter(Boolean));
+    const resignedNames   = new Set(resignedEmps.map((e: any) => (e.name || '').toLowerCase().trim()).filter(Boolean));
+    const stale = members.filter(m =>
+      resignedEmpIds.has(m.empId) ||
+      resignedNames.has(m.empName.toLowerCase().trim())
+    );
+    if (stale.length > 0) {
+      await TeamMember.deleteMany({ empId: { $in: stale.map(m => m.empId) } });
+      const staleIds = new Set(stale.map(m => m.empId));
+      members = members.filter(m => !staleIds.has(m.empId));
     }
 
     res.json(members);
