@@ -51,11 +51,11 @@ function collectParentPosIds(nodes: OrgNode[]): string[] {
 }
 
 // ── Layout constants ──────────────────────────────────────────────────────────
-const CARD_W  = 160;   // card width px
-const CARD_H  = 90;    // estimated card height (for layout math)
-const LEVEL_H = 148;   // vertical distance between card tops at adjacent levels
-const MIN_SEP = 20;    // minimum horizontal gap between adjacent card EDGES
-const PAD_X   = 48;    // left/right padding inside canvas
+const CARD_W  = 184;   // card width px
+const CARD_H  = 112;   // fixed card height (all cards share this via minHeight)
+const LEVEL_H = 188;   // vertical distance between card tops at adjacent levels
+const MIN_SEP = 40;    // minimum horizontal gap between adjacent card EDGES
+const PAD_X   = 60;    // left/right padding inside canvas
 const LINE_C  = 'rgba(59,120,210,0.45)';
 const LINE_W  = 2;
 const BTN_H   = 22;    // toggle button height
@@ -197,49 +197,59 @@ function PosCard({ node, selected, searchMatch, onSelect, onEdit }: {
 
   return (
     <div onClick={onSelect} style={{
-      width: CARD_W, borderRadius: 10, boxSizing: 'border-box',
+      width: CARD_W, minHeight: CARD_H, boxSizing: 'border-box', borderRadius: 10,
+      display: 'flex', flexDirection: 'column', justifyContent: 'space-between',
       background: selected ? '#eff6ff' : cardBg(pos),
       border: `1.5px solid ${selected ? '#3b82f6' : searchMatch ? accent : cardBorder(pos)}`,
       borderTop: `4px solid ${selected ? '#3b82f6' : accent}`,
-      padding: '11px 12px 10px', cursor: 'pointer', transition: 'all 0.18s', userSelect: 'none',
+      padding: '10px 12px 10px', cursor: 'pointer', transition: 'all 0.18s', userSelect: 'none',
       boxShadow: selected ? '0 0 0 3px rgba(59,130,246,0.15),0 4px 16px rgba(59,130,246,0.12)' : '0 2px 8px rgba(0,0,0,0.08)',
       position: 'relative',
     }}>
       <button onClick={onEdit} title="Edit position" style={{
-        position: 'absolute', top: 7, right: 7, width: 22, height: 22, borderRadius: 6,
+        position: 'absolute', top: 7, right: 7, width: 20, height: 20, borderRadius: 5,
         background: 'rgba(0,0,0,0.04)', border: '1px solid rgba(0,0,0,0.09)',
         color: '#94a3b8', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0,
-      }}><Edit2 size={11}/></button>
+      }}><Edit2 size={10}/></button>
 
-      {pos.team && (
-        <div style={{ fontSize: 13, fontWeight: 700, color: accent, textTransform: 'uppercase', letterSpacing: 0.9, marginBottom: 4, textAlign: 'center' }}>
-          {pos.team}
+      {/* Top section: team label + role */}
+      <div>
+        {pos.team && (
+          <div style={{ fontSize: 11, fontWeight: 700, color: accent, textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 3, textAlign: 'center' }}>
+            {pos.team}
+          </div>
+        )}
+        <div style={{ fontSize: 12, fontWeight: 700, color: '#1e293b', lineHeight: 1.3, marginBottom: 0, paddingRight: 20,
+          overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', textAlign: 'center' }}>
+          {pos.role}
         </div>
-      )}
-
-      <div style={{ fontSize: 13, fontWeight: 700, color: '#1e293b', lineHeight: 1.35, marginBottom: 7, paddingRight: 24, wordBreak: 'break-word', textAlign: 'center' }}>
-        {pos.role}
       </div>
 
-      {filled ? (
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7 }}>
-          {emp?.photo ? (
-            <img src={emp.photo} style={{ width: 22, height: 22, borderRadius: '50%', objectFit: 'cover', border: `1.5px solid ${accent}70`, flexShrink: 0 }} alt=""/>
-          ) : (
-            <div style={{ width: 22, height: 22, borderRadius: '50%', flexShrink: 0, background: accent+'22', border: `1.5px solid ${accent}55`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 9, fontWeight: 700, color: accent }}>
-              {initials}
+      {/* Bottom section: person info */}
+      <div style={{ marginTop: 8 }}>
+        {filled ? (
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+            {emp?.photo ? (
+              <img src={emp.photo} style={{ width: 20, height: 20, borderRadius: '50%', objectFit: 'cover', border: `1.5px solid ${accent}70`, flexShrink: 0 }} alt=""/>
+            ) : (
+              <div style={{ width: 20, height: 20, borderRadius: '50%', flexShrink: 0, background: accent+'22', border: `1.5px solid ${accent}55`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 8, fontWeight: 700, color: accent }}>
+                {initials}
+              </div>
+            )}
+            <div style={{ minWidth: 0 }}>
+              <div style={{ fontSize: 11, fontWeight: 600, color: '#334155', lineHeight: 1.25,
+                overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>
+                {pos.personName}
+              </div>
+              {emp && <div style={{ fontSize: 10, color: '#94a3b8', marginTop: 1 }}>{emp.empId}</div>}
             </div>
-          )}
-          <div style={{ textAlign: 'center' }}>
-            <div style={{ fontSize: 12, fontWeight: 600, color: '#334155', lineHeight: 1.3 }}>{pos.personName}</div>
-            {emp && <div style={{ fontSize: 10, color: '#94a3b8', marginTop: 1 }}>{emp.empId}</div>}
           </div>
-        </div>
-      ) : (
-        <div style={{ fontSize: 11, color: accent, fontStyle: 'italic', fontWeight: pos.urgent ? 700 : 400, textAlign: 'center' }}>
-          {pos.urgent ? '⚠ Position Vacant' : '— Not Yet Filled —'}
-        </div>
-      )}
+        ) : (
+          <div style={{ fontSize: 10, color: accent, fontStyle: 'italic', fontWeight: pos.urgent ? 700 : 400, textAlign: 'center' }}>
+            {pos.urgent ? '⚠ Position Vacant' : '— Not Yet Filled —'}
+          </div>
+        )}
+      </div>
     </div>
   );
 }
