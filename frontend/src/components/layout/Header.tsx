@@ -5,6 +5,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { mockNotifications } from '../../data/mockData';
+import { DEPT_ABBR } from '../../config/dept';
 
 const BREADCRUMB_MAP: Record<string, string> = {
   '/dashboard':            'Dashboard',
@@ -46,10 +47,10 @@ const BREADCRUMB_MAP: Record<string, string> = {
   '/rental/report':        'Rental Report',
   '/purchase/rfq':         'RFQ Management',
   '/purchase/po':          'PO Follow-up',
-  '/purchase/followup':    'E&I Purchase Status',
+  '/purchase/followup':    `${DEPT_ABBR} Purchase Status`,
   '/purchase/costing':     'Purchase Costing',
-  '/finance/costing':      'E&I Costing',
-  '/finance/ei-pur-report':'E&I Purchase Report',
+  '/finance/costing':      `${DEPT_ABBR} Costing`,
+  '/finance/ei-pur-report':`${DEPT_ABBR} Purchase Report`,
 };
 
 const PRIORITY_DOT: Record<string, string> = {
@@ -106,7 +107,7 @@ export default function Header() {
       <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
         <div style={{ minWidth: 0 }}>
           <div style={{ fontSize: 10, color: '#9CA3AF', marginBottom: 1, fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.8 }}>
-            E&amp;I MMS
+            {DEPT_ABBR} MMS
           </div>
           <div style={{ fontSize: 15, fontWeight: 700, color: '#1E293B', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
             {currentPage}

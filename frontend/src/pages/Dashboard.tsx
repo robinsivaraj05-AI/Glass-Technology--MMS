@@ -15,6 +15,7 @@ import {
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { apiFetch } from '../utils/api';
+import { DEPT_NAME, COMPANY_NAME, COMPANY_LOC } from '../config/dept';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 const NOW    = new Date();
@@ -288,7 +289,7 @@ export default function Dashboard() {
             </div>
             <div>
               <div style={{ fontSize:11, color:'#9CA3AF', fontWeight:700, textTransform:'uppercase', letterSpacing:1, marginBottom:3 }}>
-                E &amp; I Maintenance Management System
+                {DEPT_NAME} Maintenance Management System
               </div>
               <div style={{ fontSize:20, fontWeight:900, color:'#1E293B', lineHeight:1.2 }}>
                 {greet}, {user?.name || 'Mr. Rabin'} 👋
@@ -297,8 +298,8 @@ export default function Dashboard() {
                 {[
                   { icon:<Calendar size={12}/>, label:dateLbl },
                   { icon:<Clock size={12}/>,    label:shift },
-                  { icon:<Building2 size={12}/>,label:'Glass Technology (MENA) L.L.C' },
-                  { icon:<MapPin size={12}/>,   label:'Sharjah, UAE' },
+                  { icon:<Building2 size={12}/>,label: COMPANY_NAME },
+                  { icon:<MapPin size={12}/>,   label: COMPANY_LOC  },
                 ].map((x,i) => (
                   <span key={i} style={{ fontSize:11, color:'#6B7280', display:'flex', alignItems:'center', gap:5, fontWeight:500 }}>
                     <span style={{ color:'#9CA3AF' }}>{x.icon}</span>{x.label}
@@ -845,7 +846,7 @@ export default function Dashboard() {
 
       {/* ══ FOOTER ══════════════════════════════════════════════════════════════ */}
       <div style={{ marginTop:24, textAlign:'center', fontSize:11, color:'#9CA3AF', paddingBottom:8 }}>
-        E &amp; I Maintenance Management System · Glass Technology (MENA) L.L.C · Sharjah, UAE · {dateLbl}
+        {DEPT_NAME} Maintenance Management System · {COMPANY_NAME} · {COMPANY_LOC} · {dateLbl}
       </div>
 
     </div>

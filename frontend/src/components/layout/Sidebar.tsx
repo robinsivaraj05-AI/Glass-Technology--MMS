@@ -9,6 +9,7 @@ import {
   Briefcase, Truck, Fuel, ShoppingCart,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
+import { DEPT_ABBR, DEPT_NAME } from '../../config/dept';
 
 interface NavItem {
   label: string;
@@ -56,7 +57,7 @@ const navItems: NavItem[] = [
       { label: 'Employee Profile',  path: '/employees',         icon: <Users size={14} />         },
       { label: 'Attendance',        path: '/attendance',        icon: <CalendarCheck size={14} /> },
       { label: 'Org Chart',         path: '/org-chart',         icon: <Network size={14} />       },
-      { label: 'E&I Team Summary',  path: '/org-chart/summary', icon: <BarChart3 size={14} />     },
+      { label: `${DEPT_ABBR} Team Summary`,  path: '/org-chart/summary', icon: <BarChart3 size={14} />     },
       { label: 'Shift & Skills',    path: '/manpower',          icon: <Calendar size={14} />      },
       { label: 'Training',          path: '/training',          icon: <GraduationCap size={14} /> },
     ],
@@ -83,7 +84,7 @@ const navItems: NavItem[] = [
     children: [
       { label: 'RFQ Management',      path: '/purchase/rfq',      icon: <FileText size={14} /> },
       { label: 'PO Follow-up',        path: '/purchase/po',       icon: <ClipboardList size={14} /> },
-      { label: 'E&I Purchase Status', path: '/purchase/followup', icon: <BarChart3 size={14} /> },
+      { label: `${DEPT_ABBR} Purchase Status`, path: '/purchase/followup', icon: <BarChart3 size={14} /> },
       { label: 'Purchase Costing',    path: '/purchase/costing',  icon: <TrendingUp size={14} /> },
     ],
   },
@@ -92,8 +93,8 @@ const navItems: NavItem[] = [
     children: [
       { label: 'Budget',         path: '/budget',                icon: <TrendingUp size={14} /> },
       { label: 'Vendors',        path: '/vendors',               icon: <Building size={14} /> },
-      { label: 'E&I Costing',    path: '/finance/costing',       icon: <BarChart3 size={14} /> },
-      { label: 'E&I PUR Report', path: '/finance/ei-pur-report', icon: <FileText size={14} /> },
+      { label: `${DEPT_ABBR} Costing`,    path: '/finance/costing',       icon: <BarChart3 size={14} /> },
+      { label: `${DEPT_ABBR} PUR Report`, path: '/finance/ei-pur-report', icon: <FileText size={14} /> },
     ],
   },
   {
@@ -151,7 +152,7 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
             <div style={{ width: 36, height: 36, borderRadius: 10, background: 'rgba(255,255,255,0.18)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, flexShrink: 0 }}>⚡</div>
             <div style={{ minWidth: 0 }}>
               <div style={{ fontSize: 13, fontWeight: 900, color: '#FFFFFF', letterSpacing: 0.5 }}>MMS</div>
-              <div style={{ fontSize: 9, color: 'rgba(255,255,255,0.6)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>E &amp; I Maintenance</div>
+              <div style={{ fontSize: 9, color: 'rgba(255,255,255,0.6)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{DEPT_NAME} Maintenance</div>
             </div>
           </div>
         )}

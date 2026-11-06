@@ -5,6 +5,7 @@ import {
   Eye, EyeOff, Zap, Shield, Lock, Mail, AlertCircle,
   Wrench, Settings, Gauge, Activity, Cpu, BarChart3,
 } from 'lucide-react';
+import { DEPT_ABBR, DEPT_NAME, COMPANY_NAME, COMPANY_LOC } from '../config/dept';
 
 // ── Rotating quotes ───────────────────────────────────────────────────────────
 const QUOTES = [
@@ -146,8 +147,8 @@ export default function Login() {
                 flexShrink: 0,
               }}>⚡</div>
               <div>
-                <div style={{ fontSize: 17, fontWeight: 700, color: '#f1f5f9', letterSpacing: -0.3 }}>E&I MMS</div>
-                <div style={{ fontSize: 11, color: '#475569' }}>Glass Technology India · Maintenance Portal</div>
+                <div style={{ fontSize: 17, fontWeight: 700, color: '#f1f5f9', letterSpacing: -0.3 }}>{DEPT_ABBR} MMS</div>
+                <div style={{ fontSize: 11, color: '#475569' }}>{COMPANY_NAME} · Maintenance Portal</div>
               </div>
             </div>
 
@@ -245,7 +246,7 @@ export default function Login() {
 
           {/* Bottom copyright */}
           <p style={{ position: 'relative', zIndex: 2, marginTop: 20, fontSize: 10, color: '#1e3a5f', textAlign: 'center' }}>
-            © {new Date().getFullYear()} Glass Technology India · E&I Department
+            © {new Date().getFullYear()} {COMPANY_NAME} · {DEPT_NAME} Department
           </p>
         </div>
 
