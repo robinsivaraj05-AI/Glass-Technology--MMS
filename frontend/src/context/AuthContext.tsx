@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useRef, useCallback } from 'react';
 import type { User, UserRole } from '../types';
 import { mockUser } from '../data/mockData';
 
@@ -20,47 +20,77 @@ const DEMO_CREDENTIALS = [
   { email: 'guest@mms.com',   password: 'guest123', role: 'guest' as UserRole,          name: 'Guest User',   empId: 'EMP-005', department: 'General' },
 ];
 
+// Session expires after 5 minutes of inactivity
+const INACTIVITY_MS = 5 * 60 * 1000;
+const ACTIVITY_EVENTS = ['mousemove', 'mousedown', 'keydown', 'touchstart', 'scroll', 'click'] as const;
+
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  // ── Logout ────────────────────────────────────────────────────────────────
+  const logout = useCallback(() => {
+    setUser(null);
+    sessionStorage.removeItem('mms_user');
+    sessionStorage.removeItem('mms_token');
+    sessionStorage.removeItem('mms_expiry');
+    if (timerRef.current) clearTimeout(timerRef.current);
+  }, []);
+
+  // ── Inactivity timer — only runs while logged in ──────────────────────────
   useEffect(() => {
-    const stored = localStorage.getItem('mms_user');
-    if (stored) {
-      try { setUser(JSON.parse(stored)); } catch { localStorage.removeItem('mms_user'); }
+    if (!user) return;
+
+    const resetTimer = () => {
+      if (timerRef.current) clearTimeout(timerRef.current);
+      sessionStorage.setItem('mms_expiry', String(Date.now() + INACTIVITY_MS));
+      timerRef.current = setTimeout(logout, INACTIVITY_MS);
+    };
+
+    ACTIVITY_EVENTS.forEach(ev => window.addEventListener(ev, resetTimer, { passive: true }));
+    resetTimer(); // start immediately
+
+    return () => {
+      if (timerRef.current) clearTimeout(timerRef.current);
+      ACTIVITY_EVENTS.forEach(ev => window.removeEventListener(ev, resetTimer));
+    };
+  }, [user, logout]);
+
+  // ── Restore session on mount (tab-scoped, respects expiry) ────────────────
+  useEffect(() => {
+    const stored = sessionStorage.getItem('mms_user');
+    const expiry = parseInt(sessionStorage.getItem('mms_expiry') || '0', 10);
+    if (stored && Date.now() < expiry) {
+      try { setUser(JSON.parse(stored)); } catch { sessionStorage.clear(); }
+    } else {
+      // Stale or expired — clear everything so user must re-authenticate
+      sessionStorage.removeItem('mms_user');
+      sessionStorage.removeItem('mms_token');
+      sessionStorage.removeItem('mms_expiry');
     }
     setLoading(false);
   }, []);
 
+  // ── Login ─────────────────────────────────────────────────────────────────
   const login = async (email: string, password: string): Promise<boolean> => {
     setLoading(true);
-    await new Promise(r => setTimeout(r, 800));
+    await new Promise(r => setTimeout(r, 600));
     const cred = DEMO_CREDENTIALS.find(c => c.email === email && c.password === password);
     if (cred) {
-      // Restore any profile fields the user previously saved for this account
-      let savedProfile: Partial<User> = {};
-      try {
-        const raw = localStorage.getItem('mms_user');
-        if (raw) {
-          const prev = JSON.parse(raw) as User;
-          if (prev.id === cred.empId) {
-            savedProfile = { name: prev.name, phone: prev.phone, shift: prev.shift, dateOfJoining: prev.dateOfJoining, employeeId: prev.employeeId };
-          }
-        }
-      } catch {}
       const u: User = {
         ...mockUser,
-        ...savedProfile,
         id: cred.empId,
-        name: savedProfile.name || cred.name,
+        name: cred.name,
         email: cred.email,
         role: cred.role,
-        employeeId: savedProfile.employeeId ?? cred.empId,
+        employeeId: cred.empId,
         department: cred.department,
       };
       setUser(u);
-      localStorage.setItem('mms_user', JSON.stringify(u));
-      localStorage.setItem('mms_token', 'demo-jwt-token-' + cred.role);
+      sessionStorage.setItem('mms_user', JSON.stringify(u));
+      sessionStorage.setItem('mms_token', 'demo-jwt-token-' + cred.role);
+      sessionStorage.setItem('mms_expiry', String(Date.now() + INACTIVITY_MS));
       setLoading(false);
       return true;
     }
@@ -68,17 +98,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return false;
   };
 
-  const logout = () => {
-    setUser(null);
-    localStorage.removeItem('mms_user');
-    localStorage.removeItem('mms_token');
-  };
-
+  // ── Update user profile ───────────────────────────────────────────────────
   const updateUser = (patch: Partial<User>) => {
     setUser(prev => {
       if (!prev) return prev;
       const updated = { ...prev, ...patch };
-      localStorage.setItem('mms_user', JSON.stringify(updated));
+      sessionStorage.setItem('mms_user', JSON.stringify(updated));
       return updated;
     });
   };

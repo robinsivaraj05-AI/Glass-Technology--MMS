@@ -1,20 +1,13 @@
-﻿import { useState } from 'react';
+import { useState } from 'react';
 import { useNavigate, Navigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { Eye, EyeOff, Zap, Shield, Lock, Mail, AlertCircle } from 'lucide-react';
 
-const DEMO_ACCOUNTS = [
-  { label: 'Manager',        email: 'manager@mms.com', password: 'mgr@2026', color: '#ef4444', role: 'Admin Access' },
-  { label: 'Deputy Manager', email: 'deputy@mms.com',  password: 'dm@2026',  color: '#3b82f6', role: 'Admin Access' },
-  { label: 'Shift Engineer', email: 'shift@mms.com',   password: 'se@2026',  color: '#22c55e', role: 'Limited Access' },
-  { label: 'Guest',          email: 'guest@mms.com',   password: 'guest123', color: '#64748b', role: 'View Only' },
-];
-
 export default function Login() {
   const { login, isAuthenticated, loading } = useAuth();
   const navigate = useNavigate();
-  const [email, setEmail] = useState('manager@mms.com');
-  const [password, setPassword] = useState('mgr@2026');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [showPass, setShowPass] = useState(false);
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -27,14 +20,8 @@ export default function Login() {
     setSubmitting(true);
     const ok = await login(email, password);
     if (ok) navigate('/dashboard');
-    else setError('Invalid credentials. Try a demo account below.');
+    else setError('Invalid credentials. Please contact your administrator.');
     setSubmitting(false);
-  };
-
-  const fillDemo = (acc: typeof DEMO_ACCOUNTS[0]) => {
-    setEmail(acc.email);
-    setPassword(acc.password);
-    setError('');
   };
 
   return (
@@ -53,18 +40,18 @@ export default function Login() {
         backgroundSize: '40px 40px',
       }} />
 
-      <div style={{ width: '100%', maxWidth: 1000, display: 'flex', gap: 32, alignItems: 'stretch' }}>
-        {/* Left Panel */}
+      <div style={{ width: '100%', maxWidth: 420, position: 'relative', zIndex: 1 }}>
         <div style={{
-          flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center',
-          padding: '40px 32px',
+          display: 'flex', flexDirection: 'column', justifyContent: 'center',
+          padding: '44px 40px',
           background: 'rgba(255,255,255,0.02)',
-          border: '1px solid rgba(255,255,255,0.06)',
+          border: '1px solid rgba(255,255,255,0.08)',
           borderRadius: 20,
           backdropFilter: 'blur(20px)',
+          boxShadow: '0 24px 64px rgba(0,0,0,0.4)',
         }}>
           {/* Logo */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 40 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 36 }}>
             <div style={{
               width: 52, height: 52, borderRadius: 14,
               background: 'linear-gradient(135deg, #3b82f6, #6366f1)',
@@ -77,12 +64,12 @@ export default function Login() {
             </div>
           </div>
 
-          <div style={{ marginBottom: 8 }}>
-            <h1 style={{ fontSize: 26, fontWeight: 700, color: '#f8fafc', margin: 0 }}>Welcome Back</h1>
-            <p style={{ color: '#64748b', fontSize: 13, marginTop: 6 }}>Sign in to continue to the E&I MMS portal</p>
+          <div style={{ marginBottom: 28 }}>
+            <h1 style={{ fontSize: 24, fontWeight: 700, color: '#f8fafc', margin: 0 }}>Sign In</h1>
+            <p style={{ color: '#64748b', fontSize: 13, marginTop: 6 }}>Enter your credentials to access the portal</p>
           </div>
 
-          <form onSubmit={handleSubmit} style={{ marginTop: 24, display: 'flex', flexDirection: 'column', gap: 14 }}>
+          <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
             <div>
               <label style={{ fontSize: 12, color: '#94a3b8', display: 'block', marginBottom: 6, fontWeight: 500 }}>Email Address</label>
               <div style={{ position: 'relative' }}>
@@ -90,10 +77,11 @@ export default function Login() {
                 <input
                   type="email" value={email} onChange={e => setEmail(e.target.value)}
                   className="input-dark" style={{ paddingLeft: 36 }}
-                  placeholder="Enter your email" required
+                  placeholder="Enter your email" required autoComplete="username"
                 />
               </div>
             </div>
+
             <div>
               <label style={{ fontSize: 12, color: '#94a3b8', display: 'block', marginBottom: 6, fontWeight: 500 }}>Password</label>
               <div style={{ position: 'relative' }}>
@@ -101,12 +89,12 @@ export default function Login() {
                 <input
                   type={showPass ? 'text' : 'password'} value={password}
                   onChange={e => setPassword(e.target.value)}
-                  className="input-dark" style={{ paddingLeft: 36, paddingRight: 36 }}
-                  placeholder="Enter your password" required
+                  className="input-dark" style={{ paddingLeft: 36, paddingRight: 40 }}
+                  placeholder="Enter your password" required autoComplete="current-password"
                 />
                 <button
                   type="button" onClick={() => setShowPass(!showPass)}
-                  style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: '#475569', cursor: 'pointer' }}
+                  style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: '#475569', cursor: 'pointer', padding: 4 }}
                 >
                   {showPass ? <EyeOff size={14} /> : <Eye size={14} />}
                 </button>
@@ -121,78 +109,31 @@ export default function Login() {
             )}
 
             <button
-              type="submit" disabled={submitting}
+              type="submit" disabled={submitting || loading}
               className="btn-primary"
-              style={{ justifyContent: 'center', padding: '11px 20px', marginTop: 4, fontSize: 14, opacity: submitting ? 0.7 : 1 }}
+              style={{ justifyContent: 'center', padding: '12px 20px', marginTop: 4, fontSize: 14, opacity: submitting ? 0.7 : 1 }}
             >
-              {submitting ? 'Signing in...' : 'Sign In'}
+              {submitting ? 'Signing in…' : 'Sign In'}
             </button>
           </form>
 
-          {/* Features */}
-          <div style={{ marginTop: 32, display: 'flex', gap: 16, flexWrap: 'wrap' }}>
+          <div style={{ marginTop: 28, display: 'flex', gap: 20, justifyContent: 'center' }}>
             {[
-              { icon: <Shield size={13} />, text: 'Role-based Access' },
-              { icon: <Zap size={13} />, text: 'Real-time Alerts' },
-              { icon: <Lock size={13} />, text: 'Secure & Encrypted' },
+              { icon: <Shield size={12} />, text: 'Role-based Access' },
+              { icon: <Zap size={12} />, text: 'Real-time Alerts' },
+              { icon: <Lock size={12} />, text: 'Secure Session' },
             ].map(f => (
-              <div key={f.text} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, color: '#475569' }}>
+              <div key={f.text} style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, color: '#475569' }}>
                 <span style={{ color: '#3b82f6' }}>{f.icon}</span> {f.text}
               </div>
             ))}
           </div>
         </div>
 
-        {/* Right Panel - Demo accounts */}
-        <div style={{ width: 300, display: 'flex', flexDirection: 'column', gap: 12 }}>
-          <div style={{ fontSize: 12, color: '#64748b', fontWeight: 600, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 4 }}>
-            Demo Accounts
-          </div>
-          {DEMO_ACCOUNTS.map(acc => (
-            <button
-              key={acc.email}
-              onClick={() => fillDemo(acc)}
-              style={{
-                background: 'rgba(255,255,255,0.03)',
-                border: `1px solid ${email === acc.email ? acc.color + '60' : 'rgba(255,255,255,0.06)'}`,
-                borderRadius: 12, padding: '14px 16px', cursor: 'pointer', textAlign: 'left',
-                transition: 'all 0.2s',
-                boxShadow: email === acc.email ? `0 0 20px ${acc.color}20` : 'none',
-              }}
-              onMouseOver={e => { if (email !== acc.email) e.currentTarget.style.borderColor = acc.color + '40'; }}
-              onMouseOut={e => { if (email !== acc.email) e.currentTarget.style.borderColor = 'rgba(255,255,255,0.06)'; }}
-            >
-              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                <div style={{
-                  width: 36, height: 36, borderRadius: 10,
-                  background: acc.color + '20',
-                  border: `1px solid ${acc.color}40`,
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  fontSize: 16,
-                }}>
-                  {acc.label === 'Manager' ? '👔' : acc.label === 'Deputy Manager' ? '👨‍💼' : acc.label === 'Shift Engineer' ? '👷' : '👁️'}
-                </div>
-                <div>
-                  <div style={{ fontSize: 13, fontWeight: 600, color: '#f1f5f9' }}>{acc.label}</div>
-                  <div style={{ fontSize: 11, color: acc.color }}>{acc.role}</div>
-                  <div style={{ fontSize: 10, color: '#475569', marginTop: 2 }}>{acc.email}</div>
-                </div>
-              </div>
-            </button>
-          ))}
-
-          <div style={{
-            marginTop: 8, padding: '12px 14px',
-            background: 'rgba(59,130,246,0.06)',
-            border: '1px solid rgba(59,130,246,0.15)',
-            borderRadius: 10, fontSize: 11, color: '#64748b',
-            lineHeight: 1.6,
-          }}>
-            💡 Click any demo account to auto-fill credentials, then click <strong style={{ color: '#94a3b8' }}>Sign In</strong>.
-          </div>
-        </div>
+        <p style={{ textAlign: 'center', marginTop: 20, fontSize: 11, color: '#334155' }}>
+          Session expires after 5 minutes of inactivity
+        </p>
       </div>
     </div>
   );
 }
-
