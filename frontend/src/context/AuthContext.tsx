@@ -14,11 +14,14 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 const DEMO_CREDENTIALS = [
-  { email: 'manager@mms.com', password: 'mgr@2026', role: 'manager' as UserRole,        name: 'Senthil Babu', empId: 'EMP-000', department: 'Electrical & Instrumentation, IT' },
-  { email: 'deputy@mms.com',  password: 'dm@2026',  role: 'deputy_manager' as UserRole, name: 'Rajesh Kumar', empId: 'EMP-001', department: 'Electrical & Instrumentation, IT' },
-  { email: 'shift@mms.com',   password: 'se@2026',  role: 'shift_engineer' as UserRole, name: 'Arun Selvam',  empId: 'EMP-002', department: 'Electrical & Instrumentation' },
-  { email: 'guest@mms.com',   password: 'guest123', role: 'guest' as UserRole,          name: 'Guest User',   empId: 'EMP-005', department: 'General' },
+  { email: 'manager@mms.com', password: 'mgr@2026', role: 'manager' as UserRole,        name: 'Senthil Babu',  empId: 'EMP-000', department: 'Electrical & Instrumentation, IT' },
+  { email: 'deputy@mms.com',  password: 'dm@2026',  role: 'deputy_manager' as UserRole, name: 'Rabin Sivaraj', empId: 'EMP-001', department: 'Electrical & Instrumentation, IT' },
+  { email: 'shift@mms.com',   password: 'se@2026',  role: 'shift_engineer' as UserRole, name: 'Arun Selvam',   empId: 'EMP-002', department: 'Electrical & Instrumentation' },
+  { email: 'guest@mms.com',   password: 'guest123', role: 'guest' as UserRole,          name: 'Guest User',    empId: 'EMP-005', department: 'General' },
 ];
+
+// Profile fields that survive across sessions (name, phone, etc.) — keyed by empId
+const profileKey = (empId: string) => `mms_profile_${empId}`;
 
 // Session expires after 5 minutes of inactivity
 const INACTIVITY_MS = 5 * 60 * 1000;
@@ -78,14 +81,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     await new Promise(r => setTimeout(r, 600));
     const cred = DEMO_CREDENTIALS.find(c => c.email === email && c.password === password);
     if (cred) {
+      // Restore any profile fields the user saved in a previous session
+      let saved: Partial<User> = {};
+      try {
+        const raw = localStorage.getItem(profileKey(cred.empId));
+        if (raw) saved = JSON.parse(raw);
+      } catch {}
       const u: User = {
         ...mockUser,
+        ...saved,
         id: cred.empId,
-        name: cred.name,
+        name: saved.name ?? cred.name,
         email: cred.email,
         role: cred.role,
-        employeeId: cred.empId,
-        department: cred.department,
+        employeeId: saved.employeeId ?? cred.empId,
+        department: saved.department ?? cred.department,
       };
       setUser(u);
       sessionStorage.setItem('mms_user', JSON.stringify(u));
@@ -104,6 +114,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (!prev) return prev;
       const updated = { ...prev, ...patch };
       sessionStorage.setItem('mms_user', JSON.stringify(updated));
+      // Persist profile customisations so they survive re-login
+      const { name, phone, shift, dateOfJoining, employeeId, department } = updated;
+      localStorage.setItem(profileKey(updated.id), JSON.stringify({ name, phone, shift, dateOfJoining, employeeId, department }));
       return updated;
     });
   };
