@@ -11,6 +11,7 @@ import outsourceRoutes from './routes/outsource';
 import equipmentRoutes from './routes/equipment';
 import equipmentEntryRoutes from './routes/equipmentEntries';
 import accessoryRoutes from './routes/accessories';
+import accessoryInvoiceRoutes from './routes/accessoryInvoices';
 import assetRoutes from './routes/assets';
 import purchaseRFQRoutes from './routes/purchaseRFQ';
 import purchaseFollowupRoutes from './routes/purchaseFollowup';
@@ -23,45 +24,34 @@ import pendingJobRoutes from './routes/pendingJobs';
 import followupJobRoutes from './routes/followupJobs';
 import reminderRoutes from './routes/reminders';
 import sparePartRoutes from './routes/spareParts';
-
 const app = express();
-
-app.use(cors({
-  origin: process.env.CLIENT_URL || 'http://localhost:3000',
-  credentials: true,
-}));
+app.use(cors({ origin: process.env.CLIENT_URL || 'http://localhost:3000', credentials: true }));
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
-
-// Health check
-app.get('/api/health', (_, res) => res.json({ status: 'ok', service: 'MMS API', version: '2.0.0' }));
-
-// Routes
-app.use('/api/auth', authRoutes);
-app.use('/api/breakdowns', breakdownRoutes);
-app.use('/api/employees', employeeRoutes);
-app.use('/api/org-positions', orgPositionRoutes);
-app.use('/api/attendance', attendanceRoutes);
-app.use('/api/overtime', overtimeRoutes);
-app.use('/api/contracts', contractRoutes);
-app.use('/api/outsource', outsourceRoutes);
-app.use('/api/equipment', equipmentRoutes);
-app.use('/api/equipment-entries', equipmentEntryRoutes);
-app.use('/api/accessories', accessoryRoutes);
-app.use('/api/assets', assetRoutes);
-app.use('/api/purchase-rfq', purchaseRFQRoutes);
-app.use('/api/purchase-followup', purchaseFollowupRoutes);
-app.use('/api/purchase-po', purchasePORoutes);
-app.use('/api/machines', machineRoutes);
-app.use('/api/calibration', calibrationRoutes);
-app.use('/api/amc', amcRoutes);
-app.use('/api/projects', projectRoutes);
-app.use('/api/pending-jobs', pendingJobRoutes);
-app.use('/api/followup-jobs', followupJobRoutes);
-app.use('/api/reminders', reminderRoutes);
-app.use('/api/spare-parts', sparePartRoutes);
-
-// 404 handler
-app.use((req, res) => res.status(404).json({ message: `Route ${req.originalUrl} not found` }));
-
+app.get('/api/health', (_,res)=>res.json({status:'ok',service:'MMS API',version:'2.0.0'}));
+app.use('/api/auth',authRoutes);
+app.use('/api/breakdowns',breakdownRoutes);
+app.use('/api/employees',employeeRoutes);
+app.use('/api/org-positions',orgPositionRoutes);
+app.use('/api/attendance',attendanceRoutes);
+app.use('/api/overtime',overtimeRoutes);
+app.use('/api/contracts',contractRoutes);
+app.use('/api/outsource',outsourceRoutes);
+app.use('/api/equipment',equipmentRoutes);
+app.use('/api/equipment-entries',equipmentEntryRoutes);
+app.use('/api/accessories',accessoryRoutes);
+app.use('/api/accessory-invoices',accessoryInvoiceRoutes);
+app.use('/api/assets',assetRoutes);
+app.use('/api/purchase-rfq',purchaseRFQRoutes);
+app.use('/api/purchase-followup',purchaseFollowupRoutes);
+app.use('/api/purchase-po',purchasePORoutes);
+app.use('/api/machines',machineRoutes);
+app.use('/api/calibration',calibrationRoutes);
+app.use('/api/amc',amcRoutes);
+app.use('/api/projects',projectRoutes);
+app.use('/api/pending-jobs',pendingJobRoutes);
+app.use('/api/followup-jobs',followupJobRoutes);
+app.use('/api/reminders',reminderRoutes);
+app.use('/api/spare-parts',sparePartRoutes);
+app.use((req,res)=>res.status(404).json({message:`Route ${req.originalUrl} not found`}));
 export default app;
