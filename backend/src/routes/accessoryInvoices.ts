@@ -144,12 +144,20 @@ router.post('/drafts/:id/approve', async (req, res) => {
       }
       const invoiceNo = String(x.invoiceNumber || '').trim();
       const doNo = String(x.deliveryOrderNumber || '').trim();
-      const duplicateOrExisting: any = await AccessoryEntry.findOne({
+      const duplicateFilters: any[] = [];
+      if (invoiceNo) duplicateFilters.push({ invoiceNumber: invoiceNo });
+      if (doNo) {
+        duplicateFilters.push({ deliveryOrderNumber: doNo });
+        duplicateFilters.push({ poNumber: new RegExp(doNo.replace(/[.*+?^${}()|[\]\\]/g, '\\      const duplicateOrExisting: any = await AccessoryEntry.findOne({
         $or: [
           ...(invoiceNo ? [{ invoiceNumber: invoiceNo }] : []),
           ...(doNo ? [{ deliveryOrderNumber: doNo }, { poNumber: new RegExp(doNo.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i') }] : [])
         ]
-      }).session(session);
+      }).session(session);'), 'i') });
+      }
+      const duplicateOrExisting: any = duplicateFilters.length
+        ? await AccessoryEntry.findOne({ $or: duplicateFilters }).session(session)
+        : null;
 
       const item = {
         itemName: x.itemName || 'Other',
