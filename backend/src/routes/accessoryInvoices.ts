@@ -94,6 +94,13 @@ router.get('/drafts', async (_req, res) => {
   res.json({ drafts });
 });
 
+router.get('/drafts/:id', async (req, res) => {
+  if (!mongoose.isValidObjectId(req.params.id)) return res.status(400).json({ message: 'Invalid draft ID.' });
+  const draft = await InvoiceDraft.findOne({ _id: req.params.id, status: 'pending' }).select('-fileDataBase64');
+  if (!draft) return res.status(404).json({ message: 'Pending invoice draft not found.' });
+  res.json({ draft });
+});
+
 router.get('/drafts/:id/file', async (req, res) => {
   if (!mongoose.isValidObjectId(req.params.id)) return res.status(400).json({ message: 'Invalid draft ID.' });
   const draft = await InvoiceDraft.findById(req.params.id).select('+fileDataBase64');
