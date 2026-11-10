@@ -31,7 +31,7 @@ export default function AccessoryInvoiceScan({onApproved}:{onApproved:()=>void})
    {draft&&<div style={{marginTop:14,border:'1px solid #cbd5e1',borderRadius:8,padding:12}}>
     <div style={{display:'flex',justifyContent:'space-between',fontWeight:700,marginBottom:10}}>Review extracted invoice <button onClick={()=>setDraft(null)} style={{border:0,background:'transparent',cursor:'pointer'}}><X size={16}/></button></div>
     <div style={{marginBottom:10,border:'1px solid #e2e8f0',borderRadius:7,overflow:'hidden'}}><iframe title="Original invoice document" src={'/api/accessory-invoices/drafts/'+draft._id+'/file'} style={{width:'100%',height:220,border:0}} /></div>
-    <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(180px,1fr))',gap:10}>
+    <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(180px,1fr))',gap:10}}>
      {fields.map(k=><div key={k}><label style={label}>{titles[k]}</label><input style={input} type={k==='invoiceDate'?'date':['quantity','unitRate','subtotal','vatPercent','vatAmount','grandTotal'].includes(k)?'number':'text'} step="0.01" value={(data[k]??'') as any} onChange={e=>set(k,['quantity','unitRate','subtotal','vatPercent','vatAmount','grandTotal'].includes(k)?(e.target.value===''?null:Number(e.target.value)):e.target.value)}/></div>)}
     </div>
     {!!data.confidenceNotes?.length&&<div style={{marginTop:10,padding:9,background:'#fff7ed',color:'#9a3412',fontSize:11}}><AlertTriangle size={13} style={{display:'inline',marginRight:5}}/>{data.confidenceNotes.join('; ')}</div>}
