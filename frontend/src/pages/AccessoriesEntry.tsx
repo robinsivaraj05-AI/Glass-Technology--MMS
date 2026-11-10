@@ -28,6 +28,9 @@ interface AccessoryEntry {
   totalCost: number;
   approvedBy: string;
   remarks: string;
+  invoiceNumber?: string;
+  deliveryOrderNumber?: string;
+  supplierName?: string;
   subTotal?: number;
   vatPercent?: number;
   vatAmount?: number;
@@ -284,7 +287,7 @@ export default function AccessoriesEntry() {
                 <thead>
                   <tr>
                     <th style={{ ...thStyle, width: 32 }}/>
-                    {['Date','Equipment','PO No.','Area','Items','Total Cost (AED)',''].map(h => (
+                    {['Date','Equipment','Invoice / D.O. No.','Area','Items','Total Cost (AED)',''].map(h => (
                       <th key={h} style={{ ...thStyle, textAlign: h === 'Total Cost (AED)' ? 'right' : 'left' }}>{h}</th>
                     ))}
                   </tr>
@@ -298,7 +301,7 @@ export default function AccessoriesEntry() {
                         </td>
                         <td style={tdStyle}>{new Date(e.entryDate).toLocaleDateString('en-AE', { day: '2-digit', month: 'short', year: 'numeric' })}</td>
                         <td style={{ ...tdStyle, color: e.equipmentName ? '#0f172a' : '#94a3b8', fontStyle: e.equipmentName ? 'normal' : 'italic' }}>{e.equipmentName || 'No equipment linked'}</td>
-                        <td style={tdStyle}>{e.poNumber || '—'}</td>
+                        <td style={tdStyle}>{e.deliveryOrderNumber ? 'D.O. No: ' + e.deliveryOrderNumber : (e.invoiceNumber || e.poNumber || '—')}</td>
                         <td style={tdStyle}>{e.area || '—'}</td>
                         <td style={tdStyle}>
                           <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
