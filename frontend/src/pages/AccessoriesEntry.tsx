@@ -2,6 +2,7 @@
 import { Plus, Edit2, Trash2, X, Save, Search, Fuel, ChevronDown, ChevronRight, Copy } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { apiFetch } from '../utils/api';
+import AccessoryInvoiceScan from '../components/AccessoryInvoiceScan';
 
 interface EquipmentOption { _id: string; equipmentName: string; vendorCompany: string; }
 
@@ -246,6 +247,8 @@ export default function AccessoriesEntry() {
           <Plus size={15}/> New Entry
         </button>
       </div>
+
+      <AccessoryInvoiceScan onApproved={loadEntries} />
 
       {/* Filters */}
       <div style={{ background: '#fff', borderRadius: 10, border: '1px solid #e2e8f0', padding: '12px 16px', marginBottom: 14, display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'flex-end' }}>
