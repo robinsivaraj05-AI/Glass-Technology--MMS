@@ -130,6 +130,7 @@ router.post('/documents/:id/reject', authorize('manager','deputy_manager'), asyn
 router.post('/documents/:id/revisions', authorize('manager','deputy_manager','shift_engineer'), upload.single('file'), async (req: any, res) => {
   if (!validId(req.params.id)) return res.status(400).json({ message: 'Invalid document ID.' });
   if (!String(req.body?.revision || '').trim() || !String(req.body?.changeSummary || '').trim()) return res.status(400).json({ message: 'New revision number and change summary are mandatory.' });
+  if (!req.file) return res.status(400).json({ message: 'Attach the updated controlled file for every new revision.' });
   const who = await actor(req);
   const doc = await QualityRecord.findOne({ _id: req.params.id, recordType: 'document' }).select('+fileDataBase64');
   if (!doc) return res.status(404).json({ message: 'Document not found.' });
