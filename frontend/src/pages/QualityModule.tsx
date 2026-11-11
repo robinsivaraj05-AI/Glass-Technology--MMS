@@ -24,7 +24,8 @@ export default function QualityModule() {
   const [showForm,setShowForm] = useState(false);
   const [saving,setSaving] = useState(false);
   const [form,setForm] = useState({});
-  const [historyData,setHistoryData] = useState(null);\n  const [editingRecord,setEditingRecord] = useState(null);
+  const [historyData,setHistoryData] = useState(null);
+  const [editingRecord,setEditingRecord] = useState(null);
   const { user } = useAuth();
   const set = (k,v) => setForm(p=>({...p,[k]:v}));
 
@@ -47,7 +48,9 @@ export default function QualityModule() {
   const save = async (e) => {
     e.preventDefault(); setSaving(true);
     try {
-      if(editingRecord) {\n        await apiFetch('/api/quality/records/'+editingRecord._id,{method:'PATCH',body:JSON.stringify(form)});\n      } else if(tab==='documents') {
+      if(editingRecord) {
+        await apiFetch('/api/quality/records/'+editingRecord._id,{method:'PATCH',body:JSON.stringify(form)});
+      } else if(tab==='documents') {
         const body = new FormData();
         Object.entries(form).forEach(([k,v])=>{ if(k!=='file' && v!==undefined && v!==null) body.append(k, String(v)); });
         if(form.file) body.append('file',form.file);
