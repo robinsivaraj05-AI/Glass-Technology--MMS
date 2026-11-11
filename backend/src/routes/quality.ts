@@ -152,7 +152,8 @@ router.post('/documents/:id/revisions', authorize('manager','deputy_manager','sh
   if (req.file) { doc.fileName = req.file.originalname; doc.mimeType = req.file.mimetype; doc.fileDataBase64 = req.file.buffer.toString('base64'); }
   doc.approvalHistory.push({ action: 'Revision Created', actorId: who.id, actorName: who.name, actorRole: who.role, comments: doc.changeSummary, revision: doc.revision });
   await doc.save();
-  res.json({ record: doc.toObject() });
+  const safe = doc.toObject(); delete safe.fileDataBase64;
+  res.json({ record: safe });
 });
 router.patch('/documents/:id', authorize('manager','deputy_manager','shift_engineer'), async (req: any, res) => {
   if (!validId(req.params.id)) return res.status(400).json({ message: 'Invalid document ID.' });
