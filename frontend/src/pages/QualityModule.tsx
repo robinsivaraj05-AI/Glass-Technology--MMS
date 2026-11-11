@@ -87,9 +87,14 @@ export default function QualityModule() {
     if (!revision?.trim()) return;
     const changeSummary = window.prompt('Describe the changes in this revision:');
     if (!changeSummary?.trim()) return;
-    const body = new FormData(); body.append('revision',revision.trim()); body.append('changeSummary',changeSummary.trim());
-    try { await apiFetch('/api/quality/documents/'+r._id+'/revisions',{method:'POST',body}); toast.success('New draft revision created; submit it for review.'); await load(); }
-    catch(e) { toast.error(e.message || 'Revision creation failed'); }
+    const picker = document.createElement('input'); picker.type='file'; picker.accept='.pdf,.doc,.docx,.xls,.xlsx,.csv,.jpg,.jpeg,.png,.webp';
+    picker.onchange = async () => {
+      const file = picker.files?.[0]; if (!file) return;
+      const body = new FormData(); body.append('revision',revision.trim()); body.append('changeSummary',changeSummary.trim()); body.append('file',file);
+      try { await apiFetch('/api/quality/documents/'+r._id+'/revisions',{method:'POST',body}); toast.success('New draft revision created; submit it for review.'); await load(); }
+      catch(e) { toast.error(e.message || 'Revision creation failed'); }
+    };
+    picker.click();
   };
   const viewHistory = async (r) => {
     try { const data=await apiFetch('/api/quality/documents/'+r._id+'/history'); setHistoryData({record:r, ...data}); }
