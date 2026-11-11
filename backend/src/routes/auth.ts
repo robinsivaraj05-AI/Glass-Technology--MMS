@@ -3,7 +3,7 @@ import jwt from 'jsonwebtoken';
 import User from '../models/User';
 
 const router = Router();
-const JWT_SECRET = process.env.JWT_SECRET || 'mms-secret-key';
+const JWT_SECRET = process.env.JWT_SECRET || (process.env.NODE_ENV === 'production' ? '' : 'mms-secret-key');
 const JWT_EXPIRES = '7d';
 
 router.post('/login', async (req: Request, res: Response) => {
@@ -11,6 +11,7 @@ router.post('/login', async (req: Request, res: Response) => {
     const { email, password } = req.body;
     if (!email || !password) return res.status(400).json({ message: 'Email and password required' });
 
+    if (!JWT_SECRET) return res.status(500).json({ message: 'JWT_SECRET is not configured on the server.' });
     const user = await User.findOne({ email, isActive: true });
     if (!user || !(await user.comparePassword(password))) {
       return res.status(401).json({ message: 'Invalid credentials' });
@@ -28,6 +29,7 @@ router.post('/login', async (req: Request, res: Response) => {
 
 router.post('/register', async (req: Request, res: Response) => {
   try {
+    if (!JWT_SECRET) return res.status(500).json({ message: 'JWT_SECRET is not configured on the server.' });
     const { name, email, password, department, employeeId } = req.body;
     const existing = await User.findOne({ email });
     if (existing) return res.status(400).json({ message: 'Email already registered' });
