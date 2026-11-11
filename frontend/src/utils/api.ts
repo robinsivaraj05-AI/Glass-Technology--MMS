@@ -11,7 +11,7 @@ export async function apiFetch(path:string,opts:RequestInit={}):Promise<any>{
  const delays=[5000,10000,15000,20000];
  for(let attempt=0;attempt<=4;attempt++){try{
   const controller=new AbortController();const timeout=setTimeout(()=>controller.abort(),40000);
-  const headers=new Headers(opts.headers||{});
+  const headers=new Headers(opts.headers||{});\n  const token=sessionStorage.getItem('mms_token');\n  if(token && !token.startsWith('demo-jwt-token-')) headers.set('Authorization', 'Bearer '+token);
   if(!(opts.body instanceof FormData)&&!headers.has('Content-Type'))headers.set('Content-Type','application/json');
   const res=await fetch(path,{...opts,headers,signal:controller.signal});clearTimeout(timeout);
   if((res.status===503||res.status===429)&&attempt<4){if(!wakeToastId)wakeToastId=toast.loading('Server is starting up, please wait…',{duration:60000});await new Promise(r=>setTimeout(r,res.status===429?delays[attempt]*2:delays[attempt]));continue;}
