@@ -192,9 +192,9 @@ router.get('/capas', async (_req, res) => {
 });
 router.post('/capas', authorize('manager','deputy_manager','shift_engineer'), async (req: any, res) => {
   try {
-    const { recordNo, title, department, standard, findingType, finding, rootCause, correction, correctiveAction, responsible, targetDate } = req.body;
+    const { recordNo, title, department, standard, findingType, finding, rootCause, correction, correctiveAction, responsible, targetDate, evidence, verifiedBy, effectivenessResult } = req.body;
     if (!recordNo?.trim() || !title?.trim()) return res.status(400).json({ message: 'NCR/CAPA number and title are required.' });
-    const record = await QualityRecord.create({ recordType: 'capa', recordNo: recordNo.trim(), title: title.trim(), department: department || 'E&I', standard: standard || '', findingType: findingType || 'Minor NC', finding: finding || '', rootCause: rootCause || '', correction: correction || '', correctiveAction: correctiveAction || '', responsible: responsible || '', targetDate: targetDate || null, status: 'Open' });
+    const record = await QualityRecord.create({ recordType: 'capa', recordNo: recordNo.trim(), title: title.trim(), department: department || 'E&I', standard: standard || '', findingType: findingType || 'Minor NC', finding: finding || '', rootCause: rootCause || '', correction: correction || '', correctiveAction: correctiveAction || '', responsible: responsible || '', targetDate: targetDate || null, evidence: evidence || '', verifiedBy: verifiedBy || '', effectivenessResult: effectivenessResult || '', status: 'Open' });
     res.status(201).json({ record });
   } catch (err: any) {
     if (err?.code === 11000) return res.status(409).json({ message: 'This NCR/CAPA number already exists.' });
