@@ -212,11 +212,15 @@ router.patch('/records/:id', authorize('manager','deputy_manager','shift_enginee
   for (const key of allowed) if (req.body?.[key] !== undefined) (record as any)[key] = req.body[key];
   if (req.body?.status === 'Closed') {
     if (record.recordType === 'capa') {
-      if (!record.rootCause?.trim() || !record.correctiveAction?.trim() || !record.evidence?.trim() || !record.effectivenessResult?.trim() || !String(req.body.verifiedBy || record.verifiedBy || '').trim()) {
-        return res.status(400).json({ message: 'CAPA closure requires root cause, corrective action, objective evidence, effectiveness result and verifier.' });
+      const verifier = await actor(req);
+      if (!['manager','deputy_manager'].includes(verifier.role)) return res.status(403).json({ message: 'Only a Manager or Deputy Manager may verify CAPA effectiveness and close the action.' });
+      if (String(record.responsible || '').trim().toLowerCase() === verifier.name.trim().toLowerCase()) return res.status(403).json({ message: 'The action owner cannot independently verify and close the same CAPA.' });
+      if (!record.rootCause?.trim() || !record.correctiveAction?.trim() || !record.evidence?.trim() || !record.effectivenessResult?.trim()) {
+        return res.status(400).json({ message: 'CAPA closure requires root cause, corrective action, objective evidence and effectiveness verification result.' });
       }
-      record.verifiedBy = req.body.verifiedBy || record.verifiedBy;
-      record.verifiedDate = req.body.verifiedDate || new Date();
+      record.verifiedBy = verifier.name;
+      record.verifiedDate = new Date();
+      record.approvalHistory.push({ action: 'Approved', actorId: verifier.id, actorName: verifier.name, actorRole: verifier.role, comments: 'CAPA effectiveness verified and action closed.', revision: '' });
     }
     record.status = 'Closed'; record.closureDate = new Date();
   } else if (req.body?.status !== undefined) {
