@@ -56,7 +56,8 @@ router.post('/documents', authorize('manager','deputy_manager','shift_engineer')
     };
     if (req.file) { payload.fileName = req.file.originalname; payload.mimeType = req.file.mimetype; payload.fileDataBase64 = req.file.buffer.toString('base64'); }
     const record = await QualityRecord.create(payload);
-    res.status(201).json({ record: record.toObject() });
+    const safe = record.toObject(); delete safe.fileDataBase64;
+    res.status(201).json({ record: safe });
   } catch (err: any) {
     if (err?.code === 11000) return res.status(409).json({ message: 'This document number already exists.' });
     res.status(400).json({ message: err.message || 'Could not save document.' });
