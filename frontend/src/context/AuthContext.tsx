@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, useRef, useCallback } from 'react';
 import type { User, UserRole } from '../types';
 import { mockUser } from '../data/mockData';
+import { apiFetch } from '../utils/api';
 
 interface AuthContextType {
   user: User | null;
