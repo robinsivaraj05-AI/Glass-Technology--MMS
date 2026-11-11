@@ -46,6 +46,7 @@ import PurchaseCosting from './pages/PurchaseCosting';
 import FinanceEIPurReport from './pages/FinanceEIPurReport';
 import AMC from './pages/AMC';
 import JobTracker from './pages/JobTracker';
+import QualityModule from './pages/QualityModule';
 
 function KeepAlive() {
   useEffect(() => {
@@ -111,7 +112,7 @@ export default function App() {
             <Route path="/vendors" element={<Placeholder title="Vendor Management" description="Vendor details, AMC contracts, service history, performance ratings, and invoice management." />} />
             {/* ISO & Quality */}
             <Route path="/iso" element={<Placeholder title="ISO Documentation" description="ISO 9001, ISO 14001, ISO 45001 document control, revision history, audit findings, CAPA management." />} />
-            <Route path="/quality" element={<Placeholder title="Quality Module" description="Defect analysis, customer complaints, corrective actions, preventive actions, and quality reports." />} />
+            <Route path="/quality" element={<QualityModule />} />
             {/* Other */}
             <Route path="/logbook" element={<Placeholder title="Daily Logbook" description="Shift log with events, power failures, breakdowns, PM completions, safety observations, production losses, and digital signatures." />} />
             {/* Outsource / Contractor */}
