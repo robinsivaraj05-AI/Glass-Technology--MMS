@@ -164,6 +164,9 @@ export default function QualityModule() {
             <div><label style={labelStyle}>Corrective Action</label><input value={form.correctiveAction||''} onChange={e=>set('correctiveAction',e.target.value)} style={inputStyle}/></div>
             <div><label style={labelStyle}>Responsible Person</label><input value={form.responsible||''} onChange={e=>set('responsible',e.target.value)} style={inputStyle}/></div>
             <div><label style={labelStyle}>Target Closure Date</label><input type="date" value={form.targetDate||''} onChange={e=>set('targetDate',e.target.value)} style={inputStyle}/></div>
+            <div><label style={labelStyle}>Objective Evidence</label><input value={form.evidence||''} onChange={e=>set('evidence',e.target.value)} placeholder="Evidence reference / details" style={inputStyle}/></div>
+            <div><label style={labelStyle}>Effectiveness Verification Result</label><input value={form.effectivenessResult||''} onChange={e=>set('effectivenessResult',e.target.value)} placeholder="How recurrence prevention was verified" style={inputStyle}/></div>
+            <div><label style={labelStyle}>Verified By</label><input value={form.verifiedBy||''} onChange={e=>set('verifiedBy',e.target.value)} style={inputStyle}/></div>
             <div><label style={labelStyle}>Status</label><select value={form.status||'Open'} onChange={e=>set('status',e.target.value)} style={inputStyle}>{['Open','In Progress','Pending Verification','Closed'].map(x=><option key={x}>{x}</option>)}</select></div>
           </>}
         </div>
