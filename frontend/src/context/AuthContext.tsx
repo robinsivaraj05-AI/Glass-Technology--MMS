@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, useRef, useCallback } from 'react';
 import type { User, UserRole } from '../types';
 import { mockUser } from '../data/mockData';
+import { apiFetch } from '../utils/api';
 
 interface AuthContextType {
   user: User | null;
@@ -79,7 +80,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const login = async (email: string, password: string): Promise<boolean> => {
     setLoading(true);
     await new Promise(r => setTimeout(r, 600));
-    const cred = DEMO_CREDENTIALS.find(c => c.email === email && c.password === password);
+    try {\n      const response = await fetch('/api/auth/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email, password }) });\n      if (response.ok) {\n        const data = await response.json();\n        const u: User = { ...mockUser, id: data.user.id, name: data.user.name, email: data.user.email, role: data.user.role, department: data.user.department || '', employeeId: data.user.employeeId || '' };\n        setUser(u);\n        sessionStorage.setItem('mms_user', JSON.stringify(u));\n        sessionStorage.setItem('mms_token', data.token);\n        sessionStorage.setItem('mms_expiry', String(Date.now() + INACTIVITY_MS));\n        setLoading(false);\n        return true;\n      }\n    } catch { /* Development demo login may be used only when backend is unavailable. */ }\n    if (!import.meta.env.DEV) { setLoading(false); return false; }\n    const cred = DEMO_CREDENTIALS.find(c => c.email === email && c.password === password);
     if (cred) {
       // Restore any profile fields the user saved in a previous session
       let saved: Partial<User> = {};
