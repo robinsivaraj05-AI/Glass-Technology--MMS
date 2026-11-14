@@ -1,6 +1,7 @@
 ﻿// @ts-nocheck
 import { useState } from 'react';
-import { Download, Calendar } from 'lucide-react';
+import { Download, Mail } from 'lucide-react';
+import toast from 'react-hot-toast';
 import { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import { monthlyBreakdowns, pmComplianceData, mockKPIs, departmentEnergyData } from '../data/mockData';
 import { apiFetch } from '../utils/api';
@@ -1663,6 +1664,7 @@ export default function Reports() {
   const [dateTo,   setDateTo]   = useState(() => new Date().toISOString().slice(0, 10));
   const [format,   setFormat]   = useState<'pdf' | 'excel' | 'word'>('pdf');
   const [generating, setGenerating] = useState(false);
+  const [sendingEmail, setSendingEmail] = useState(false);
   const [mgmtMonth, setMgmtMonth] = useState(() => new Date().toISOString().slice(0, 7)); // YYYY-MM
   const [mgmtSections, setMgmtSections] = useState<Record<string, boolean>>(
     Object.fromEntries(MGMT_SECTIONS.map(s => [s.key, true]))
@@ -1833,9 +1835,29 @@ export default function Reports() {
               <Download size={13} />
               {generating ? 'Generating PDFâ€¦' : selectedReport === 'management' ? 'Generate Management PDF' : `Generate ${format.toUpperCase()} Report`}
             </button>
-            <button className="btn-secondary" style={{ fontSize: 12, display: 'flex', alignItems: 'center', gap: 6 }}>
-              <Calendar size={13} /> Schedule Auto Report
-            </button>
+            {selectedReport === 'management' && (
+              <button
+                className="btn-secondary"
+                style={{ fontSize: 12, display: 'flex', alignItems: 'center', gap: 6, opacity: sendingEmail ? 0.7 : 1, cursor: sendingEmail ? 'not-allowed' : 'pointer' }}
+                disabled={sendingEmail}
+                onClick={async e => {
+                  e.stopPropagation();
+                  const [my, mm] = mgmtMonth.split('-').map(Number);
+                  if (!window.confirm(`Send ${new Date(my, mm-1).toLocaleDateString('en-GB',{month:'long',year:'numeric'})} report to manager now?`)) return;
+                  setSendingEmail(true);
+                  try {
+                    const r = await apiFetch('/api/report-email/send', { method: 'POST', body: JSON.stringify({ year: my, month: mm, force: true }) });
+                    toast.success(r.message || 'Report emailed to manager!');
+                  } catch (err: any) {
+                    toast.error(err.message || 'Failed to send email.');
+                  } finally {
+                    setSendingEmail(false);
+                  }
+                }}
+              >
+                <Mail size={13} /> {sendingEmail ? 'Sending…' : 'Email to Manager'}
+              </button>
+            )}
             {generating && <span style={{ fontSize: 11, color: '#64748b' }}>Fetching live data from all modulesâ€¦</span>}
           </div>
         )}
