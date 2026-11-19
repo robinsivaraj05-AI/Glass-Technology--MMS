@@ -5,16 +5,29 @@ import PurchaseFollowup from '../models/PurchaseFollowup';
 import PendingJob from '../models/PendingJob';
 import ReportLog from '../models/ReportLog';
 
-const PRESENT_CODES = new Set(['PR', 'WH', 'SD', 'OD', 'P']);
-const LEAVE_CODES   = new Set(['AL', 'PL', 'SL', 'CO']);
+// Must match the Attendance sheet's codes (frontend/src/config/attendanceCodes.ts).
+// A / B / C are First / Second / Night shift (worked days) — the sheet has no "absent" code.
+const WORK_CODES  = new Set(['PR', 'WH', 'SD', 'OD', 'RP', 'A', 'B', 'C']);
+const LEAVE_CODES = new Set(['AL', 'PL', 'SL', 'CO']);
+const OFF_CODES   = new Set(['WO', 'NH']);   // weekly off, national holiday
+
+export function summariseAttendance(entries: { day: number; code: string }[], daysInMonth: number) {
+  const coded = entries.filter(e => e.code);
+  return {
+    present:  coded.filter(e => WORK_CODES.has(e.code)).length,
+    leave:    coded.filter(e => LEAVE_CODES.has(e.code)).length,
+    off:      coded.filter(e => OFF_CODES.has(e.code)).length,
+    unmarked: Math.max(0, daysInMonth - new Set(coded.map(e => e.day)).size),
+  };
+}
 
 function aed(n: number) {
   return 'AED ' + n.toLocaleString('en-AE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
-function buildHtml(data: {
+export function buildHtml(data: {
   monthLabel: string;
-  attRows: { name: string; present: number; leave: number; absent: number }[];
+  attRows: { name: string; present: number; leave: number; off: number; unmarked: number }[];
   accTotal: number;
   accCount: number;
   pendingPurchases: number;
@@ -24,7 +37,8 @@ function buildHtml(data: {
   const { monthLabel, attRows, accTotal, accCount, pendingPurchases, pendingJobs, appUrl } = data;
   const totalPresent = attRows.reduce((s, r) => s + r.present, 0);
   const totalLeave   = attRows.reduce((s, r) => s + r.leave, 0);
-  const totalAbsent  = attRows.reduce((s, r) => s + r.absent, 0);
+  const totalOff     = attRows.reduce((s, r) => s + r.off, 0);
+  const totalUnmarked = attRows.reduce((s, r) => s + r.unmarked, 0);
   const today = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
 
   const attTableRows = attRows.map(r => `
@@ -32,7 +46,8 @@ function buildHtml(data: {
       <td style="padding:8px 12px;border-bottom:1px solid #e2e8f0;font-size:13px;color:#1e293b;">${r.name}</td>
       <td style="padding:8px 12px;border-bottom:1px solid #e2e8f0;font-size:13px;text-align:center;color:#16a34a;font-weight:700;">${r.present}</td>
       <td style="padding:8px 12px;border-bottom:1px solid #e2e8f0;font-size:13px;text-align:center;color:#2563eb;font-weight:600;">${r.leave}</td>
-      <td style="padding:8px 12px;border-bottom:1px solid #e2e8f0;font-size:13px;text-align:center;color:#ef4444;font-weight:600;">${r.absent}</td>
+      <td style="padding:8px 12px;border-bottom:1px solid #e2e8f0;font-size:13px;text-align:center;color:#ca8a04;font-weight:600;">${r.off}</td>
+      <td style="padding:8px 12px;border-bottom:1px solid #e2e8f0;font-size:13px;text-align:center;color:${r.unmarked ? '#ef4444' : '#94a3b8'};font-weight:600;">${r.unmarked}</td>
     </tr>`).join('');
 
   return `<!DOCTYPE html>
@@ -67,7 +82,7 @@ function buildHtml(data: {
       <td width="24%" style="padding-right:6px;">
         <div style="background:#f0fdf4;border:1.5px solid #bbf7d0;border-radius:10px;padding:14px 10px;text-align:center;">
           <div style="font-size:26px;font-weight:800;color:#16a34a;">${totalPresent}</div>
-          <div style="font-size:9px;color:#15803d;font-weight:700;margin-top:3px;text-transform:uppercase;">Present Days</div>
+          <div style="font-size:9px;color:#15803d;font-weight:700;margin-top:3px;text-transform:uppercase;">Working Days</div>
         </div>
       </td>
       <td width="24%" style="padding-right:6px;">
@@ -99,16 +114,18 @@ function buildHtml(data: {
     <table width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #e2e8f0;border-radius:8px;overflow:hidden;">
       <tr style="background:#f8fafc;">
         <th style="padding:9px 12px;text-align:left;font-size:11px;color:#64748b;font-weight:700;border-bottom:1px solid #e2e8f0;">EMPLOYEE</th>
-        <th style="padding:9px 12px;text-align:center;font-size:11px;color:#16a34a;font-weight:700;border-bottom:1px solid #e2e8f0;">PRESENT</th>
+        <th style="padding:9px 12px;text-align:center;font-size:11px;color:#16a34a;font-weight:700;border-bottom:1px solid #e2e8f0;">WORKING</th>
         <th style="padding:9px 12px;text-align:center;font-size:11px;color:#2563eb;font-weight:700;border-bottom:1px solid #e2e8f0;">LEAVE</th>
-        <th style="padding:9px 12px;text-align:center;font-size:11px;color:#ef4444;font-weight:700;border-bottom:1px solid #e2e8f0;">ABSENT</th>
+        <th style="padding:9px 12px;text-align:center;font-size:11px;color:#ca8a04;font-weight:700;border-bottom:1px solid #e2e8f0;">OFF / HOLIDAY</th>
+        <th style="padding:9px 12px;text-align:center;font-size:11px;color:#ef4444;font-weight:700;border-bottom:1px solid #e2e8f0;">NOT MARKED</th>
       </tr>
-      ${attTableRows || '<tr><td colspan="4" style="padding:16px;text-align:center;color:#94a3b8;font-size:13px;">No attendance records for this month</td></tr>'}
+      ${attTableRows || '<tr><td colspan="5" style="padding:16px;text-align:center;color:#94a3b8;font-size:13px;">No attendance records for this month</td></tr>'}
       <tr style="background:#f8fafc;">
         <td style="padding:9px 12px;font-size:13px;font-weight:700;color:#1e293b;border-top:2px solid #e2e8f0;">TOTAL</td>
         <td style="padding:9px 12px;text-align:center;font-size:13px;font-weight:800;color:#16a34a;border-top:2px solid #e2e8f0;">${totalPresent}</td>
         <td style="padding:9px 12px;text-align:center;font-size:13px;font-weight:800;color:#2563eb;border-top:2px solid #e2e8f0;">${totalLeave}</td>
-        <td style="padding:9px 12px;text-align:center;font-size:13px;font-weight:800;color:#ef4444;border-top:2px solid #e2e8f0;">${totalAbsent}</td>
+        <td style="padding:9px 12px;text-align:center;font-size:13px;font-weight:800;color:#ca8a04;border-top:2px solid #e2e8f0;">${totalOff}</td>
+        <td style="padding:9px 12px;text-align:center;font-size:13px;font-weight:800;color:#ef4444;border-top:2px solid #e2e8f0;">${totalUnmarked}</td>
       </tr>
     </table>
   </td></tr>
@@ -191,11 +208,10 @@ export async function sendMonthlyReport(year: number, month: number, force = fal
     PendingJob.countDocuments({ status: { $nin: ['Completed', 'Cancelled'] } }),
   ]);
 
+  const daysInMonth = new Date(year, month, 0).getDate();
   const attRows = attRecords.map(rec => ({
-    name:    rec.empName,
-    present: rec.entries.filter(e => PRESENT_CODES.has(e.code)).length,
-    leave:   rec.entries.filter(e => LEAVE_CODES.has(e.code)).length,
-    absent:  rec.entries.filter(e => e.code === 'A').length,
+    name: rec.empName,
+    ...summariseAttendance(rec.entries, daysInMonth),
   }));
 
   const accTotal         = accEntries.reduce((s, e) => s + (e.totalCost || 0), 0);
