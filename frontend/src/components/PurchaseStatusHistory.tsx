@@ -5,17 +5,17 @@ import { STATUS_FLOW, REJECTED, STATUS_WEB, normaliseStatus, isRejected, stepOf,
 // Purchase History: for every item, the date it reached each workflow stage,
 // taken from the status change log the server writes on every status change.
 
-interface Rec {
+export interface Rec {
   id: string; itemDescription: string; prNumber: string; requestDate: string;
   currentStatus: string; statusHistory?: StatusChange[]; updatedAt?: string;
 }
 
 const DAY = 86400000;
-const fmt = (d: Date) => d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: '2-digit' });
+export const fmt = (d: Date) => d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: '2-digit' });
 const fmtTime = (d: Date) => d.toLocaleString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
 // Whole calendar days between two dates (10 Oct → 19 Oct = 9), ignoring time of day
 const dayNo = (d: Date) => Math.floor(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()) / DAY);
-const days = (a: Date, b: Date) => Math.max(0, dayNo(b) - dayNo(a));
+export const days = (a: Date, b: Date) => Math.max(0, dayNo(b) - dayNo(a));
 // "2026-10-10" is a calendar date — read it as local midnight, not UTC
 const parseDay = (s: string) => { const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s); return m ? new Date(+m[1], +m[2] - 1, +m[3]) : new Date(s); };
 const SHORT: Record<string, string> = {
@@ -24,7 +24,7 @@ const SHORT: Record<string, string> = {
   'PO done': 'PO Done', 'Partially Received': 'Partially Received', 'Material Received': 'Material Received',
 };
 
-function analyse(r: Rec) {
+export function analyse(r: Rec) {
   const log = (r.statusHistory || [])
     .map(h => ({ status: normaliseStatus(h.status), from: normaliseStatus(h.from || ''), at: new Date(h.at) }))
     .filter(h => !isNaN(h.at.getTime()))
@@ -41,6 +41,54 @@ function analyse(r: Rec) {
   const completed = current === 'Material Received' || current === REJECTED;
   const endAt = doneAt ?? rejectedAt;          // when it was completed / rejected (if logged)
   return { log, reached, current, curStep, rejectedAt, lastChange, start, doneAt, completed, endAt };
+}
+
+// What each of the 7 step cells shows — shared by the page and the PDF report
+export type Cell =
+  | { kind: 'date'; date: Date; gap: number | null; current: boolean }   // reached on a recorded date
+  | { kind: 'current' }                                                  // current step, reached before tracking
+  | { kind: 'done' }                                                     // passed, no date recorded
+  | { kind: 'nil' };                                                     // not reached
+export function stageCells(a: ReturnType<typeof analyse>): Cell[] {
+  const cells: Cell[] = [];
+  // Step 1: request date = RFQ created
+  cells.push(a.start ? { kind: 'date', date: a.start, gap: null, current: a.current === 'RFQ created' }
+                     : a.current === 'RFQ created' ? { kind: 'current' } : { kind: 'nil' });
+  let prev: Date | undefined = a.start;
+  STATUS_FLOW.slice(1).forEach((st, j) => {
+    const step = j + 2, d = a.reached.get(st);
+    if (d) { cells.push({ kind: 'date', date: d, gap: prev ? days(prev, d) : null, current: a.current === st }); prev = d; }
+    else if (a.current === st) cells.push({ kind: 'current' });
+    else if (a.curStep > step) cells.push({ kind: 'done' });
+    else cells.push({ kind: 'nil' });
+  });
+  return cells;
+}
+
+// Uniform square-cornered box used for every step cell
+function StageBox({ cell, color, title }: { cell: Cell; color: string; title: string }) {
+  const base: React.CSSProperties = {
+    width: 92, height: 42, margin: '0 auto', boxSizing: 'border-box', borderRadius: 3,
+    display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+    fontSize: 11, fontWeight: 700, lineHeight: 1.25,
+  };
+  if (cell.kind === 'date') return (
+    <div title={title} style={{ ...base, border: `1.5px solid ${color}`, background: cell.current ? color : '#fff', color: cell.current ? '#fff' : '#1e293b' }}>
+      {fmt(cell.date)}
+      {cell.gap !== null && <span style={{ fontSize: 10, fontWeight: 600, opacity: 0.85 }}>+{cell.gap} day{cell.gap === 1 ? '' : 's'}</span>}
+    </div>
+  );
+  if (cell.kind === 'current') return (
+    <div title="Current step — reached before history tracking started" style={{ ...base, border: `1.5px solid ${color}`, background: color, color: '#fff' }}>
+      Current<span style={{ fontSize: 10, fontWeight: 600, opacity: 0.85 }}>No date</span>
+    </div>
+  );
+  if (cell.kind === 'done') return (
+    <div title="Passed — no date recorded" style={{ ...base, border: '1.5px solid #cbd5e1', background: '#f1f5f9', color: '#64748b' }}>
+      ✓<span style={{ fontSize: 10, fontWeight: 600 }}>Done</span>
+    </div>
+  );
+  return <div title="Not reached yet" style={{ ...base, border: '1.5px dashed #e2e8f0', background: '#fff', color: '#cbd5e1', fontWeight: 600 }}>Nil</div>;
 }
 
 export default function PurchaseStatusHistory({ records }: { records: Rec[] }) {
@@ -116,7 +164,6 @@ export default function PurchaseStatusHistory({ records }: { records: Rec[] }) {
           <tbody>
             {rows.map(({ r, a }) => {
               const isOpen = open === r.id;
-              let prevDate: Date | undefined = a.start;
               return (
                 <Fragment key={r.id}>
                   <tr onClick={() => setOpen(isOpen ? null : r.id)} style={{ cursor: 'pointer', background: isOpen ? '#EEF2FF' : undefined }}>
@@ -126,42 +173,12 @@ export default function PurchaseStatusHistory({ records }: { records: Rec[] }) {
                       <div style={{ fontSize: 11, color: '#60a5fa', fontFamily: 'monospace' }}>{r.prNumber}</div>
                       {a.rejectedAt && <div style={{ fontSize: 11, color: '#475569', fontWeight: 700 }}>✕ {REJECTED} · {fmt(a.rejectedAt)}</div>}
                     </td>
-                    <td style={{ textAlign: 'center', padding: '6px 4px' }}>
-                      {a.start ? (
-                        <div title={`Requested / RFQ created: ${fmt(a.start)}`} style={{
-                          display: 'inline-block', minWidth: 78, padding: '3px 6px', borderRadius: 7, fontSize: 11, fontWeight: 700,
-                          background: a.current === 'RFQ created' ? STATUS_WEB['RFQ created'].bg : '#F8FAFC',
-                          color: a.current === 'RFQ created' ? '#fff' : '#1e293b', border: `1.5px solid ${STATUS_WEB['RFQ created'].bg}`,
-                        }}>{fmt(a.start)}</div>
-                      ) : a.current === 'RFQ created' ? (
-                        <span style={{ display: 'inline-block', whiteSpace: 'nowrap', padding: '3px 8px', borderRadius: 7, fontSize: 11, fontWeight: 700, background: STATUS_WEB['RFQ created'].bg, color: '#fff' }}>Current · no date</span>
-                      ) : <span style={{ color: '#e2e8f0' }}>—</span>}
-                    </td>
-                    {STAGES.map((st, j) => { const i = j + 1;
-                      const d = a.reached.get(st);
-                      const isCurrent = a.current === st;
-                      const passed = !d && a.curStep > i + 1;      // earlier stage, no date logged
-                      const gap = d && prevDate ? days(prevDate, d) : null;
-                      if (d) prevDate = d;
-                      const c = STATUS_WEB[st];
+                    {stageCells(a).map((cell, k) => {
+                      const st = STATUS_FLOW[k];
                       return (
                         <td key={st} style={{ textAlign: 'center', padding: '6px 4px' }}>
-                          {d ? (
-                            <div title={`${st}: ${fmtTime(d)}`} style={{
-                              display: 'inline-block', minWidth: 78, padding: '3px 6px', borderRadius: 7, fontSize: 11, fontWeight: 700,
-                              background: isCurrent ? c.bg : '#F8FAFC', color: isCurrent ? '#fff' : '#1e293b',
-                              border: `1.5px solid ${c.bg}`,
-                            }}>
-                              {fmt(d)}
-                              {gap !== null && <div style={{ fontSize: 10, fontWeight: 600, opacity: 0.8 }}>+{gap} day{gap === 1 ? '' : 's'}</div>}
-                            </div>
-                          ) : isCurrent ? (
-                            <span title="Current stage — reached before history tracking started" style={{ display: 'inline-block', whiteSpace: 'nowrap', padding: '3px 8px', borderRadius: 7, fontSize: 11, fontWeight: 700, background: c.bg, color: '#fff' }}>Current · no date</span>
-                          ) : passed ? (
-                            <span title="Passed — no date recorded" style={{ color: '#94a3b8', fontSize: 13 }}>✓</span>
-                          ) : (
-                            <span style={{ color: '#e2e8f0' }}>—</span>
-                          )}
+                          <StageBox cell={cell} color={STATUS_WEB[st].bg}
+                            title={cell.kind === 'date' ? `${k === 0 ? 'Requested / RFQ created' : st}: ${fmtTime(cell.date)}` : st}/>
                         </td>
                       );
                     })}
@@ -172,7 +189,7 @@ export default function PurchaseStatusHistory({ records }: { records: Rec[] }) {
                           : <span style={{ color: a.current === REJECTED ? '#475569' : '#16a34a', fontWeight: 600 }} title="Completed before history tracking started">{a.current === REJECTED ? 'Rejected' : 'Received'}</span>
                       ) : a.start ? (
                         <span style={{ color: '#b45309', fontWeight: 600 }} title="Still open — days so far">{days(a.start, today)} days</span>
-                      ) : '—'}
+                      ) : <span style={{ color: '#cbd5e1' }}>Nil</span>}
                     </td>
                   </tr>
                   {isOpen && (
@@ -194,7 +211,7 @@ export default function PurchaseStatusHistory({ records }: { records: Rec[] }) {
                                   <td style={{ padding: '3px 6px', color: '#94a3b8' }}>{h.from ? statusLabel(h.from) : 'New item'}</td>
                                   <td style={{ padding: '3px 6px', color: '#94a3b8' }}>→</td>
                                   <td style={{ padding: '3px 6px' }}>
-                                    <span style={{ padding: '1px 8px', borderRadius: 6, fontWeight: 700, color: '#fff', background: STATUS_WEB[h.status]?.bg || '#94a3b8' }}>{statusLabel(h.status) || '— Not set —'}</span>
+                                    <span style={{ padding: '1px 8px', borderRadius: 6, fontWeight: 700, color: '#fff', background: STATUS_WEB[h.status]?.bg || '#94a3b8' }}>{statusLabel(h.status) || 'Nil'}</span>
                                     {h.from && stepOf(h.status) && stepOf(h.from) > stepOf(h.status) && <span style={{ marginLeft: 6, color: '#dc2626', fontWeight: 600 }}>moved back</span>}
                                   </td>
                                 </tr>
@@ -216,7 +233,7 @@ export default function PurchaseStatusHistory({ records }: { records: Rec[] }) {
       </div>
       <div style={{ fontSize: 11, color: '#94a3b8' }}>
         Dates are recorded automatically each time the Current Status changes. "+N days" = days since the previous stage (or since the request date).
-        Items whose status was set before this history existed show "Current · no date" until their next change.
+        Items whose status was set before this history existed show "Current / No date" until their next change. "Nil" = step not reached yet.
       </div>
     </div>
   );
