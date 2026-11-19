@@ -2,6 +2,8 @@
 import React, { useState, useCallback, useEffect, useMemo } from 'react';
 import { Plus, Search, Download, Edit2, Trash2, RefreshCw, X, Check, Maximize2 } from 'lucide-react';
 import { apiFetch } from '../utils/api';
+import { STATUS_FLOW, REJECTED, STATUS_WEB, STATUS_XLS, normaliseStatus, isRejected, statusLabel, type StatusChange } from '../config/purchaseStatus';
+import PurchaseStatusHistory from '../components/PurchaseStatusHistory';
 
 interface PaymentTransaction {
   id: string;
@@ -27,6 +29,9 @@ interface FollowupRecord {
   remarks: string;
   receivedDate: string;
   paymentHistory: PaymentTransaction[];
+  statusHistory?: StatusChange[];   // written by the server on every status change
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 type TableRow =
@@ -34,32 +39,13 @@ type TableRow =
   | { type: 'data'; record: FollowupRecord; sl: number };
 
 
-const STATUS_WEB: Record<string, { bg: string; tc: string }> = {
-  'RFQ created':           { bg: 'rgba(59,130,246,0.85)',  tc: '#fff' },
-  'Technical Review':      { bg: 'rgba(234,88,12,0.85)',   tc: '#fff' },
-  'Quotation Received':    { bg: 'rgba(139,92,246,0.85)',  tc: '#fff' },
-  'PO done':               { bg: 'rgba(180,130,0,0.90)',   tc: '#fff' },
-  'Partially Received':{ bg: 'rgba(220,38,38,0.85)',   tc: '#fff' },
-  'Rejected':              { bg: 'rgba(71,85,105,0.85)',   tc: '#fff' },
-  'Material Received':     { bg: 'rgba(22,163,74,0.85)',   tc: '#fff' },
-};
-
-const STATUS_XLS: Record<string, string> = {
-  'RFQ created':           '#4472C4',
-  'Technical Review':      '#FFA500',
-  'Quotation Received':    '#7030A0',
-  'PO done':               '#B8860B',
-  'Partially Received':'#FF0000',
-  'Rejected':              '#808080',
-  'Material Received':     '#00B050',
-};
-
 const TL_COLOR: Record<string, string> = {
   'Second Priority': '#22c55e',
   'Primary Priority': '#f97316',
 };
 
-const STATUSES  = ['', ...Object.keys(STATUS_WEB)];
+// Status options in workflow order (see config/purchaseStatus.ts)
+const STATUSES: string[]  = ['', ...STATUS_FLOW, REJECTED];
 const TIMELINES = ['', 'Need', 'Needed', 'Second Priority', 'Primary Priority'];
 
 const PAYMENT_STATUSES = ['', 'Payment Under-Progress', 'Payment Initiated', 'Partial Payment Done', 'Payment Done'];
@@ -92,17 +78,17 @@ function fmtMonYear(iso: string) {
 }
 
 function mapRFQStatus(s: string): string {
-  return ({ draft:'RFQ created', sent:'Technical Review', 'quotation-received':'Quotation Received', 'converted-to-po':'PO done', closed:'Material Received' } as Record<string,string>)[s] || s;
+  // An RFQ that has been sent is still waiting for quotations → step 1
+  return ({ draft:'RFQ created', sent:'RFQ created', 'quotation-received':'Quotation Received', 'converted-to-po':'PO done', closed:'Material Received' } as Record<string,string>)[s] || s;
 }
 function mapPOStatus(s: string): string {
-  return ({ ordered:'PO done', acknowledged:'PO done', 'in-transit':'Partially Received', 'partially-received':'Partially Received', received:'Material Received', delayed:'Partially Received', cancelled:'Rejected' } as Record<string,string>)[s] || s;
+  return ({ ordered:'PO done', acknowledged:'PO done', 'in-transit':'Partially Received', 'partially-received':'Partially Received', received:'Material Received', delayed:'Partially Received', cancelled:REJECTED } as Record<string,string>)[s] || s;
 }
 
 // Higher rank = further along in the workflow. Sync never downgrades.
 const STATUS_RANK: Record<string, number> = {
-  'RFQ created': 1, 'Technical Review': 2, 'Quotation Received': 3,
-  'PO done': 4, 'Partially Received': 4,
-  'Material Received': 5, 'Payment Done': 6, 'Rejected': 0,
+  ...Object.fromEntries(STATUS_FLOW.map((st, i) => [st, i + 1])),
+  'Payment Done': STATUS_FLOW.length + 1, [REJECTED]: 0,
 };
 function mapPriority(p: string): string {
   return ({ urgent:'Primary Priority', high:'Second Priority', normal:'Need', low:'' } as Record<string,string>)[p] || '';
@@ -128,7 +114,7 @@ function downloadXLS(records: FollowupRecord[]) {
 
   // Exclude items that are already received — report is for PENDING items only
   const pending = records
-    .filter(r => r.currentStatus !== 'Material Received' && r.currentStatus !== 'Payment Done' && r.currentStatus !== 'Rejected')
+    .filter(r => r.currentStatus !== 'Material Received' && r.currentStatus !== 'Payment Done' && !isRejected(r.currentStatus))
     .sort((a, b) => daysSince(b.requestDate) - daysSince(a.requestDate));
 
   const sectionOrder: string[] = [];
@@ -212,7 +198,7 @@ export default function PurchaseFollowup() {
   const [loadError, setLoadError] = useState('');
   const [search, setSearch]       = useState('');
   const [statusFilter, setStatus] = useState('all');
-  const [listTab, setListTab]     = useState<'pending' | 'payment' | 'completed'>('pending');
+  const [listTab, setListTab]     = useState<'pending' | 'payment' | 'completed' | 'history'>('pending');
   const [showForm, setShowForm]   = useState(false);
   const [editId, setEditId]       = useState<string|null>(null);
   const [form, setForm]           = useState<Omit<FollowupRecord,'id'>>(BLANK());
@@ -224,8 +210,8 @@ export default function PurchaseFollowup() {
   const loadData = async () => {
     setLoading(true); setLoadError('');
     try {
-      const data = await apiFetch('/api/purchase-followup');
-      setRecords(data);
+      const data: FollowupRecord[] = await apiFetch('/api/purchase-followup');
+      setRecords(data.map(r => ({ ...r, currentStatus: normaliseStatus(r.currentStatus || '') })));
     } catch (e: any) { setLoadError(e.message || 'Failed to load records'); }
     finally { setLoading(false); }
   };
@@ -314,11 +300,11 @@ export default function PurchaseFollowup() {
   const getRemaining  = (r: FollowupRecord) => Math.max(0, (r.budget || 0) - getTotalPaid(r));
 
   // tab membership helpers
-  const inPending   = (r: FollowupRecord) => r.currentStatus !== 'Material Received' && r.currentStatus !== 'Rejected';
+  const inPending   = (r: FollowupRecord) => r.currentStatus !== 'Material Received' && !isRejected(r.currentStatus);
   // shows until fully paid (remaining > 0) and not manually set to Done
   const inPayment   = (r: FollowupRecord) => r.currentStatus === 'Material Received' && r.paymentStatus !== 'Payment Done';
   // each payment transaction appears in Completed; rejected items appear too
-  const inCompleted = (r: FollowupRecord) => (r.paymentHistory || []).length > 0 || r.paymentStatus === 'Payment Done' || r.currentStatus === 'Rejected';
+  const inCompleted = (r: FollowupRecord) => (r.paymentHistory || []).length > 0 || r.paymentStatus === 'Payment Done' || isRejected(r.currentStatus);
 
   // ── Add-payment modal ──────────────────────────────────────────────────────
   const [payModal, setPayModal] = useState<{ record: FollowupRecord; amount: string; date: string; remarks: string } | null>(null);
@@ -349,8 +335,8 @@ export default function PurchaseFollowup() {
     const t = search.toLowerCase();
     const result = records.filter(r => {
       const m = !t || r.itemDescription.toLowerCase().includes(t) || r.prNumber.toLowerCase().includes(t) || r.currentStatus.toLowerCase().includes(t);
-      const inTab = listTab === 'pending' ? inPending(r) : listTab === 'payment' ? inPayment(r) : inCompleted(r);
-      const sf = statusFilter === 'all' || (listTab === 'pending' ? r.currentStatus === statusFilter : r.paymentStatus === statusFilter);
+      const inTab = listTab === 'pending' ? inPending(r) : listTab === 'payment' ? inPayment(r) : listTab === 'history' ? true : inCompleted(r);
+      const sf = statusFilter === 'all' || (listTab === 'pending' || listTab === 'history' ? r.currentStatus === statusFilter : r.paymentStatus === statusFilter);
       return m && inTab && sf;
     });
     // Sort pending tab by days (highest → lowest) for easy tracking
@@ -376,7 +362,7 @@ export default function PurchaseFollowup() {
 
   const stats = {
     total:     records.length,
-    rfqOrReview: records.filter(r => r.currentStatus === 'RFQ created' || r.currentStatus === 'Technical Review').length,
+    rfqOrReview: records.filter(r => ['RFQ created', 'Technical Review Under Progress', 'Technical Review Done'].includes(r.currentStatus)).length,
     notDelivered: records.filter(r => r.currentStatus === 'Partially Received').length,
     quotation: records.filter(r => r.currentStatus === 'Quotation Received' || r.currentStatus === 'PO done').length,
     received:  records.filter(r => r.currentStatus === 'Material Received').length,
@@ -522,12 +508,13 @@ export default function PurchaseFollowup() {
         </button>
       </div>
 
-      {/* 3-tab navigation */}
+      {/* Tab navigation */}
       <div style={{ display:'flex', gap:0, borderBottom:'2px solid #E2E8F0', alignItems:'center', background:'#FFFFFF', borderRadius:'14px 14px 0 0', padding:'0 16px', boxShadow:'0 1px 3px rgba(15,23,42,0.05)', border:'1px solid rgba(0,0,0,0.05)', borderBottomLeftRadius:0, borderBottomRightRadius:0 }}>
         {([
           { key: 'pending',   label: 'Pending Purchase',   count: records.filter(inPending).length,   color: '#f59e0b' },
           { key: 'payment',   label: 'Payment History',    count: records.filter(inPayment).length,   color: '#60a5fa' },
           { key: 'completed', label: 'Completed',          count: records.filter(inCompleted).length, color: '#22c55e' },
+          { key: 'history',   label: 'Purchase History',   count: records.length,                     color: '#6366f1' },
         ] as const).map(t => (
           <button key={t.key} onClick={() => { setListTab(t.key); setStatus('all'); }} style={{
             padding: '10px 22px', background: 'none', border: 'none', cursor: 'pointer', fontSize: 13, fontWeight: 700,
@@ -545,10 +532,10 @@ export default function PurchaseFollowup() {
         {/* Adaptive sub-filter */}
         <select value={statusFilter} onChange={e => setStatus(e.target.value)} className="input-dark"
           style={{ marginLeft: 'auto', width: 250, alignSelf: 'center', fontSize: 11 }}>
-          {listTab === 'pending' ? (
+          {listTab === 'pending' || listTab === 'history' ? (
             <>
-              <option value="all">All Pending Status</option>
-              {STATUSES.filter(Boolean).map(s => <option key={s} value={s}>{s}</option>)}
+              <option value="all">{listTab === 'history' ? 'All Status' : 'All Pending Status'}</option>
+              {STATUSES.filter(Boolean).map(s => <option key={s} value={s}>{statusLabel(s)}</option>)}
             </>
           ) : (
             <>
@@ -603,7 +590,7 @@ export default function PurchaseFollowup() {
                   <td><input type="date" className="input-dark" style={{ fontSize:11, padding:'3px 5px' }} value={inlineRow.requestDate} onChange={e=>setIR('requestDate',e.target.value)}/></td>
                   <td style={{ textAlign:'center', color:'#64748b', fontSize:12 }}>{inlineRow.requestDate ? daysSince(inlineRow.requestDate) : '—'}</td>
                   <td><select className="input-dark" style={iSel} value={inlineRow.requiredTimeline} onChange={e=>setIR('requiredTimeline',e.target.value)}>{TIMELINES.map(t=><option key={t} value={t}>{t||'—'}</option>)}</select></td>
-                  <td><select className="input-dark" style={iSel} value={inlineRow.currentStatus} onChange={e=>setIR('currentStatus',e.target.value)}>{STATUSES.map(s=><option key={s} value={s}>{s||'—'}</option>)}</select></td>
+                  <td><select className="input-dark" style={iSel} value={inlineRow.currentStatus} onChange={e=>setIR('currentStatus',e.target.value)}>{STATUSES.map(s=><option key={s} value={s}>{statusLabel(s)||'—'}</option>)}</select></td>
                   <td><input className="input-dark" style={iInp} value={inlineRow.prNumber} onChange={e=>setIR('prNumber',e.target.value)} placeholder="PR / RFQ No."/></td>
                   <td><input type="date" className="input-dark" style={{ fontSize:11, padding:'3px 5px' }} value={inlineRow.reqDate} onChange={e=>setIR('reqDate',e.target.value)}/></td>
                   <td><input type="number" className="input-dark" style={{ fontSize:11, padding:'3px 6px', width:80, textAlign:'right' }} value={inlineRow.budget||''} onChange={e=>setIR('budget',Number(e.target.value))} min={0}/></td>
@@ -629,7 +616,7 @@ export default function PurchaseFollowup() {
                   <td style={{ fontWeight:600, fontSize:12, color: tlc||'#64748b' }}>{r.requiredTimeline||'—'}</td>
                   <td>
                     <select value={r.currentStatus} onChange={e=>updateStatusDirect(r.id,e.target.value)} style={{ width:'100%', padding:'4px 8px', borderRadius:7, fontSize:11, fontWeight:700, cursor:'pointer', outline:'none', background:sc?.bg||'#F3F4F6', border:`1px solid ${sc?sc.tc+'55':'#D1D5DB'}`, color:sc?.tc||'#6B7280' }}>
-                      {STATUSES.map(s=><option key={s} value={s} style={{ background:'#FFFFFF', color:'#374151' }}>{s||'— Not set —'}</option>)}
+                      {STATUSES.map(s=><option key={s} value={s} style={{ background:'#FFFFFF', color:'#374151' }}>{statusLabel(s)||'— Not set —'}</option>)}
                     </select>
                   </td>
                   <td style={{ fontSize:12, color:'#60a5fa', fontFamily:'monospace' }}>{r.prNumber||'—'}</td>
@@ -790,7 +777,7 @@ export default function PurchaseFollowup() {
 
         const rows: CompRow[] = [];
         compRecs.forEach((r, idx) => {
-          if (r.currentStatus === 'Rejected') { rows.push({ kind:'rejected', rec:r, idx }); return; }
+          if (isRejected(r.currentStatus)) { rows.push({ kind:'rejected', rec:r, idx }); return; }
           rows.push({ kind:'po', rec:r, idx });
           let cum = 0;
           (r.paymentHistory || []).forEach((tx, ti) => {
@@ -887,6 +874,9 @@ export default function PurchaseFollowup() {
           </div>
         );
       })()}
+
+      {/* ── PURCHASE HISTORY (stage dates from the status change log) ─────── */}
+      {listTab === 'history' && <PurchaseStatusHistory records={filtered}/>}
 
       {/* ── Add Payment Modal ─────────────────────────────────────────────── */}
       {payModal && (
@@ -996,7 +986,7 @@ export default function PurchaseFollowup() {
                 <div>
                   <label style={lbl}>Current Status</label>
                   <select className="input-dark" style={inp} value={form.currentStatus} onChange={e => setF('currentStatus', e.target.value)}>
-                    {STATUSES.map(s => <option key={s} value={s}>{s || '— None —'}</option>)}
+                    {STATUSES.map(s => <option key={s} value={s}>{statusLabel(s) || '— None —'}</option>)}
                   </select>
                 </div>
                 <div>
