@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { sendMonthlyReport } from '../services/monthlyReportEmail';
+import { sendMonthlyReport, previousMonth } from '../services/monthlyReportEmail';
 import ReportLog from '../models/ReportLog';
 
 const router = Router();
@@ -7,9 +7,9 @@ const router = Router();
 // POST /api/report-email/send  — manual trigger (from Reports page "Send Now" button)
 router.post('/send', async (req, res) => {
   try {
-    const now   = new Date();
-    const year  = Number(req.body?.year)  || now.getFullYear();
-    const month = Number(req.body?.month) || now.getMonth() + 1;
+    const prev  = previousMonth(new Date());
+    const year  = Number(req.body?.year)  || prev.year;
+    const month = Number(req.body?.month) || prev.month;
     const force = req.body?.force === true;
 
     if (month < 1 || month > 12) return res.status(400).json({ message: 'Invalid month.' });
