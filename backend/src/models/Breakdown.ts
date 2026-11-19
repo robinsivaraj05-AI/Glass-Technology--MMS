@@ -38,12 +38,12 @@ const BreakdownSchema = new Schema<IBreakdown>({
   photos: [String],
 }, { timestamps: true });
 
-BreakdownSchema.pre('save', function (next) {
+// Mongoose 9 no longer passes `next` to pre hooks.
+BreakdownSchema.pre('save', function () {
   if (!this.ticketNo) {
     const year = new Date().getFullYear();
     this.ticketNo = `BRK-${year}-${Math.floor(Math.random() * 9000) + 1000}`;
   }
-  next();
 });
 
 export default mongoose.model<IBreakdown>('Breakdown', BreakdownSchema);

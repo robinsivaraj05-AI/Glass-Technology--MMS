@@ -160,6 +160,12 @@ function buildHtml(data: {
 </html>`;
 }
 
+// The report sent on the 1st covers the month that just ended.
+export function previousMonth(d: Date): { year: number; month: number } {
+  const m = d.getMonth(); // 0-11; 0 = January → previous is December of last year
+  return m === 0 ? { year: d.getFullYear() - 1, month: 12 } : { year: d.getFullYear(), month: m };
+}
+
 export async function sendMonthlyReport(year: number, month: number, force = false) {
   if (!process.env.MAIL_USER || !process.env.MAIL_PASS || !process.env.MAIL_TO) {
     throw new Error('Email not configured. Set MAIL_USER, MAIL_PASS, MAIL_TO on Render.');

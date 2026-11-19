@@ -254,7 +254,7 @@ export default function AssetManagement() {
     try {
       setLoading(true);
       await fetch('/api/health');
-      const data = await apiFetch('/assets');
+      const data = await apiFetch('/api/assets');
       setAssets(data);
     } catch (e) {
       console.error('Failed to load assets', e);
@@ -300,7 +300,7 @@ export default function AssetManagement() {
   const applyImport = async () => {
     const valid = importRows.filter(r => r.errors.length === 0).map(r => r.data);
     try {
-      await apiFetch('/assets/bulk', { method: 'POST', body: valid });
+      await apiFetch('/api/assets/bulk', { method: 'POST', body: JSON.stringify(valid) });
       await fetchAssets();
       setShowImport(false);
       setImportRows([]);
@@ -474,7 +474,7 @@ export default function AssetManagement() {
                     }
                     if (assets.find(a => a.code === newAsset.code)) { alert('Asset code already exists.'); return; }
                     try {
-                      await apiFetch('/assets', { method: 'POST', body: newAsset });
+                      await apiFetch('/api/assets', { method: 'POST', body: JSON.stringify(newAsset) });
                       await fetchAssets();
                       setNewAsset({ ...BLANK_ASSET });
                       setShowCreate(false);
