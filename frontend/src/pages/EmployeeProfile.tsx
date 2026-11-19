@@ -11,9 +11,10 @@ import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recha
 import {
   type FullEmployee, type EmploymentRecord, type EducationRecord,
   type QualificationRecord, type SkillRecord, type TrainingRecord,
-  type PerformanceRecord, type PromotionRecord, type LeaveRecord, type AttendanceSummary,
+  type PerformanceRecord, type PromotionRecord, type AttendanceSummary,
 } from '../data/employeeData';
 import { useEmployees } from '../context/EmployeeContext';
+import AttendanceHistory from '../components/AttendanceHistory';
 
 const STATUS_COLOR: Record<string, string> = { active:'#22c55e', on_leave:'#f59e0b', suspended:'#ef4444', resigned:'#64748b', not_joined:'#f97316' };
 const STATUS_LABEL: Record<string, string> = { active:'Active', on_leave:'On Leave', suspended:'Suspended', resigned:'Resigned', not_joined:'Not Yet Joined' };
@@ -146,10 +147,6 @@ export default function EmployeeProfile() {
   const [editingMonthIdx, setEditingMonthIdx] = useState<number | null>(null);
   const [monthForm, setMonthForm] = useState({ month:'', present:0, absent:0, leave:0 });
 
-  // Leaves
-  const [showLeaveModal, setShowLeaveModal] = useState(false);
-  const [editingLeaveId, setEditingLeaveId] = useState<string | null>(null);
-  const [leaveForm, setLeaveForm] = useState<Partial<LeaveRecord>>({});
 
   // Training
   const [showTrainModal, setShowTrainModal] = useState(false);
@@ -311,19 +308,6 @@ export default function EmployeeProfile() {
   const deleteMonth = (idx: number) => confirmDel('Remove this month?', () =>
     saveEmp({ attendance: { ...emp.attendance, monthly: emp.attendance.monthly.filter((_, i) => i !== idx) } }));
 
-  // Leaves
-  const openAddLeave  = () => { setEditingLeaveId(null); setLeaveForm({}); setShowLeaveModal(true); };
-  const openEditLeave = (l: LeaveRecord) => { setEditingLeaveId(l.id); setLeaveForm({ ...l }); setShowLeaveModal(true); };
-  const saveLeave = () => {
-    if (editingLeaveId) {
-      saveEmp({ leaves: emp.leaves.map(x => x.id === editingLeaveId ? { ...x, ...leaveForm, days: Number(leaveForm.days)||0 } as LeaveRecord : x) });
-    } else {
-      saveEmp({ leaves: [...emp.leaves, { ...leaveForm, id: String(Date.now()), days: Number(leaveForm.days)||0 } as LeaveRecord] });
-    }
-    setShowLeaveModal(false);
-  };
-  const deleteLeave = (id: string) => confirmDel('Delete this leave record?', () =>
-    saveEmp({ leaves: emp.leaves.filter(x => x.id !== id) }));
 
   // Training
   const openAddTrain  = () => { setEditingTrainId(null); setTrainForm({}); setShowTrainModal(true); };
@@ -607,7 +591,7 @@ export default function EmployeeProfile() {
     { key:'education',   label:'Education',            icon:<GraduationCap size={13}/> },
     { key:'qualif',      label:'Qualifications',       icon:<Award size={13}/> },
     { key:'documents',   label:'Resume',                icon:<FileText size={13}/> },
-    { key:'leaves',      label:'Leave History',        icon:<Clock size={13}/> },
+    { key:'attendance',  label:'Attendance History',   icon:<Clock size={13}/> },
     { key:'training',    label:'Training',             icon:<Award size={13}/> },
     { key:'promotions',  label:'Promotions & Salary',  icon:<TrendingUp size={13}/> },
   ];
@@ -1073,84 +1057,8 @@ export default function EmployeeProfile() {
         </div>
       )}
 
-      {/* ── LEAVE HISTORY ── */}
-      {activeTab === 'leaves' && (
-        <div style={{ display:'flex', flexDirection:'column', gap:12 }}>
-          <div style={{ display:'flex', justifyContent:'flex-end' }}>
-            <button className="btn-primary" onClick={openAddLeave} style={{ fontSize:12, display:'flex', alignItems:'center', gap:4 }}>
-              <Plus size={13}/> Add Leave Record
-            </button>
-          </div>
-          <div className="glass-card" style={{ overflow:'auto', padding:0 }}>
-            <table className="data-table">
-              <thead><tr><th>Type</th><th>From</th><th>To</th><th>Days</th><th>Reason</th><th>Status</th><th>Approved By</th><th style={{ width:90 }}>Actions</th></tr></thead>
-              <tbody>
-                {emp.leaves.map(l => (
-                  <tr key={l.id}>
-                    <td style={{ fontWeight:500, color:'#111827' }}>{l.type}</td>
-                    <td style={{ fontSize:12, color:'#64748b' }}>{l.from}</td>
-                    <td style={{ fontSize:12, color:'#64748b' }}>{l.to}</td>
-                    <td style={{ fontSize:12, color:'#94a3b8', fontWeight:600 }}>{l.days}</td>
-                    <td style={{ fontSize:12, color:'#64748b' }}>{l.reason}</td>
-                    <td>
-                      <span style={{ fontSize:11, fontWeight:600, color:l.status==='approved'?'#22c55e':l.status==='rejected'?'#ef4444':'#f59e0b', background:(l.status==='approved'?'#22c55e':l.status==='rejected'?'#ef4444':'#f59e0b')+'20', padding:'2px 8px', borderRadius:20, textTransform:'capitalize' }}>
-                        {l.status}
-                      </span>
-                    </td>
-                    <td style={{ fontSize:12, color:'#64748b' }}>{l.approvedBy||'—'}</td>
-                    <td>
-                      <div style={{ display:'flex', gap:4 }}>
-                        <button style={iconBtn('59,130,246')} onClick={() => openEditLeave(l)}><Edit size={11}/></button>
-                        <button style={iconBtn('239,68,68')} onClick={() => deleteLeave(l.id)}><Trash2 size={11}/></button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-            {emp.leaves.length === 0 && <div style={{ textAlign:'center', padding:40, color:'#475569', fontSize:13 }}>No leave records.</div>}
-          </div>
-          {showLeaveModal && (
-            <Modal title={editingLeaveId ? 'Edit Leave Record' : 'Add Leave Record'} onClose={() => setShowLeaveModal(false)} onSave={saveLeave}>
-              <F label="Leave Type"><select style={inp} value={leaveForm.type||''} onChange={e=>setLeaveForm(p=>({...p,type:e.target.value}))}>
-                <option value="">Select Type</option>
-                {['Annual Leave','Sick Leave','Emergency Leave','Casual Leave','Unpaid Leave','Maternity Leave','Paternity Leave','Compensatory Leave'].map(t => <option key={t} value={t}>{t}</option>)}
-              </select></F>
-              <div style={r2}>
-                <F label="From Date"><input type="date" style={inp} value={leaveForm.from||''} onChange={e => {
-                  const from = e.target.value;
-                  const to = leaveForm.to || '';
-                  const days = from && to ? Math.max(1, Math.round((new Date(to).getTime() - new Date(from).getTime()) / 86400000) + 1) : (leaveForm.days || 0);
-                  setLeaveForm((p: any) => ({ ...p, from, days }));
-                }}/></F>
-                <F label="To Date"><input type="date" style={inp} value={leaveForm.to||''} min={leaveForm.from||''} onChange={e => {
-                  const to = e.target.value;
-                  const from = leaveForm.from || '';
-                  const days = from && to ? Math.max(1, Math.round((new Date(to).getTime() - new Date(from).getTime()) / 86400000) + 1) : (leaveForm.days || 0);
-                  setLeaveForm((p: any) => ({ ...p, to, days }));
-                }}/></F>
-              </div>
-              <F label="Number of Days">
-                <input style={{...inp, color:'#60a5fa', fontWeight:600}} readOnly value={leaveForm.days ? `${leaveForm.days} day${leaveForm.days !== 1 ? 's' : ''}` : '—'}/>
-              </F>
-              <TI label="Reason" field="reason" form={leaveForm} setForm={setLeaveForm}/>
-              <div style={r2}>
-                <F label="Status"><select style={inp} value={leaveForm.status||'pending'} onChange={e=>setLeaveForm(p=>({...p,status:e.target.value as any}))}>
-                  <option value="pending">Pending</option><option value="approved">Approved</option><option value="rejected">Rejected</option>
-                </select></F>
-                <F label="Approved By"><select style={inp} value={leaveForm.approvedBy||''} onChange={e=>setLeaveForm(p=>({...p,approvedBy:e.target.value}))}>
-                  <option value="">Select Approver</option>
-                  {employees
-                    .filter(e => e.status === 'active' && /manager|deputy|supervisor|head|hod|director|lead/i.test(e.designation))
-                    .sort((a,b) => a.name.localeCompare(b.name))
-                    .map(e => <option key={e.id} value={e.name}>{e.name} — {e.designation}</option>)
-                  }
-                </select></F>
-              </div>
-            </Modal>
-          )}
-        </div>
-      )}
+      {/* ── ATTENDANCE HISTORY (from the Attendance sheet) ── */}
+      {activeTab === 'attendance' && <AttendanceHistory empId={emp.empId} name={emp.name}/>}
 
       {/* ── TRAINING ── */}
       {activeTab === 'training' && (
