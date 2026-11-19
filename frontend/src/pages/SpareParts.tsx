@@ -442,17 +442,17 @@ export default function SpareParts() {
         <div style={{ background:'white', borderRadius:12, border:'1px solid #E5E7EB', overflow:'auto' }}>
           <table style={{ width:'100%', borderCollapse:'collapse', fontSize:12, minWidth:800, tableLayout:'fixed' }}>
             <colgroup>
-              <col style={{ width:88 }}/>   {/* Spare Code */}
-              <col style={{ width:'28%' }}/> {/* Item Name */}
-              <col style={{ width:90 }}/>   {/* Category */}
-              <col style={{ width:82 }}/>   {/* Area */}
-              <col style={{ width:70 }}/>   {/* Store */}
-              <col style={{ width:50 }}/>   {/* Unit */}
-              <col style={{ width:88 }}/>   {/* Current Stock */}
-              <col style={{ width:72 }}/>   {/* Unit Price */}
-              <col style={{ width:82 }}/>   {/* Total Value */}
-              <col style={{ width:118 }}/>  {/* PO Number */}
-              <col style={{ width:70 }}/>   {/* Actions */}
+              <col style={{ width:88 }} /* Spare Code */ />
+              <col style={{ width:'28%' }} /* Item Name */ />
+              <col style={{ width:90 }} /* Category */ />
+              <col style={{ width:82 }} /* Area */ />
+              <col style={{ width:70 }} /* Store */ />
+              <col style={{ width:50 }} /* Unit */ />
+              <col style={{ width:88 }} /* Current Stock */ />
+              <col style={{ width:72 }} /* Unit Price */ />
+              <col style={{ width:82 }} /* Total Value */ />
+              <col style={{ width:118 }} /* PO Number */ />
+              <col style={{ width:70 }} /* Actions */ />
             </colgroup>
             <thead>
               <tr style={{ background:'#F9FAFB', borderBottom:'1px solid #E5E7EB' }}>
