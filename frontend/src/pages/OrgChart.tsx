@@ -51,17 +51,19 @@ function collectParentPosIds(nodes: OrgNode[]): string[] {
 }
 
 // ── Layout constants ──────────────────────────────────────────────────────────
-const CARD_W  = 184;   // card width px
-const CARD_H  = 112;   // fixed card height (all cards share this via minHeight)
-const LEVEL_H = 188;   // vertical distance between card tops at adjacent levels
-const MIN_SEP = 40;    // minimum horizontal gap between adjacent card EDGES
-const PAD_X   = 60;    // left/right padding inside canvas
+const CARD_W  = 196;   // card width px
+const CARD_H  = 118;   // fixed card height (every card is exactly this tall)
+const LEVEL_H = 162;   // vertical distance between card tops at adjacent levels
+const MIN_SEP = 20;    // minimum horizontal gap between adjacent card EDGES
+const PAD_X   = 12;    // left/right padding inside canvas
+const PHOTO   = 44;    // avatar diameter on cards
+const CANVAS_PAD = 12;  // padding between the canvas edge and the chart
 const LINE_C  = 'rgba(59,120,210,0.45)';
 const LINE_W  = 2;
-const BTN_H   = 22;    // toggle button height
-const BTN_MT  = 5;     // margin-top of toggle button below card
+const BTN_H   = 20;    // toggle button height
+const BTN_MT  = 4;     // margin-top of toggle button below card
 // connector starts below the toggle button:
-const CONN_Y  = CARD_H + BTN_MT + BTN_H + 3;  // ≈ 120px from card top
+const CONN_Y  = CARD_H + BTN_MT + BTN_H + 2;  // connector starts just below the toggle
 
 // ── Layout engine ─────────────────────────────────────────────────────────────
 // Natural widths → min-separation → equal sibling gaps → re-center parents.
@@ -164,7 +166,7 @@ function computeLayout(tree: OrgNode[], colIds: Set<string>): {
   }
   const maxCx = Math.max(...Array.from(map.values()).map(p => p.cx)) + CARD_W / 2;
   const maxY  = Math.max(...Array.from(map.values()).map(p => p.y));
-  return { map, totalW: maxCx + PAD_X, totalH: maxY + LEVEL_H + 40 };
+  return { map, totalW: maxCx + PAD_X, totalH: maxY + CONN_Y + 4 };
 }
 
 
@@ -197,17 +199,17 @@ function PosCard({ node, selected, searchMatch, onSelect, onEdit }: {
 
   return (
     <div onClick={onSelect} style={{
-      width: CARD_W, minHeight: CARD_H, boxSizing: 'border-box', borderRadius: 10,
+      width: CARD_W, height: CARD_H, overflow: 'hidden', boxSizing: 'border-box', borderRadius: 10,
       display: 'flex', flexDirection: 'column', justifyContent: 'space-between',
       background: selected ? '#eff6ff' : cardBg(pos),
       border: `1.5px solid ${selected ? '#3b82f6' : searchMatch ? accent : cardBorder(pos)}`,
       borderTop: `4px solid ${selected ? '#3b82f6' : accent}`,
-      padding: '10px 12px 10px', cursor: 'pointer', transition: 'all 0.18s', userSelect: 'none',
+      padding: '8px 10px', cursor: 'pointer', transition: 'all 0.18s', userSelect: 'none',
       boxShadow: selected ? '0 0 0 3px rgba(59,130,246,0.15),0 4px 16px rgba(59,130,246,0.12)' : '0 2px 8px rgba(0,0,0,0.08)',
       position: 'relative',
     }}>
       <button onClick={onEdit} title="Edit position" style={{
-        position: 'absolute', top: 7, right: 7, width: 20, height: 20, borderRadius: 5,
+        position: 'absolute', top: 6, right: 6, width: 20, height: 20, borderRadius: 5,
         background: 'rgba(0,0,0,0.04)', border: '1px solid rgba(0,0,0,0.09)',
         color: '#94a3b8', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0,
       }}><Edit2 size={10}/></button>
@@ -215,37 +217,39 @@ function PosCard({ node, selected, searchMatch, onSelect, onEdit }: {
       {/* Top section: team label + role */}
       <div>
         {pos.team && (
-          <div style={{ fontSize: 11, fontWeight: 700, color: accent, textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 3, textAlign: 'center' }}>
+          <div style={{ fontSize: 12, fontWeight: 800, color: accent, textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 1, textAlign: 'center' }}>
             {pos.team}
           </div>
         )}
-        <div style={{ fontSize: 12, fontWeight: 700, color: '#1e293b', lineHeight: 1.3, marginBottom: 0, paddingRight: 20,
+        <div style={{ fontSize: 14, fontWeight: 700, color: '#1e293b', lineHeight: 1.25, marginBottom: 0,
+          // ✎ button sits beside the team label; without one, keep the role clear of it
+          padding: pos.team ? 0 : '0 18px',
           overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', textAlign: 'center' }}>
           {pos.role}
         </div>
       </div>
 
       {/* Bottom section: person info */}
-      <div style={{ marginTop: 8 }}>
+      <div style={{ marginTop: 6 }}>
         {filled ? (
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             {emp?.photo ? (
-              <img src={emp.photo} style={{ width: 20, height: 20, borderRadius: '50%', objectFit: 'cover', border: `1.5px solid ${accent}70`, flexShrink: 0 }} alt=""/>
+              <img src={emp.photo} style={{ width: PHOTO, height: PHOTO, borderRadius: '50%', objectFit: 'cover', border: `2px solid ${accent}`, flexShrink: 0 }} alt=""/>
             ) : (
-              <div style={{ width: 20, height: 20, borderRadius: '50%', flexShrink: 0, background: accent+'22', border: `1.5px solid ${accent}55`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 8, fontWeight: 700, color: accent }}>
+              <div style={{ width: PHOTO, height: PHOTO, borderRadius: '50%', flexShrink: 0, background: accent+'22', border: `2px solid ${accent}55`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 15, fontWeight: 700, color: accent }}>
                 {initials}
               </div>
             )}
             <div style={{ minWidth: 0 }}>
-              <div style={{ fontSize: 11, fontWeight: 600, color: '#334155', lineHeight: 1.25,
+              <div title={pos.personName} style={{ fontSize: 13, fontWeight: 600, color: '#1e293b', lineHeight: 1.2,
                 overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>
                 {pos.personName}
               </div>
-              {emp && <div style={{ fontSize: 10, color: '#94a3b8', marginTop: 1 }}>{emp.empId}</div>}
+              {emp && <div style={{ fontSize: 11, color: '#64748b', marginTop: 2, fontWeight: 500 }}>{emp.empId}</div>}
             </div>
           </div>
         ) : (
-          <div style={{ fontSize: 10, color: accent, fontStyle: 'italic', fontWeight: pos.urgent ? 700 : 400, textAlign: 'center' }}>
+          <div style={{ fontSize: 12, color: accent, fontStyle: 'italic', fontWeight: pos.urgent ? 700 : 500, textAlign: 'center', paddingBottom: 4 }}>
             {pos.urgent ? '⚠ Position Vacant' : '— Not Yet Filled —'}
           </div>
         )}
@@ -722,10 +726,10 @@ export default function OrgChart() {
 
   const fitToScreen = useCallback(() => {
     if (!canvasRef.current || !chartLayout) return;
-    const availW = canvasRef.current.clientWidth  - 80;
-    const availH = canvasRef.current.clientHeight - 80;
+    const availW = canvasRef.current.clientWidth  - 2 * CANVAS_PAD;
+    const availH = canvasRef.current.clientHeight - 2 * CANVAS_PAD;
     const raw = Math.min(availW / chartLayout.totalW, availH / chartLayout.totalH, 1.0);
-    setZoom(Math.max(0.2, parseFloat((raw * 0.90).toFixed(2))));
+    setZoom(Math.max(0.2, Math.floor(raw * 100) / 100));
   }, [chartLayout]);
 
   // Auto-fit when layout changes
@@ -852,8 +856,10 @@ export default function OrgChart() {
             <div style={{ color:'#94a3b8', fontSize:14 }}>No positions found</div>
           </div>
         ) : chartLayout ? (
-          <div style={{ minWidth:'100%', minHeight:'100%', display:'flex', justifyContent:'center', alignItems:'flex-start', padding:'32px 32px 64px', boxSizing:'border-box' }}>
-            <div style={{ transform:`scale(${zoom})`, transformOrigin:'top center', transition:'transform 0.15s ease', width:chartLayout.totalW, height:chartLayout.totalH, position:'relative', flexShrink:0 }}>
+          <div style={{ minWidth:'100%', minHeight:'100%', width:'max-content', display:'flex', justifyContent:'center', alignItems:'flex-start', padding:CANVAS_PAD, boxSizing:'border-box' }}>
+           {/* Outer box takes the scaled size so the scroll area matches what is visible */}
+           <div style={{ width:chartLayout.totalW * zoom, height:chartLayout.totalH * zoom, flexShrink:0, transition:'width 0.15s ease, height 0.15s ease' }}>
+            <div style={{ transform:`scale(${zoom})`, transformOrigin:'top left', transition:'transform 0.15s ease', width:chartLayout.totalW, height:chartLayout.totalH, position:'relative' }}>
 
               {/* SVG connector lines */}
               <svg style={{ position:'absolute', top:0, left:0, width:chartLayout.totalW, height:chartLayout.totalH, pointerEvents:'none', overflow:'visible' }}>
@@ -897,6 +903,7 @@ export default function OrgChart() {
                 );
               })}
             </div>
+           </div>
           </div>
         ) : null}
       </div>
