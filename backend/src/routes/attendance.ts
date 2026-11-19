@@ -100,12 +100,29 @@ router.delete('/team/:empId', async (req, res) => {
 
 // ── Attendance routes ─────────────────────────────────────────────────────────
 
-// GET /api/attendance/employee/:empId — full history for one employee (for resigned folder)
+// Employee records and the attendance sheet don't always write IDs/names the same way
+// ("GT-26" vs "GT026", "Mr.Praveenkumar" vs "Mr. Praveen Kumar"), so compare normalised forms.
+export function idKey(id: string): string {
+  const m = String(id || '').toUpperCase().replace(/[^A-Z0-9]/g, '').match(/^([A-Z]*)0*(\d+)$/);
+  return m ? `${m[1]}${m[2]}` : String(id || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+}
+export function nameKey(name: string): string {
+  return String(name || '').toLowerCase().replace(/^\s*(mr|mrs|ms|miss|dr)\b\.?/, '').replace(/[^a-z]/g, '');
+}
+
+// GET /api/attendance/employee/:empId?name= — full history for one employee
+// (profile Attendance History tab + resigned folder). Matches by ID, falls back to name.
 router.get('/employee/:empId', async (req, res) => {
   try {
-    const records = await AttendanceRecord.find({ empId: req.params.empId })
-      .sort({ year: -1, month: -1 })
-      .lean();
+    const wantId   = idKey(String(req.params.empId));
+    const wantName = nameKey(String(req.query.name || ''));
+    const people: { _id: string; empName: string }[] =
+      await AttendanceRecord.aggregate([{ $group: { _id: '$empId', empName: { $last: '$empName' } } }]);
+    let ids = people.filter(p => wantId && idKey(p._id) === wantId).map(p => p._id);
+    if (!ids.length && wantName) ids = people.filter(p => nameKey(p.empName) === wantName).map(p => p._id);
+    const records = ids.length
+      ? await AttendanceRecord.find({ empId: { $in: ids } }).sort({ year: -1, month: -1 }).lean()
+      : [];
     res.json(records);
   } catch (err) { res.status(500).json({ error: String(err) }); }
 });
