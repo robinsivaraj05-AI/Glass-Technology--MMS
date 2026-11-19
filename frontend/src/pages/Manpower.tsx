@@ -279,9 +279,13 @@ export default function Manpower() {
   }, []);
   const todayCode = (e: Employee): string =>
     todayCodes ? (todayCodes.byId.get(idKey(e.empId)) ?? todayCodes.byName.get(nameKey(e.name)) ?? '') : '';
+  // People with no row in this month's Attendance sheet can't be "marked" at all
+  const inSheet = (e: Employee): boolean =>
+    !!todayCodes && (todayCodes.byId.has(idKey(e.empId)) || todayCodes.byName.has(nameKey(e.name)));
   const todayOf = (e: Employee): TodayState => todayState(todayCode(e));
   const todayText = (e: Employee): string => {
     if (!todayCodes) return todayError ? 'Unavailable' : 'Loading…';
+    if (!inSheet(e)) return 'Not in Attendance sheet';
     const c = todayCode(e);
     return c ? (CODE_MAP[c]?.label || c) : 'Not marked';
   };
@@ -291,8 +295,9 @@ export default function Manpower() {
     present:  employees.filter(e => todayOf(e) === 'present').length,
     onLeave:  employees.filter(e => todayOf(e) === 'leave').length,
     off:      employees.filter(e => todayOf(e) === 'off').length,
-    unmarked: employees.filter(e => todayOf(e) === 'unmarked').length,
+    unmarked: employees.filter(e => inSheet(e) && todayOf(e) === 'unmarked').length,
   };
+  const notInSheet = todayCodes ? employees.filter(e => !inSheet(e)) : [];
 
   const openAdd = () => {
     setForm({ ...emptyEmp, id: String(Date.now()), empId: `EMP-${String(employees.length + 10).padStart(3,'0')}` });
@@ -577,7 +582,10 @@ export default function Manpower() {
       <div style={{ fontSize:11, color: todayError ? '#ef4444' : '#94a3b8', marginTop:-8 }}>
         {todayError
           ? "Couldn't load today's Attendance sheet — today's counts are unavailable."
-          : `Today's counts come from the Attendance sheet for ${todayLabel}. "Not marked" = no code entered yet for today.`}
+          : `Today's counts come from the Attendance sheet for ${todayLabel}. "Not marked" = in the sheet but no code entered for today yet.`}
+        {notInSheet.length > 0 && (
+          <span style={{ color:'#b45309' }}>{' '}Not in the Attendance sheet ({notInSheet.length}): {notInSheet.map(e => e.name).join(', ')}.</span>
+        )}
       </div>
 
       {/* Tabs */}
