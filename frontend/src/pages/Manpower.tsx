@@ -1,7 +1,9 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Users, UserCheck, Calendar, CalendarClock, Plus, Edit, X, Save, Phone, Camera, MapPin, Trash2, FileDown } from 'lucide-react';
+import { Users, UserCheck, UserX, Calendar, CalendarClock, Coffee, Plus, Edit, X, Save, Phone, Camera, MapPin, Trash2, FileDown } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useEmployees } from '../context/EmployeeContext';
+import { apiFetch } from '../utils/api';
+import { CODE_MAP, WORK_CODES, LEAVE_CODES } from '../config/attendanceCodes';
 
 interface Employee {
   id: string; empId: string; name: string; role: string; department: string;
@@ -111,6 +113,18 @@ const SHIFT_DEFS = [
   { key:'G', label:'General', time:'09:00 – 17:00', color:'#22c55e', light:'#f0fdf4', border:'#bbf7d0' },
 ];
 
+// Small "Today: <code>" chip using the Attendance sheet's colours
+function TodayChip({ code, text, state, loaded }: { code: string; text: string; state: TodayState; loaded: boolean }) {
+  if (!loaded) return null;
+  const def = code ? CODE_MAP[code] : null;
+  return (
+    <div title={`Today: ${text}`} style={{ display:'inline-flex', alignItems:'center', gap:4, marginTop:4, padding:'1px 6px', borderRadius:5, fontSize:10, fontWeight:600,
+      background: def?.bg || '#f1f5f9', color: def?.text || TODAY_COLOR[state], border:`1px solid ${def?.border || '#e2e8f0'}` }}>
+      Today: {code ? <b>{code}</b> : null} {text}
+    </div>
+  );
+}
+
 // Compact A / B / C / G selector shown on each person in Shift Planning
 function ShiftPicker({ value, onChange }: { value: string; onChange: (k: ShiftKey) => void }) {
   return (
@@ -144,6 +158,19 @@ function idKey(id: string): string {
   const m = String(id || '').toUpperCase().replace(/[^A-Z0-9]/g, '').match(/^([A-Z]*)0*(\d+)$/);
   return m ? `${m[1]}${m[2]}` : String(id || '').toUpperCase();
 }
+function nameKey(name: string): string {
+  return String(name || '').toLowerCase().replace(/^\s*(mr|mrs|ms|miss|dr)\b\.?/, '').replace(/[^a-z]/g, '');
+}
+// Today's status comes from the Attendance sheet code
+type TodayState = 'present' | 'leave' | 'off' | 'unmarked';
+function todayState(code: string): TodayState {
+  if (WORK_CODES.has(code)) return 'present';
+  if (LEAVE_CODES.has(code)) return 'leave';
+  if (code === 'WO' || code === 'NH') return 'off';
+  return 'unmarked';
+}
+const TODAY_COLOR: Record<TodayState, string> = { present:'#16a34a', leave:'#f59e0b', off:'#ca8a04', unmarked:'#94a3b8' };
+
 const SHIFT_KEYS = ['A', 'B', 'C', 'G'] as const;
 type ShiftKey = typeof SHIFT_KEYS[number];
 function assignShift(savedShift: string | undefined, empId: string): ShiftKey {
@@ -157,7 +184,6 @@ const ROLE_COLORS: Record<string, string> = {
   Supervisor:'#22c55e', Technician:'#f59e0b', Helper:'#64748b',
 };
 
-const STATUS_COLOR: Record<string,string> = { present:'#22c55e', leave:'#f59e0b', absent:'#ef4444' };
 const DEPT_COLOR:  Record<string,string>  = { 'Electrical & Instrumentation':'#3b82f6', IT:'#8b5cf6' };
 
 function guessRole(designation: string): string {
@@ -233,11 +259,39 @@ export default function Manpower() {
   const [saved, setSaved]               = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
+  // ── Today's attendance (from the Attendance sheet) ──
+  const now = new Date();
+  const todayLabel = now.toLocaleDateString('en-GB', { day:'2-digit', month:'short', year:'numeric' });
+  const [todayCodes, setTodayCodes] = useState<{ byId: Map<string, string>; byName: Map<string, string> } | null>(null);
+  const [todayError, setTodayError] = useState(false);
+  useEffect(() => {
+    const d = new Date();
+    apiFetch(`/api/attendance?year=${d.getFullYear()}&month=${d.getMonth() + 1}`)
+      .then((recs: { empId: string; empName: string; entries: { day: number; code: string }[] }[]) => {
+        const byId = new Map<string, string>(), byName = new Map<string, string>();
+        for (const r of recs || []) {
+          const code = (r.entries || []).find(e => e.day === d.getDate())?.code || '';
+          byId.set(idKey(r.empId), code); byName.set(nameKey(r.empName), code);
+        }
+        setTodayCodes({ byId, byName });
+      })
+      .catch(() => setTodayError(true));
+  }, []);
+  const todayCode = (e: Employee): string =>
+    todayCodes ? (todayCodes.byId.get(idKey(e.empId)) ?? todayCodes.byName.get(nameKey(e.name)) ?? '') : '';
+  const todayOf = (e: Employee): TodayState => todayState(todayCode(e));
+  const todayText = (e: Employee): string => {
+    if (!todayCodes) return todayError ? 'Unavailable' : 'Loading…';
+    const c = todayCode(e);
+    return c ? (CODE_MAP[c]?.label || c) : 'Not marked';
+  };
+
   const stats = {
-    total:   employees.length,
-    present: employees.filter(e => e.status === 'present').length,
-    onLeave: employees.filter(e => e.status === 'leave').length,
-    absent:  employees.filter(e => e.status === 'absent').length,
+    total:    employees.length,
+    present:  employees.filter(e => todayOf(e) === 'present').length,
+    onLeave:  employees.filter(e => todayOf(e) === 'leave').length,
+    off:      employees.filter(e => todayOf(e) === 'off').length,
+    unmarked: employees.filter(e => todayOf(e) === 'unmarked').length,
   };
 
   const openAdd = () => {
@@ -503,21 +557,27 @@ export default function Manpower() {
     <div style={{ display:'flex', flexDirection:'column', gap:16 }}>
 
       {/* Stats */}
-      <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:12 }}>
+      <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(170px, 1fr))', gap:12 }}>
         {[
-          { label:'Total Staff',   value: stats.total, color:'#3b82f6', icon:<Users size={18}/> },
-          { label:'Present Today', value: stats.present,   color:'#22c55e', icon:<UserCheck size={18}/> },
-          { label:'On Leave',      value: stats.onLeave,   color:'#f59e0b', icon:<Calendar size={18}/> },
-          { label:'Absent',        value: stats.absent,    color:'#ef4444', icon:<Users size={18}/> },
+          { label:'Total Staff',    value: stats.total,    color:'#3b82f6', icon:<Users size={18}/> },
+          { label:'Present Today',  value: stats.present,  color:'#16a34a', icon:<UserCheck size={18}/> },
+          { label:'On Leave Today', value: stats.onLeave,  color:'#f59e0b', icon:<Calendar size={18}/> },
+          { label:'Off / Holiday',  value: stats.off,      color:'#ca8a04', icon:<Coffee size={18}/> },
+          { label:'Not Marked',     value: stats.unmarked, color: stats.unmarked ? '#ef4444' : '#94a3b8', icon:<UserX size={18}/> },
         ].map(s => (
           <div key={s.label} className="glass-card" style={{ padding:'14px 18px', display:'flex', alignItems:'center', gap:12 }}>
             <div style={{ color:s.color }}>{s.icon}</div>
             <div>
-              <div style={{ fontSize:24, fontWeight:700, color:'#f1f5f9' }}>{s.value}</div>
+              <div style={{ fontSize:24, fontWeight:700, color:'#0f172a' }}>{todayCodes || s.label === 'Total Staff' ? s.value : '–'}</div>
               <div style={{ fontSize:11, color:'#64748b' }}>{s.label}</div>
             </div>
           </div>
         ))}
+      </div>
+      <div style={{ fontSize:11, color: todayError ? '#ef4444' : '#94a3b8', marginTop:-8 }}>
+        {todayError
+          ? "Couldn't load today's Attendance sheet — today's counts are unavailable."
+          : `Today's counts come from the Attendance sheet for ${todayLabel}. "Not marked" = no code entered yet for today.`}
       </div>
 
       {/* Tabs */}
@@ -614,13 +674,14 @@ export default function Manpower() {
                           <div style={{ fontSize:10, color: ROLE_COLORS[emp.role] || '#64748b', marginTop:2, fontWeight:500 }}>
                             {emp.designation || emp.role}
                           </div>
+                          <TodayChip code={todayCode(emp)} text={todayText(emp)} state={todayOf(emp)} loaded={!!todayCodes}/>
                         </div>
                         {canEditSkills ? (
                           <ShiftPicker value={emp.shift} onChange={k => changeShift(emp, k)}/>
                         ) : (
                           <div style={{ display:'flex', flexDirection:'column', alignItems:'center', gap:3, flexShrink:0 }}>
-                            <div style={{ width:8, height:8, borderRadius:'50%', background: STATUS_COLOR[emp.status] ?? '#94a3b8' }}/>
-                            <div style={{ fontSize:9, color:'#94a3b8', textTransform:'capitalize' }}>{emp.status}</div>
+                            <div style={{ width:8, height:8, borderRadius:'50%', background: todayCodes ? TODAY_COLOR[todayOf(emp)] : '#cbd5e1' }}/>
+                            <div style={{ fontSize:9, color:'#94a3b8', textTransform:'capitalize' }}>{todayCodes ? todayOf(emp) : '…'}</div>
                           </div>
                         )}
                       </div>
@@ -830,7 +891,7 @@ export default function Manpower() {
             <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10, marginBottom:12 }}>
               {[
                 ['Role', viewEmp.role], ['Shift', SHIFT_DEFS.find(s => s.key === viewEmp.shift)?.label ?? viewEmp.shift],
-                ['Status', viewEmp.status], ['Experience', viewEmp.experience+' years'],
+                ['Today', todayText(viewEmp)], ['Experience', viewEmp.experience+' years'],
                 ['Nationality', viewEmp.nationality], ['Country of Origin', viewEmp.countryOfOrigin||'—'],
                 ['Email', viewEmp.email], ['Date of Joining', viewEmp.dateOfJoining],
               ].map(([l,v]) => (
