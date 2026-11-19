@@ -1,6 +1,7 @@
 import mongoose, { Schema, Document } from 'mongoose';
 
-export interface IAsset extends Document {
+// Omit Document.model() — this schema has its own `model` field (equipment model no.)
+export interface IAsset extends Omit<Document, 'model'> {
   code: string;
   name: string;
   category: string;
