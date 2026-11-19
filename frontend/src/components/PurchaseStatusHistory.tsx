@@ -13,7 +13,11 @@ interface Rec {
 const DAY = 86400000;
 const fmt = (d: Date) => d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: '2-digit' });
 const fmtTime = (d: Date) => d.toLocaleString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
-const days = (a: Date, b: Date) => Math.max(0, Math.round((b.getTime() - a.getTime()) / DAY));
+// Whole calendar days between two dates (10 Oct → 19 Oct = 9), ignoring time of day
+const dayNo = (d: Date) => Math.floor(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()) / DAY);
+const days = (a: Date, b: Date) => Math.max(0, dayNo(b) - dayNo(a));
+// "2026-10-10" is a calendar date — read it as local midnight, not UTC
+const parseDay = (s: string) => { const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s); return m ? new Date(+m[1], +m[2] - 1, +m[3]) : new Date(s); };
 const SHORT: Record<string, string> = {
   'RFQ created': 'RFQ Created', 'Quotation Received': 'Quotation Received',
   'Technical Review Under Progress': 'Tech. Review In Progress', 'Technical Review Done': 'Tech. Review Done',
@@ -31,29 +35,60 @@ function analyse(r: Rec) {
   const curStep = stepOf(current);
   const rejectedAt = [...log].reverse().find(h => h.status === REJECTED)?.at;
   const lastChange = log.length ? log[log.length - 1].at : (r.updatedAt ? new Date(r.updatedAt) : null);
-  const start = r.requestDate ? new Date(r.requestDate) : log[0]?.at;
+  // Request date and "RFQ created" are the same moment → one start date
+  const start = r.requestDate ? parseDay(r.requestDate) : (reached.get('RFQ created') ?? log[0]?.at);
   const doneAt = reached.get('Material Received');
-  return { log, reached, current, curStep, rejectedAt, lastChange, start, doneAt };
+  const completed = current === 'Material Received' || current === REJECTED;
+  const endAt = doneAt ?? rejectedAt;          // when it was completed / rejected (if logged)
+  return { log, reached, current, curStep, rejectedAt, lastChange, start, doneAt, completed, endAt };
 }
 
 export default function PurchaseStatusHistory({ records }: { records: Rec[] }) {
   const [open, setOpen] = useState<string | null>(null);
-  const rows = useMemo(() => records
-    .map(r => ({ r, a: analyse(r) }))
-    .sort((x, y) => (y.a.lastChange?.getTime() ?? 0) - (x.a.lastChange?.getTime() ?? 0)), [records]);
+  const [view, setView] = useState<'pending' | 'completed'>('pending');
+  const all = useMemo(() => records.map(r => ({ r, a: analyse(r) })), [records]);
+  const pendingRows   = useMemo(() => all.filter(x => !x.a.completed)
+    .sort((x, y) => (x.a.start?.getTime() ?? Infinity) - (y.a.start?.getTime() ?? Infinity)), [all]);   // oldest request first
+  const finishedAt = (a: ReturnType<typeof analyse>) => (a.endAt ?? a.lastChange)?.getTime() ?? 0;
+  const completedRows = useMemo(() => all.filter(x => x.a.completed)
+    .sort((x, y) => finishedAt(y.a) - finishedAt(x.a)), [all]);   // latest completed first
+  const rows = view === 'pending' ? pendingRows : completedRows;
 
   const weekAgo = Date.now() - 7 * DAY;
   const changesThisWeek = rows.reduce((n, { a }) => n + a.log.filter(h => h.at.getTime() >= weekAgo).length, 0);
   const atStage = (st: string) => rows.filter(({ a }) => a.current === st).length;
+  const summaryStages = view === 'pending' ? STATUS_FLOW.slice(0, -1) : ['Material Received', REJECTED];
+  // "RFQ created" is shown in the first column together with the request date
+  const STAGES = STATUS_FLOW.slice(1);
   const today = new Date();
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+      {/* Pending / Completed */}
+      <div style={{ display: 'flex', gap: 4, background: '#F1F5F9', padding: 4, borderRadius: 10, width: 'fit-content' }}>
+        {([
+          { key: 'pending',   label: 'Pending',   count: pendingRows.length,   color: '#f59e0b' },
+          { key: 'completed', label: 'Completed', count: completedRows.length, color: '#16a34a' },
+        ] as const).map(t => (
+          <button key={t.key} onClick={() => { setView(t.key); setOpen(null); }} style={{
+            display: 'flex', alignItems: 'center', gap: 8, padding: '7px 16px', borderRadius: 8, border: 'none', cursor: 'pointer',
+            fontSize: 13, fontWeight: 700, background: view === t.key ? '#fff' : 'transparent', color: view === t.key ? t.color : '#64748b',
+            boxShadow: view === t.key ? '0 1px 3px rgba(15,23,42,0.12)' : 'none',
+          }}>
+            {t.label}
+            <span style={{ padding: '0 8px', borderRadius: 20, fontSize: 11, background: view === t.key ? `${t.color}22` : '#E2E8F0', color: view === t.key ? t.color : '#64748b' }}>{t.count}</span>
+          </button>
+        ))}
+        <span style={{ alignSelf: 'center', fontSize: 11, color: '#94a3b8', padding: '0 8px' }}>
+          {view === 'pending' ? 'Not yet received · oldest request first' : 'Material received or rejected · latest first'}
+        </span>
+      </div>
+
       {/* Where items are now */}
       <div style={{ background: '#fff', border: '1px solid #E2E8F0', borderRadius: 12, padding: '12px 14px', display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center' }}>
         <History size={16} color="#6366f1"/>
         <span style={{ fontSize: 12, fontWeight: 700, color: '#334155', marginRight: 4 }}>Items at each stage</span>
-        {[...STATUS_FLOW, REJECTED].map(st => (
+        {summaryStages.map(st => (
           <span key={st} title={st} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '3px 10px', borderRadius: 20, fontSize: 11, fontWeight: 700, background: STATUS_WEB[st]?.bg, color: '#fff' }}>
             {statusLabel(st).replace(/^(\d+)\. .*/, '$1')}{isRejected(st) ? '✕' : ''} {SHORT[st] || 'Rejected'} <span style={{ background: 'rgba(255,255,255,0.25)', borderRadius: 10, padding: '0 6px' }}>{atStage(st)}</span>
           </span>
@@ -62,18 +97,20 @@ export default function PurchaseStatusHistory({ records }: { records: Rec[] }) {
       </div>
 
       <div style={{ background: '#fff', border: '1px solid #E2E8F0', borderRadius: 12, overflow: 'auto' }}>
-        <table className="data-table" style={{ minWidth: 1400 }}>
+        <table className="data-table" style={{ minWidth: 1300 }}>
           <thead>
             <tr>
               <th style={{ width: 28 }}></th>
               <th style={{ minWidth: 240 }}>Item / PR No.</th>
-              <th style={{ whiteSpace: 'nowrap' }}>Request</th>
-              {STATUS_FLOW.map((st, i) => (
+              <th style={{ textAlign: 'center', minWidth: 104, borderBottom: `3px solid ${STATUS_WEB['RFQ created'].bg}` }}>
+                <div style={{ fontSize: 10, color: '#94a3b8' }}>Step 1</div>Request / RFQ Created
+              </th>
+              {STAGES.map((st, i) => (
                 <th key={st} style={{ textAlign: 'center', minWidth: 92, borderBottom: `3px solid ${STATUS_WEB[st].bg}` }}>
-                  <div style={{ fontSize: 10, color: '#94a3b8' }}>Step {i + 1}</div>{SHORT[st]}
+                  <div style={{ fontSize: 10, color: '#94a3b8' }}>Step {i + 2}</div>{SHORT[st]}
                 </th>
               ))}
-              <th style={{ textAlign: 'center' }}>Total days</th>
+              <th style={{ textAlign: 'center' }}>{view === 'pending' ? 'Days open' : 'Total days'}</th>
             </tr>
           </thead>
           <tbody>
@@ -89,8 +126,18 @@ export default function PurchaseStatusHistory({ records }: { records: Rec[] }) {
                       <div style={{ fontSize: 11, color: '#60a5fa', fontFamily: 'monospace' }}>{r.prNumber}</div>
                       {a.rejectedAt && <div style={{ fontSize: 11, color: '#475569', fontWeight: 700 }}>✕ {REJECTED} · {fmt(a.rejectedAt)}</div>}
                     </td>
-                    <td style={{ fontSize: 12, color: '#64748b', whiteSpace: 'nowrap' }}>{a.start ? fmt(a.start) : '—'}</td>
-                    {STATUS_FLOW.map((st, i) => {
+                    <td style={{ textAlign: 'center', padding: '6px 4px' }}>
+                      {a.start ? (
+                        <div title={`Requested / RFQ created: ${fmt(a.start)}`} style={{
+                          display: 'inline-block', minWidth: 78, padding: '3px 6px', borderRadius: 7, fontSize: 11, fontWeight: 700,
+                          background: a.current === 'RFQ created' ? STATUS_WEB['RFQ created'].bg : '#F8FAFC',
+                          color: a.current === 'RFQ created' ? '#fff' : '#1e293b', border: `1.5px solid ${STATUS_WEB['RFQ created'].bg}`,
+                        }}>{fmt(a.start)}</div>
+                      ) : a.current === 'RFQ created' ? (
+                        <span style={{ display: 'inline-block', whiteSpace: 'nowrap', padding: '3px 8px', borderRadius: 7, fontSize: 11, fontWeight: 700, background: STATUS_WEB['RFQ created'].bg, color: '#fff' }}>Current · no date</span>
+                      ) : <span style={{ color: '#e2e8f0' }}>—</span>}
+                    </td>
+                    {STAGES.map((st, j) => { const i = j + 1;
                       const d = a.reached.get(st);
                       const isCurrent = a.current === st;
                       const passed = !d && a.curStep > i + 1;      // earlier stage, no date logged
@@ -119,19 +166,19 @@ export default function PurchaseStatusHistory({ records }: { records: Rec[] }) {
                       );
                     })}
                     <td style={{ textAlign: 'center', fontSize: 12, whiteSpace: 'nowrap' }}>
-                      {a.current === 'Material Received' && !a.doneAt ? (
-                        <span style={{ color: '#16a34a', fontWeight: 600 }} title="Received before history tracking started">Received</span>
+                      {a.completed ? (
+                        a.start && a.endAt
+                          ? <span style={{ fontWeight: 700, color: a.doneAt ? '#16a34a' : '#475569' }}>{days(a.start, a.endAt)} days</span>
+                          : <span style={{ color: a.current === REJECTED ? '#475569' : '#16a34a', fontWeight: 600 }} title="Completed before history tracking started">{a.current === REJECTED ? 'Rejected' : 'Received'}</span>
                       ) : a.start ? (
-                        a.doneAt
-                          ? <span style={{ fontWeight: 700, color: '#16a34a' }}>{days(a.start, a.doneAt)} days</span>
-                          : <span style={{ color: '#b45309', fontWeight: 600 }} title="Still open — days so far">{days(a.start, a.rejectedAt ?? today)}{a.rejectedAt ? '' : '+'} days</span>
+                        <span style={{ color: '#b45309', fontWeight: 600 }} title="Still open — days so far">{days(a.start, today)} days</span>
                       ) : '—'}
                     </td>
                   </tr>
                   {isOpen && (
                     <tr>
                       <td></td>
-                      <td colSpan={STATUS_FLOW.length + 3} style={{ background: '#F8FAFC', padding: '10px 14px' }}>
+                      <td colSpan={STAGES.length + 3} style={{ background: '#F8FAFC', padding: '10px 14px' }}>
                         <div style={{ fontSize: 12, fontWeight: 700, color: '#334155', marginBottom: 6 }}>Status change log</div>
                         {a.log.length === 0 ? (
                           <div style={{ fontSize: 12, color: '#94a3b8' }}>
@@ -162,7 +209,7 @@ export default function PurchaseStatusHistory({ records }: { records: Rec[] }) {
               );
             })}
             {rows.length === 0 && (
-              <tr><td colSpan={STATUS_FLOW.length + 4} style={{ textAlign: 'center', padding: 32, color: '#94a3b8' }}>No items match.</td></tr>
+              <tr><td colSpan={STAGES.length + 4} style={{ textAlign: 'center', padding: 32, color: '#94a3b8' }}>{view === 'pending' ? 'No pending items match.' : 'No completed items match.'}</td></tr>
             )}
           </tbody>
         </table>
