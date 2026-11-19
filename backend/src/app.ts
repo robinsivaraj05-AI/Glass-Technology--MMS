@@ -1,4 +1,7 @@
-import express from 'express';
+import express, { Request, Response, NextFunction } from 'express';
+// Forwards rejected promises from async route handlers to the error handler below,
+// instead of crashing the process with an unhandled rejection.
+import 'express-async-errors';
 import cors from 'cors';
 import authRoutes from './routes/auth';
 import breakdownRoutes from './routes/breakdowns';
@@ -58,4 +61,10 @@ app.use('/api/spare-parts',sparePartRoutes);
 app.use('/api/quality',qualityRoutes);
 app.use('/api/report-email',reportEmailRoutes);
 app.use((req,res)=>res.status(404).json({message:`Route ${req.originalUrl} not found`}));
+// Catch-all error handler — keeps one failing request from taking the server down.
+app.use((err: any, req: Request, res: Response, _next: NextFunction) => {
+  console.error(`❌ ${req.method} ${req.originalUrl}:`, err?.message || err);
+  if (res.headersSent) return;
+  res.status(err?.status || 500).json({ message: err?.message || 'Server error' });
+});
 export default app;
