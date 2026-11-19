@@ -179,7 +179,7 @@ router.patch('/:posId', async (req: Request, res: Response) => {
 router.delete('/:posId', async (req: Request, res: Response) => {
   try {
     // Cascade: delete all descendants
-    const toDelete = new Set<string>([req.params.posId]);
+    const toDelete = new Set<string>([String(req.params.posId)]);
     const all = await OrgPosition.find().lean();
     let changed = true;
     while (changed) {
