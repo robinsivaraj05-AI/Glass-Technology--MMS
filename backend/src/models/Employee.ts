@@ -32,6 +32,7 @@ export interface IEmployee extends Document {
   joiningDate: string;
   yearsOfExperience: number;
   status: 'active' | 'on_leave' | 'suspended' | 'resigned';
+  shift: '' | 'A' | 'B' | 'C' | 'G';   // Manpower shift planning ('' = not set)
   employmentHistory: any[];
   education: any[];
   qualifications: any[];
@@ -77,6 +78,7 @@ const EmployeeSchema = new Schema<IEmployee>({
   joiningDate:           { type: String, default: '' },
   yearsOfExperience:     { type: Number, default: 0 },
   status:                { type: String, enum: ['active', 'on_leave', 'suspended', 'resigned'], default: 'active' },
+  shift:                 { type: String, enum: ['', 'A', 'B', 'C', 'G'], default: '' },
   employmentHistory:     { type: [{ type: Schema.Types.Mixed }], default: [] },
   education:             { type: [{ type: Schema.Types.Mixed }], default: [] },
   qualifications:        { type: [{ type: Schema.Types.Mixed }], default: [] },

@@ -66,6 +66,7 @@ export interface FullEmployee {
   emiratesId: string; passportNo: string; visaExpiry: string; passportExpiry: string;
   joiningDate: string; yearsOfExperience: number;
   status: 'active' | 'on_leave' | 'suspended' | 'resigned' | 'not_joined';
+  shift?: '' | 'A' | 'B' | 'C' | 'G';   // Manpower shift planning; '' / missing = default
   employmentHistory: EmploymentRecord[];
   education: EducationRecord[];
   qualifications: QualificationRecord[];

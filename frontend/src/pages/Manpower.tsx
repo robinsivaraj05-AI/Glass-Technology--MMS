@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Users, UserCheck, Calendar, Plus, Edit, X, Save, Phone, Camera, MapPin, Trash2, FileDown } from 'lucide-react';
+import { Users, UserCheck, Calendar, CalendarClock, Plus, Edit, X, Save, Phone, Camera, MapPin, Trash2, FileDown } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useEmployees } from '../context/EmployeeContext';
 
@@ -111,17 +111,44 @@ const SHIFT_DEFS = [
   { key:'G', label:'General', time:'09:00 – 17:00', color:'#22c55e', light:'#f0fdf4', border:'#bbf7d0' },
 ];
 
-// Shift assignment by EmpID — Team A→A, Team B→B, Team C→C, others→G
+// Compact A / B / C / G selector shown on each person in Shift Planning
+function ShiftPicker({ value, onChange }: { value: string; onChange: (k: ShiftKey) => void }) {
+  return (
+    <div onClick={e => e.stopPropagation()} style={{ display:'flex', gap:3, flexShrink:0 }}>
+      {SHIFT_DEFS.map(s => {
+        const on = value === s.key;
+        return (
+          <button key={s.key} title={`Move to ${s.label} (${s.time})`} aria-pressed={on}
+            onClick={() => onChange(s.key as ShiftKey)}
+            style={{
+              width:24, height:24, borderRadius:6, padding:0, cursor: on ? 'default' : 'pointer',
+              fontSize:11, fontWeight:800, lineHeight:1,
+              border:`1.5px solid ${on ? s.color : s.border}`,
+              background: on ? s.color : '#fff', color: on ? '#fff' : s.color,
+            }}>{s.key}</button>
+        );
+      })}
+    </div>
+  );
+}
+
+// Default shift by EmpID, used until a shift is saved on the employee.
+// Team A→A, Team B→B, Team C→C, everyone else→G.
 const EMP_SHIFT: Record<string, string> = {
-  'GT026': 'A', 'GT051': 'B', 'GT062': 'C',   // Shift Engineers
-  'GT033': 'A', 'GT035': 'B', 'GT074': 'C',   // Junior Engineers
-  'GT046': 'A', 'GT053': 'A',                  // Technicians / Team Members
+  'GT26': 'A', 'GT51': 'B', 'GT62': 'C',   // Shift Engineers
+  'GT33': 'A', 'GT35': 'B', 'GT74': 'C',   // Junior Engineers
+  'GT46': 'A', 'GT53': 'A',                // Technicians / Team Members
 };
-function assignShift(empId: string, designation: string): string {
-  if (EMP_SHIFT[empId]) return EMP_SHIFT[empId];
-  const d = designation.toLowerCase();
-  if (d.includes('manager') || d.includes('it ') || d.includes('it s') || d.includes('deputy') || d.includes('general e')) return 'G';
-  return 'G';
+// Employee records write IDs as "GT-26", the defaults above as "GT26" — compare normalised.
+function idKey(id: string): string {
+  const m = String(id || '').toUpperCase().replace(/[^A-Z0-9]/g, '').match(/^([A-Z]*)0*(\d+)$/);
+  return m ? `${m[1]}${m[2]}` : String(id || '').toUpperCase();
+}
+const SHIFT_KEYS = ['A', 'B', 'C', 'G'] as const;
+type ShiftKey = typeof SHIFT_KEYS[number];
+function assignShift(savedShift: string | undefined, empId: string): ShiftKey {
+  if (savedShift && (SHIFT_KEYS as readonly string[]).includes(savedShift)) return savedShift as ShiftKey;
+  return (EMP_SHIFT[idKey(empId)] as ShiftKey) || 'G';
 }
 
 const ROLE_COLORS: Record<string, string> = {
@@ -162,7 +189,7 @@ export default function Manpower() {
   const { user } = useAuth();
   const canEditSkills = user?.role === 'manager' || user?.role === 'deputy_manager';
 
-  const { employees: contextEmployees, loading: empLoading } = useEmployees();
+  const { employees: contextEmployees, loading: empLoading, updateEmployee } = useEmployees();
   const [employees, setEmployees]       = useState<Employee[]>([]);
   const seeded = useRef(false);
 
@@ -178,7 +205,7 @@ export default function Manpower() {
           name: e.name,
           role: guessRole(e.designation),
           department: e.department,
-          shift: assignShift(e.empId, e.designation),
+          shift: assignShift(e.shift, e.empId),
           status: mapStatus(e.status),
           skill: (e.skills || []).map(s => s.name).join(', '),
           experience: e.yearsOfExperience || 0,
@@ -219,10 +246,23 @@ export default function Manpower() {
   };
   const openEdit = (e: Employee) => { setForm({ ...e }); setModal('edit'); setSaved(false); };
 
+  // Move an employee to another shift and save it on their employee record
+  const changeShift = (emp: Employee, shift: ShiftKey) => {
+    if (emp.shift === shift) return;
+    setEmployees(prev => prev.map(e => e.id === emp.id ? { ...e, shift } : e));
+    setViewEmp(v => v && v.id === emp.id ? { ...v, shift } : v);
+    if (contextEmployees.some(c => c.id === emp.id)) updateEmployee(emp.id, { shift });
+  };
+
   const handleSave = () => {
     if (!form.name.trim() || !form.empId.trim()) return;
     if (modal === 'add') setEmployees(prev => [...prev, form]);
-    else setEmployees(prev => prev.map(e => e.id === form.id ? form : e));
+    else {
+      const before = employees.find(e => e.id === form.id);
+      setEmployees(prev => prev.map(e => e.id === form.id ? form : e));
+      if (before && before.shift !== form.shift && contextEmployees.some(c => c.id === form.id))
+        updateEmployee(form.id, { shift: form.shift as ShiftKey });
+    }
     setSaved(true);
     setTimeout(() => { setModal(null); setSaved(false); }, 800);
   };
@@ -525,6 +565,13 @@ export default function Manpower() {
             })}
           </div>
 
+          {canEditSkills && (
+            <div style={{ fontSize:12, color:'#64748b', display:'flex', alignItems:'center', gap:6 }}>
+              <CalendarClock size={14} color="#3b82f6"/>
+              Use the <b style={{ color:'#334155' }}>A · B · C · G</b> buttons on each person to move them to a shift. Changes are saved automatically.
+            </div>
+          )}
+
           {/* 4-column shift grid */}
           <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:12, alignItems:'start' }}>
             {SHIFT_DEFS.map(s => {
@@ -568,10 +615,14 @@ export default function Manpower() {
                             {emp.designation || emp.role}
                           </div>
                         </div>
-                        <div style={{ display:'flex', flexDirection:'column', alignItems:'center', gap:3, flexShrink:0 }}>
-                          <div style={{ width:8, height:8, borderRadius:'50%', background: STATUS_COLOR[emp.status] ?? '#94a3b8' }}/>
-                          <div style={{ fontSize:9, color:'#94a3b8', textTransform:'capitalize' }}>{emp.status}</div>
-                        </div>
+                        {canEditSkills ? (
+                          <ShiftPicker value={emp.shift} onChange={k => changeShift(emp, k)}/>
+                        ) : (
+                          <div style={{ display:'flex', flexDirection:'column', alignItems:'center', gap:3, flexShrink:0 }}>
+                            <div style={{ width:8, height:8, borderRadius:'50%', background: STATUS_COLOR[emp.status] ?? '#94a3b8' }}/>
+                            <div style={{ fontSize:9, color:'#94a3b8', textTransform:'capitalize' }}>{emp.status}</div>
+                          </div>
+                        )}
                       </div>
                     ))}
                   </div>
@@ -771,43 +822,62 @@ export default function Manpower() {
                 </div>
               )}
               <div>
-                <div style={{ fontSize:17, fontWeight:700, color:'#f1f5f9' }}>{viewEmp.name}</div>
-                <div style={{ fontSize:12, color:'#60a5fa' }}>{viewEmp.designation} · {viewEmp.empId}</div>
+                <div style={{ fontSize:17, fontWeight:700, color:'#0f172a' }}>{viewEmp.name}</div>
+                <div style={{ fontSize:12, color:'#2563eb' }}>{viewEmp.designation} · {viewEmp.empId}</div>
                 <div style={{ fontSize:11, color: DEPT_COLOR[viewEmp.department]||'#64748b', marginTop:2 }}>{viewEmp.department} Department</div>
               </div>
             </div>
             <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10, marginBottom:12 }}>
               {[
-                ['Role', viewEmp.role], ['Shift', viewEmp.shift+' Shift'],
+                ['Role', viewEmp.role], ['Shift', SHIFT_DEFS.find(s => s.key === viewEmp.shift)?.label ?? viewEmp.shift],
                 ['Status', viewEmp.status], ['Experience', viewEmp.experience+' years'],
                 ['Nationality', viewEmp.nationality], ['Country of Origin', viewEmp.countryOfOrigin||'—'],
                 ['Email', viewEmp.email], ['Date of Joining', viewEmp.dateOfJoining],
               ].map(([l,v]) => (
-                <div key={l} style={{ background:'rgba(255,255,255,0.03)', borderRadius:8, padding:'10px 14px' }}>
+                <div key={l} style={{ background:'#f8fafc', border:'1px solid #e2e8f0', borderRadius:8, padding:'10px 14px' }}>
                   <div style={{ fontSize:10, color:'#64748b', marginBottom:2 }}>{l}</div>
-                  <div style={{ fontSize:13, color:'#e2e8f0', fontWeight:500, textTransform: l==='Status' ? 'capitalize' : undefined }}>{v}</div>
+                  <div style={{ fontSize:13, color:'#1e293b', fontWeight:500, textTransform: l==='Status' ? 'capitalize' : undefined }}>{v}</div>
                 </div>
               ))}
             </div>
             {viewEmp.address && (
-              <div style={{ background:'rgba(255,255,255,0.03)', borderRadius:8, padding:'10px 14px', marginBottom:12 }}>
+              <div style={{ background:'#f8fafc', border:'1px solid #e2e8f0', borderRadius:8, padding:'10px 14px', marginBottom:12 }}>
                 <div style={{ fontSize:10, color:'#64748b', marginBottom:4, display:'flex', alignItems:'center', gap:5 }}><MapPin size={11}/> Residential Address</div>
-                <div style={{ fontSize:13, color:'#e2e8f0' }}>{viewEmp.address}</div>
+                <div style={{ fontSize:13, color:'#1e293b' }}>{viewEmp.address}</div>
               </div>
             )}
-            <div style={{ background:'rgba(255,255,255,0.03)', borderRadius:8, padding:'12px 14px', marginBottom:12 }}>
+            <div style={{ background:'#f8fafc', border:'1px solid #e2e8f0', borderRadius:8, padding:'12px 14px', marginBottom:12 }}>
               <div style={{ fontSize:11, color:'#64748b', marginBottom:8, display:'flex', alignItems:'center', gap:6 }}><Phone size={12}/> Contact Numbers</div>
               {[['India Number', viewEmp.indiaPhone], ['UAE Personal Number', viewEmp.uaePhone], ['UAE Company Number', viewEmp.uaeCompanyPhone]].map(([l,v]) => (
                 <div key={l} style={{ display:'flex', justifyContent:'space-between', fontSize:12, marginBottom:5 }}>
                   <span style={{ color:'#64748b' }}>{l}</span>
-                  <span style={{ color:'#e2e8f0', fontWeight:500 }}>{v||'—'}</span>
+                  <span style={{ color:'#1e293b', fontWeight:500 }}>{v||'—'}</span>
                 </div>
               ))}
             </div>
-            <div style={{ background:'rgba(255,255,255,0.03)', borderRadius:8, padding:'10px 14px', marginBottom:16 }}>
+            <div style={{ background:'#f8fafc', border:'1px solid #e2e8f0', borderRadius:8, padding:'10px 14px', marginBottom:16 }}>
               <div style={{ fontSize:10, color:'#64748b', marginBottom:4 }}>Skills</div>
-              <div style={{ fontSize:13, color:'#e2e8f0' }}>{viewEmp.skill||'—'}</div>
+              <div style={{ fontSize:13, color:'#1e293b' }}>{viewEmp.skill||'—'}</div>
             </div>
+            {canEditSkills && (
+              <div style={{ background:'#f8fafc', border:'1px solid #e2e8f0', borderRadius:8, padding:'12px 14px', marginBottom:16 }}>
+                <div style={{ fontSize:11, color:'#64748b', marginBottom:8 }}>Assign Shift</div>
+                <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:6 }}>
+                  {SHIFT_DEFS.map(s => {
+                    const on = viewEmp.shift === s.key;
+                    return (
+                      <button key={s.key} onClick={() => changeShift(viewEmp, s.key as ShiftKey)} style={{
+                        padding:'8px 4px', borderRadius:8, cursor:'pointer', textAlign:'center',
+                        border:`1.5px solid ${on ? s.color : s.border}`, background: on ? s.color : s.light, color: on ? '#fff' : s.color,
+                      }}>
+                        <div style={{ fontSize:12, fontWeight:700 }}>{s.label}</div>
+                        <div style={{ fontSize:10, opacity:0.85 }}>{s.time}</div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
             <div style={{ display:'flex', gap:8, justifyContent:'flex-end' }}>
               <button className="btn-primary" onClick={() => { setViewEmp(null); openEdit(viewEmp); }} style={{ fontSize:12, display:'flex', alignItems:'center', gap:4 }}>
                 <Edit size={12}/> Edit Employee
