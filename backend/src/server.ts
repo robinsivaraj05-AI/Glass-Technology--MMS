@@ -3,7 +3,7 @@ import dns from 'dns';
 import mongoose from 'mongoose';
 import cron from 'node-cron';
 import app from './app';
-import { sendMonthlyReport } from './services/monthlyReportEmail';
+import { sendMonthlyReport, previousMonth } from './services/monthlyReportEmail';
 
 dns.setServers(['8.8.8.8', '8.8.4.4']);
 
@@ -17,10 +17,10 @@ async function start() {
 
     // Auto-send monthly report on the 1st of every month at 08:00 AM (UTC+4 = 04:00 UTC)
     cron.schedule('0 4 1 * *', async () => {
-      const now = new Date();
-      console.log(`⏰ Cron: sending monthly report for ${now.getFullYear()}/${now.getMonth() + 1}`);
+      const { year, month } = previousMonth(new Date());
+      console.log(`⏰ Cron: sending monthly report for ${year}/${month}`);
       try {
-        await sendMonthlyReport(now.getFullYear(), now.getMonth() + 1);
+        await sendMonthlyReport(year, month);
       } catch (err: any) {
         console.error('❌ Monthly report cron error:', err.message);
       }
@@ -31,7 +31,8 @@ async function start() {
     if (now.getDate() === 1) {
       setTimeout(async () => {
         try {
-          await sendMonthlyReport(now.getFullYear(), now.getMonth() + 1);
+          const { year, month } = previousMonth(now);
+          await sendMonthlyReport(year, month);
         } catch (err: any) {
           console.error('❌ Startup report check error:', err.message);
         }
