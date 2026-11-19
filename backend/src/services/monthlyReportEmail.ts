@@ -216,7 +216,7 @@ export async function sendMonthlyReport(year: number, month: number, force = fal
 
   const accTotal         = accEntries.reduce((s, e) => s + (e.totalCost || 0), 0);
   const pendingPurchases = (allFollowups as any[]).filter(r =>
-    !['Material Received', 'Rejected'].includes(r.currentStatus || '')
+    !['Material Received', 'Rejected', 'Rejected Material / PO'].includes(r.currentStatus || '')
   ).length;
 
   const appUrl = (process.env.CLIENT_URL || 'https://glass-technology-mms.vercel.app').replace(/\/$/, '');

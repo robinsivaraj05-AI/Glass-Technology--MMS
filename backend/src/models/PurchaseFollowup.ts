@@ -6,6 +6,13 @@ const PaymentTransactionSchema = new Schema({
   remarks: { type: String, default: '' },
 }, { _id: true });
 
+// One entry per change of currentStatus, written by the server with the change date
+const StatusChangeSchema = new Schema({
+  status: { type: String, default: '' },
+  from:   { type: String, default: '' },
+  at:     { type: Date, default: Date.now },
+}, { _id: false });
+
 const PurchaseFollowupSchema = new Schema({
   section: { type: String, default: '' },
   itemDescription: { type: String, default: '' },
@@ -22,6 +29,7 @@ const PurchaseFollowupSchema = new Schema({
   remarks: { type: String, default: '' },
   receivedDate: { type: String, default: '' },
   paymentHistory: { type: [PaymentTransactionSchema], default: [] },
+  statusHistory: { type: [StatusChangeSchema], default: [] },
 }, { timestamps: true });
 
 export default mongoose.model('PurchaseFollowup', PurchaseFollowupSchema);
