@@ -12,6 +12,7 @@ export interface IUser extends Document {
   phone?: string;
   avatar?: string;
   isActive: boolean;
+  mustChangePassword: boolean;
   comparePassword(candidate: string): Promise<boolean>;
 }
 
@@ -26,6 +27,8 @@ const UserSchema = new Schema<IUser>({
   phone: String,
   avatar: String,
   isActive: { type: Boolean, default: true },
+  // Set on accounts created with an initial password; cleared when the user changes it
+  mustChangePassword: { type: Boolean, default: false },
 }, { timestamps: true });
 
 // Mongoose 9 no longer passes `next` to pre hooks — an async hook just resolves.

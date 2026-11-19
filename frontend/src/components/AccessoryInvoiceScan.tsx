@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Camera, Upload, CheckCircle, X, AlertTriangle } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { apiFetch } from '../utils/api';
+import { withToken } from '../utils/authFetch';
 type Invoice = { supplierName:string; invoiceNumber:string; invoiceDate:string|null; deliveryOrderNumber:string; poNumber:string; customerName:string; itemName:string; quantity:number|null; unit:string; unitRate:number|null; subtotal:number|null; vatPercent:number|null; vatAmount:number|null; grandTotal:number|null; currency:string; equipmentName:string; area:string; confidenceNotes:string[] };
 type Draft = {_id:string;originalFilename:string;extracted:Invoice};
 const blank:Invoice={supplierName:'',invoiceNumber:'',invoiceDate:'',deliveryOrderNumber:'',poNumber:'',customerName:'',itemName:'',quantity:null,unit:'',unitRate:null,subtotal:null,vatPercent:5,vatAmount:null,grandTotal:null,currency:'AED',equipmentName:'',area:'',confidenceNotes:[]};
@@ -30,7 +31,7 @@ export default function AccessoryInvoiceScan({onApproved}:{onApproved:()=>void})
    {pending.length>0&&<div style={{marginTop:12}}><b style={{fontSize:12}}>Pending reviews</b>{pending.map(p=><button key={p._id} onClick={async()=>{setBusy(true);try{const r=await apiFetch('/api/accessory-invoices/drafts/'+p._id);setDraft(r.draft);setData({...blank,...r.draft.extracted,invoiceDate:r.draft.extracted.invoiceDate?new Date(r.draft.extracted.invoiceDate).toISOString().slice(0,10):''});}catch(e:any){toast.error(e.message||'Could not open draft');}finally{setBusy(false);}}} style={{display:'block',width:'100%',textAlign:'left',padding:8,border:0,borderBottom:'1px solid #e2e8f0',background:'#fff',fontSize:12,cursor:'pointer'}}>{p.originalFilename} — {p.extracted?.invoiceNumber||'Invoice number unread'} — {p.extracted?.grandTotal??'Amount unread'} {p.extracted?.currency||'AED'}</button>)}</div>}
    {draft&&<div style={{marginTop:14,border:'1px solid #cbd5e1',borderRadius:8,padding:12}}>
     <div style={{display:'flex',justifyContent:'space-between',fontWeight:700,marginBottom:10}}>Review extracted invoice <button onClick={()=>setDraft(null)} style={{border:0,background:'transparent',cursor:'pointer'}}><X size={16}/></button></div>
-    <div style={{marginBottom:10,border:'1px solid #e2e8f0',borderRadius:7,overflow:'hidden'}}><iframe title="Original invoice document" src={'/api/accessory-invoices/drafts/'+draft._id+'/file'} style={{width:'100%',height:220,border:0}} /></div>
+    <div style={{marginBottom:10,border:'1px solid #e2e8f0',borderRadius:7,overflow:'hidden'}}><iframe title="Original invoice document" src={withToken('/api/accessory-invoices/drafts/'+draft._id+'/file')} style={{width:'100%',height:220,border:0}} /></div>
     <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(180px,1fr))',gap:10}}>
      {fields.map(k=><div key={k}><label style={label}>{titles[k]}</label><input style={input} type={k==='invoiceDate'?'date':['quantity','unitRate','subtotal','vatPercent','vatAmount','grandTotal'].includes(k)?'number':'text'} step="0.01" value={(data[k]??'') as any} onChange={e=>set(k,['quantity','unitRate','subtotal','vatPercent','vatAmount','grandTotal'].includes(k)?(e.target.value===''?null:Number(e.target.value)):e.target.value)}/></div>)}
     </div>

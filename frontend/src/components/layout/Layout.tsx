@@ -1,11 +1,12 @@
 import { useState } from 'react';
-import { Outlet, Navigate } from 'react-router-dom';
+import { Outlet, Navigate, useNavigate } from 'react-router-dom';
 import Sidebar from './Sidebar';
 import Header from './Header';
 import { useAuth } from '../../context/AuthContext';
 
 export default function Layout() {
-  const { isAuthenticated, loading } = useAuth();
+  const { isAuthenticated, loading, user } = useAuth();
+  const navigate = useNavigate();
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
   if (loading) {
@@ -32,6 +33,15 @@ export default function Layout() {
       <Sidebar collapsed={sidebarCollapsed} onToggle={() => setSidebarCollapsed(p => !p)} />
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
         <Header />
+        {user?.mustChangePassword && (
+          <div role="status" style={{ display:'flex', alignItems:'center', gap:10, padding:'8px 24px', background:'#fef3c7', borderBottom:'1px solid #fde68a', color:'#92400e', fontSize:13 }}>
+            <span>🔒 You are still using an initial password. Please change it to keep the system secure.</span>
+            <button onClick={() => navigate('/settings', { state: { tab: 'security' } })}
+              style={{ marginLeft:'auto', padding:'4px 12px', borderRadius:6, border:'1px solid #d97706', background:'#fff', color:'#92400e', fontWeight:600, fontSize:12, cursor:'pointer' }}>
+              Change password
+            </button>
+          </div>
+        )}
         <main style={{
           flex: 1,
           overflowY: 'auto',

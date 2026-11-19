@@ -11,6 +11,8 @@ export interface User {
   employeeId: string;
   phone?: string;
   dateOfJoining?: string;
+  /** account still uses its initial password */
+  mustChangePassword?: boolean;
 }
 
 export interface Machine {

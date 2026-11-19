@@ -1,6 +1,7 @@
 ﻿import { useState, useEffect } from 'react';
 import { User, Bell, Shield, Database, Globe, Save, Check } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import { useLocation } from 'react-router-dom';
 import { useEmployees } from '../context/EmployeeContext';
 
 const LANGUAGES = ['English', 'Tamil (தமிழ்)', 'Hindi'];
@@ -9,7 +10,8 @@ const THEMES = ['Dark (Default)', 'Light', 'System'];
 export default function Settings() {
   const { user, updateUser } = useAuth();
   const { employees } = useEmployees();
-  const [tab, setTab] = useState<'profile' | 'notifications' | 'security' | 'system'>('profile');
+  const location = useLocation();
+  const [tab, setTab] = useState<'profile' | 'notifications' | 'security' | 'system'>((location.state as any)?.tab ?? 'profile');
   const [saved, setSaved] = useState(false);
 
   // Linked employee state (by empId)
@@ -275,16 +277,7 @@ export default function Settings() {
 
       {tab === 'security' && (
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
-          <div className="glass-card" style={{ padding: 24 }}>
-            <div style={{ fontSize: 14, fontWeight: 600, color: '#1e293b', marginBottom: 16 }}>Change Password</div>
-            {['Current Password', 'New Password', 'Confirm New Password'].map(f => (
-              <div key={f} style={{ marginBottom: 12 }}>
-                <label style={{ fontSize: 12, color: '#94a3b8', display: 'block', marginBottom: 5 }}>{f}</label>
-                <input type="password" className="input-dark" placeholder="••••••••" />
-              </div>
-            ))}
-            <button className="btn-primary" style={{ fontSize: 12 }}>Update Password</button>
-          </div>
+          <ChangePasswordCard/>
           <div className="glass-card" style={{ padding: 24 }}>
             <div style={{ fontSize: 14, fontWeight: 600, color: '#1e293b', marginBottom: 16 }}>Active Sessions</div>
             {[
@@ -355,3 +348,57 @@ export default function Settings() {
   );
 }
 
+// ── Change password (server-side) ─────────────────────────────────────────────
+function ChangePasswordCard() {
+  const { user, updateUser } = useAuth();
+  const [cur, setCur] = useState('');
+  const [next, setNext] = useState('');
+  const [confirm, setConfirm] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
+
+  const submit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setMsg(null);
+    if (next.length < 8) return setMsg({ ok: false, text: 'New password must be at least 8 characters.' });
+    if (next !== confirm) return setMsg({ ok: false, text: 'New passwords do not match.' });
+    setBusy(true);
+    try {
+      const res = await fetch('/api/auth/change-password', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ currentPassword: cur, newPassword: next }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) return setMsg({ ok: false, text: data.message || 'Could not change password.' });
+      updateUser({ mustChangePassword: false });
+      setCur(''); setNext(''); setConfirm('');
+      setMsg({ ok: true, text: 'Password changed. Use the new password next time you log in.' });
+    } catch {
+      setMsg({ ok: false, text: 'Cannot reach the server. Try again.' });
+    } finally { setBusy(false); }
+  };
+
+  const field = (label: string, value: string, set: (v: string) => void, auto: string) => (
+    <div style={{ marginBottom: 12 }}>
+      <label style={{ fontSize: 12, color: '#64748b', display: 'block', marginBottom: 5 }}>{label}</label>
+      <input type="password" className="input-dark" placeholder="••••••••" autoComplete={auto} value={value} onChange={e => set(e.target.value)} required/>
+    </div>
+  );
+
+  return (
+    <form className="glass-card" style={{ padding: 24 }} onSubmit={submit}>
+      <div style={{ fontSize: 14, fontWeight: 600, color: '#1e293b', marginBottom: 4 }}>Change Password</div>
+      <div style={{ fontSize: 12, color: '#64748b', marginBottom: 16 }}>{user?.email}</div>
+      {user?.mustChangePassword && (
+        <div style={{ fontSize: 12, color: '#92400e', background: '#fef3c7', border: '1px solid #fde68a', borderRadius: 8, padding: '8px 10px', marginBottom: 14 }}>
+          You are using an initial password. Please choose a new one.
+        </div>
+      )}
+      {field('Current Password', cur, setCur, 'current-password')}
+      {field('New Password (min. 8 characters)', next, setNext, 'new-password')}
+      {field('Confirm New Password', confirm, setConfirm, 'new-password')}
+      {msg && <div style={{ fontSize: 12, marginBottom: 12, color: msg.ok ? '#15803d' : '#b91c1c' }}>{msg.text}</div>}
+      <button type="submit" className="btn-primary" disabled={busy} style={{ fontSize: 12 }}>{busy ? 'Saving…' : 'Update Password'}</button>
+    </form>
+  );
+}
