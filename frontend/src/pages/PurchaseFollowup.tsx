@@ -1,6 +1,7 @@
 ﻿// @ts-nocheck
 import React, { useState, useCallback, useEffect, useMemo } from 'react';
-import { Plus, Search, Download, Edit2, Trash2, RefreshCw, X, Check, Maximize2 } from 'lucide-react';
+import { Plus, Search, Download, Edit2, Trash2, RefreshCw, X, Check, Maximize2, FileText } from 'lucide-react';
+import { exportPurchaseReportPDF } from '../utils/purchaseReportPDF';
 import { apiFetch } from '../utils/api';
 import { STATUS_FLOW, REJECTED, STATUS_WEB, STATUS_XLS, normaliseStatus, isRejected, statusLabel, type StatusChange } from '../config/purchaseStatus';
 import PurchaseStatusHistory from '../components/PurchaseStatusHistory';
@@ -203,6 +204,13 @@ export default function PurchaseFollowup() {
   const [editId, setEditId]       = useState<string|null>(null);
   const [form, setForm]           = useState<Omit<FollowupRecord,'id'>>(BLANK());
   const [syncMsg, setSyncMsg]     = useState('');
+  const [pdfBusy, setPdfBusy]     = useState(false);
+  const handlePdfReport = async () => {
+    setPdfBusy(true);
+    try { await exportPurchaseReportPDF(records); }
+    catch (e: any) { alert('Could not create the PDF: ' + (e?.message || e)); }
+    finally { setPdfBusy(false); }
+  };
 
   const sections = useMemo(() => [...new Set(records.map(r => r.section).filter(Boolean))], [records]);
 
@@ -502,6 +510,10 @@ export default function PurchaseFollowup() {
         </button>
         <button onClick={() => downloadXLS(records)} className="btn-secondary" style={{ fontSize: 12, display: 'flex', alignItems: 'center', gap: 5 }}>
           <Download size={13} /> Download Excel
+        </button>
+        <button onClick={handlePdfReport} disabled={pdfBusy} className="btn-secondary" title="Pending Purchase + Purchase History, with company logo — ready to e-mail"
+          style={{ fontSize: 12, display: 'flex', alignItems: 'center', gap: 5, color: '#dc2626', borderColor: '#fecaca' }}>
+          <FileText size={13} /> {pdfBusy ? 'Preparing…' : 'PDF Report'}
         </button>
         <button onClick={openAdd} className="btn-primary" style={{ fontSize: 12, display: 'flex', alignItems: 'center', gap: 5 }}>
           <Plus size={13} /> Add Item
