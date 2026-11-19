@@ -63,9 +63,9 @@ export default function Login() {
     e.preventDefault();
     setError('');
     setSubmitting(true);
-    const ok = await login(email, password);
-    if (ok) navigate('/dashboard');
-    else setError('Invalid credentials. Please contact your administrator.');
+    const result = await login(email, password);
+    if (result === true) navigate('/dashboard');
+    else setError(result);
     setSubmitting(false);
   };
 

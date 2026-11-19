@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { FileText, ClipboardCheck, AlertTriangle, CalendarClock, Search, Upload, Download, Plus, RefreshCw, CheckCircle2, Clock3, FolderOpen } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { apiFetch } from '../utils/api';
+import { withToken } from '../utils/authFetch';
 
 const standards = ['ISO 9001:2026', 'ISO 14001:2026', 'ISO 45001:2018 + Amd 1:2024'];
 const departments = ['E&I','Mechanical','Production','Quality','HSE','Purchase','Store','HR','Utilities','Admin'];
@@ -61,7 +62,7 @@ export default function QualityModule() {
     try { await apiFetch('/api/quality/records/'+r._id,{method:'PATCH',body:JSON.stringify({status,...(status==='Closed'?{closureDate:new Date().toISOString()}: {})})}); toast.success('Status updated'); await load(); }
     catch(e) { toast.error(e.message||'Update failed'); }
   };
-  const openFile = (r) => window.open('/api/quality/documents/'+r._id+'/file','_blank','noopener,noreferrer');
+  const openFile = (r) => window.open(withToken('/api/quality/documents/'+r._id+'/file'),'_blank','noopener,noreferrer');
 
   const tabs = [
     {id:'documents',label:'Document Register',icon:FileText,count:documents.length},

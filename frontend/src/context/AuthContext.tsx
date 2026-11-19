@@ -1,24 +1,19 @@
 import React, { createContext, useContext, useState, useEffect, useRef, useCallback } from 'react';
 import type { User, UserRole } from '../types';
 import { mockUser } from '../data/mockData';
+import { TOKEN_KEY, UNAUTHORIZED_EVENT } from '../utils/authFetch';
 
 interface AuthContextType {
   user: User | null;
   isAuthenticated: boolean;
-  login: (email: string, password: string, role?: UserRole) => Promise<boolean>;
+  /** true on success, otherwise an error message to show */
+  login: (email: string, password: string) => Promise<true | string>;
   logout: () => void;
   updateUser: (patch: Partial<User>) => void;
   loading: boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
-
-const DEMO_CREDENTIALS = [
-  { email: 'manager@mms.com', password: 'mgr@2026', role: 'manager' as UserRole,        name: 'Senthil Babu',  empId: 'EMP-000', department: 'Electrical & Instrumentation, IT' },
-  { email: 'deputy@mms.com',  password: 'dm@2026',  role: 'deputy_manager' as UserRole, name: 'Rabin Sivaraj', empId: 'EMP-001', department: 'Electrical & Instrumentation, IT' },
-  { email: 'shift@mms.com',   password: 'se@2026',  role: 'shift_engineer' as UserRole, name: 'Arun Selvam',   empId: 'EMP-002', department: 'Electrical & Instrumentation' },
-  { email: 'guest@mms.com',   password: 'guest123', role: 'guest' as UserRole,          name: 'Guest User',    empId: 'EMP-005', department: 'General' },
-];
 
 // Profile fields that survive across sessions (name, phone, etc.) — keyed by empId
 const profileKey = (empId: string) => `mms_profile_${empId}`;
@@ -36,10 +31,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const logout = useCallback(() => {
     setUser(null);
     sessionStorage.removeItem('mms_user');
-    sessionStorage.removeItem('mms_token');
+    sessionStorage.removeItem(TOKEN_KEY);
     sessionStorage.removeItem('mms_expiry');
     if (timerRef.current) clearTimeout(timerRef.current);
   }, []);
+
+  // Server rejected the token (expired / invalid) → back to the login screen
+  useEffect(() => {
+    window.addEventListener(UNAUTHORIZED_EVENT, logout);
+    return () => window.removeEventListener(UNAUTHORIZED_EVENT, logout);
+  }, [logout]);
 
   // ── Inactivity timer — only runs while logged in ──────────────────────────
   useEffect(() => {
@@ -64,48 +65,57 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     const stored = sessionStorage.getItem('mms_user');
     const expiry = parseInt(sessionStorage.getItem('mms_expiry') || '0', 10);
-    if (stored && Date.now() < expiry) {
+    if (stored && sessionStorage.getItem(TOKEN_KEY) && Date.now() < expiry) {
       try { setUser(JSON.parse(stored)); } catch { sessionStorage.clear(); }
     } else {
       // Stale or expired — clear everything so user must re-authenticate
       sessionStorage.removeItem('mms_user');
-      sessionStorage.removeItem('mms_token');
+      sessionStorage.removeItem(TOKEN_KEY);
       sessionStorage.removeItem('mms_expiry');
     }
     setLoading(false);
   }, []);
 
   // ── Login ─────────────────────────────────────────────────────────────────
-  const login = async (email: string, password: string): Promise<boolean> => {
+  const login = async (email: string, password: string): Promise<true | string> => {
     setLoading(true);
-    await new Promise(r => setTimeout(r, 600));
-    const cred = DEMO_CREDENTIALS.find(c => c.email === email && c.password === password);
-    if (cred) {
+    try {
+      const res = await fetch('/api/auth/login', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: email.trim(), password }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data.token) {
+        return data.message || (res.status >= 500 ? 'Server is starting up — please try again in a moment.' : 'Invalid email or password.');
+      }
+      const su = data.user as { name: string; email: string; role: UserRole; department: string; employeeId: string; mustChangePassword?: boolean };
       // Restore any profile fields the user saved in a previous session
       let saved: Partial<User> = {};
       try {
-        const raw = localStorage.getItem(profileKey(cred.empId));
+        const raw = localStorage.getItem(profileKey(su.employeeId));
         if (raw) saved = JSON.parse(raw);
       } catch {}
       const u: User = {
         ...mockUser,
         ...saved,
-        id: cred.empId,
-        name: saved.name ?? cred.name,
-        email: cred.email,
-        role: cred.role,
-        employeeId: saved.employeeId ?? cred.empId,
-        department: saved.department ?? cred.department,
+        id: su.employeeId,
+        name: saved.name ?? su.name,
+        email: su.email,
+        role: su.role,
+        employeeId: saved.employeeId ?? su.employeeId,
+        department: saved.department ?? su.department,
+        mustChangePassword: !!su.mustChangePassword,
       };
-      setUser(u);
+      sessionStorage.setItem(TOKEN_KEY, data.token);
       sessionStorage.setItem('mms_user', JSON.stringify(u));
-      sessionStorage.setItem('mms_token', 'demo-jwt-token-' + cred.role);
       sessionStorage.setItem('mms_expiry', String(Date.now() + INACTIVITY_MS));
-      setLoading(false);
+      setUser(u);
       return true;
+    } catch {
+      return 'Cannot reach the server. Check your connection and try again.';
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
-    return false;
   };
 
   // ── Update user profile ───────────────────────────────────────────────────
