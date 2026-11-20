@@ -3,6 +3,7 @@ import React, { useState, useCallback, useEffect, useMemo } from 'react';
 import { Plus, Search, Download, Edit2, Trash2, RefreshCw, X, Check, Maximize2, FileText } from 'lucide-react';
 import { exportPurchaseReportPDF } from '../utils/purchaseReportPDF';
 import { useAuth } from '../context/AuthContext';
+import { isViewOnly } from '../config/access';
 import { apiFetch } from '../utils/api';
 import { STATUS_FLOW, REJECTED, STATUS_WEB, STATUS_XLS, normaliseStatus, isRejected, statusLabel, type StatusChange } from '../config/purchaseStatus';
 import PurchaseStatusHistory from '../components/PurchaseStatusHistory';
@@ -207,7 +208,9 @@ export default function PurchaseFollowup() {
   const [syncMsg, setSyncMsg]     = useState('');
   const [pdfBusy, setPdfBusy]     = useState(false);
   const { user } = useAuth();
-  const canEditDates = !!user && user.role !== 'guest';   // guests are read-only
+  // View-only for roles that may only look at this page (Engineer, User)
+  const readOnly = isViewOnly(user?.role, '/purchase/followup');
+  const canEditDates = !!user && !readOnly;
   const handlePdfReport = async () => {
     setPdfBusy(true);
     try { await exportPurchaseReportPDF(records); }
@@ -229,6 +232,7 @@ export default function PurchaseFollowup() {
   useEffect(() => { loadData(); }, []);
 
   const updateStatusDirect = async (id, status) => {
+    if (readOnly) return;
     try {
       const updated = await apiFetch(`/api/purchase-followup/${id}`, { method: 'PUT', body: JSON.stringify({ currentStatus: status }) });
       setRecords(rs => rs.map(r => r.id === id ? updated : r));
@@ -236,6 +240,7 @@ export default function PurchaseFollowup() {
   };
 
   const updatePaymentDirect = async (id, ps) => {
+    if (readOnly) return;
     try {
       const updated = await apiFetch(`/api/purchase-followup/${id}`, { method: 'PUT', body: JSON.stringify({ paymentStatus: ps }) });
       setRecords(rs => rs.map(r => r.id === id ? updated : r));
@@ -243,6 +248,7 @@ export default function PurchaseFollowup() {
   };
 
   const updateFieldDirect = async (id, updates) => {
+    if (readOnly) return;
     try {
       const updated = await apiFetch(`/api/purchase-followup/${id}`, { method: 'PUT', body: JSON.stringify(updates) });
       setRecords(rs => rs.map(r => r.id === id ? updated : r));
@@ -250,6 +256,7 @@ export default function PurchaseFollowup() {
   };
 
   const handleSync = async () => {
+    if (readOnly) return;
     let added = 0, updated = 0;
     try {
       const [rfqs, pos] = await Promise.all([
@@ -321,6 +328,7 @@ export default function PurchaseFollowup() {
   const [payModal, setPayModal] = useState<{ record: FollowupRecord; amount: string; date: string; remarks: string } | null>(null);
 
   const openPayModal = (r: FollowupRecord) => {
+    if (readOnly) return;
     setOpenMenuId(null); setMenuRec(null);
     setPayModal({ record: r, amount: '', date: new Date().toISOString().slice(0, 10), remarks: '' });
   };
@@ -405,6 +413,7 @@ export default function PurchaseFollowup() {
     } catch (e: any) { alert(e.message || 'Failed to save'); }
   };
   const openMenu = (e: React.MouseEvent<HTMLButtonElement>, r: FollowupRecord) => {
+    if (readOnly) return;
     e.stopPropagation();
     if (openMenuId === r.id) { setOpenMenuId(null); setMenuRec(null); return; }
     const rect = (e.currentTarget as HTMLButtonElement).getBoundingClientRect();
@@ -508,9 +517,11 @@ export default function PurchaseFollowup() {
           <Search size={13} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: '#475569' }} />
           <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search item, PR number, status…" className="input-dark" style={{ paddingLeft: 30 }} />
         </div>
+        {!readOnly && (
         <button onClick={handleSync} className="btn-secondary" style={{ fontSize: 12, display: 'flex', alignItems: 'center', gap: 5 }}>
           <RefreshCw size={13} /> Sync RFQ/PO
         </button>
+        )}
         <button onClick={() => downloadXLS(records)} className="btn-secondary" style={{ fontSize: 12, display: 'flex', alignItems: 'center', gap: 5 }}>
           <Download size={13} /> Download Excel
         </button>
@@ -518,9 +529,11 @@ export default function PurchaseFollowup() {
           style={{ fontSize: 12, display: 'flex', alignItems: 'center', gap: 5, color: '#dc2626', borderColor: '#fecaca' }}>
           <FileText size={13} /> {pdfBusy ? 'Preparing…' : 'PDF Report'}
         </button>
+        {!readOnly && (
         <button onClick={openAdd} className="btn-primary" style={{ fontSize: 12, display: 'flex', alignItems: 'center', gap: 5 }}>
           <Plus size={13} /> Add Item
         </button>
+        )}
       </div>
 
       {/* Tab navigation */}
@@ -630,7 +643,7 @@ export default function PurchaseFollowup() {
                   <td style={{ textAlign:'center', fontWeight:700, fontSize:13, color: days && days>90 ? '#ef4444' : days && days>30 ? '#f59e0b' : '#64748b' }}>{days !== null && days > 0 ? days : '—'}</td>
                   <td style={{ fontWeight:600, fontSize:12, color: tlc||'#64748b' }}>{r.requiredTimeline||'—'}</td>
                   <td>
-                    <select value={r.currentStatus} onChange={e=>updateStatusDirect(r.id,e.target.value)} style={{ width:'100%', padding:'4px 8px', borderRadius:7, fontSize:11, fontWeight:700, cursor:'pointer', outline:'none', background:sc?.bg||'#F3F4F6', border:`1px solid ${sc?sc.tc+'55':'#D1D5DB'}`, color:sc?.tc||'#6B7280' }}>
+                    <select disabled={readOnly} title={readOnly ? "View only" : undefined} value={r.currentStatus} onChange={e=>updateStatusDirect(r.id,e.target.value)} style={{ width:'100%', padding:'4px 8px', borderRadius:7, fontSize:11, fontWeight:700, cursor:'pointer', outline:'none', background:sc?.bg||'#F3F4F6', border:`1px solid ${sc?sc.tc+'55':'#D1D5DB'}`, color:sc?.tc||'#6B7280' , ...(readOnly ? { appearance: 'none', WebkitAppearance: 'none', cursor: 'default', opacity: 1 } : {}) }}>
                       {STATUSES.map(s=><option key={s} value={s} style={{ background:'#FFFFFF', color:'#374151' }}>{statusLabel(s)||'— Not set —'}</option>)}
                     </select>
                   </td>
@@ -640,7 +653,7 @@ export default function PurchaseFollowup() {
                   <td style={{ fontSize:12, color:'#374151', whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis', textAlign:'center' }} title={r.leadTime}>{r.leadTime||'—'}</td>
                   <td style={{ fontSize:12, color:'#374151', whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis', textAlign:'center' }} title={r.workingTime}>{r.workingTime||'—'}</td>
                   <td style={{ position:'sticky', right:0, background:'#FFFFFF', zIndex:2, boxShadow:'-1px 0 0 #E5E7EB', padding:'4px', textAlign:'center' }}>
-                    <button onClick={e=>openMenu(e,r)} style={{ width:30, height:28, borderRadius:6, background:'#F8FAFC', border:'1px solid #E5E7EB', color:'#94a3b8', cursor:'pointer', fontSize:16, lineHeight:1, display:'flex', alignItems:'center', justifyContent:'center' }} title="Actions">⋮</button>
+                    {!readOnly && <button onClick={e=>openMenu(e,r)} style={{ width:30, height:28, borderRadius:6, background:'#F8FAFC', border:'1px solid #E5E7EB', color:'#94a3b8', cursor:'pointer', fontSize:16, lineHeight:1, display:'flex', alignItems:'center', justifyContent:'center' }} title="Actions">⋮</button>}
                   </td>
                 </tr>
               );
@@ -719,7 +732,7 @@ export default function PurchaseFollowup() {
                         </td>
                         <td style={{ fontSize:12, color:'#60a5fa', fontFamily:'monospace' }}>{r.prNumber||'—'}</td>
                         <td style={{ padding:'4px 6px' }}>
-                          <input type="date" className="input-dark"
+                          <input type="date" disabled={readOnly} className="input-dark"
                             style={{ fontSize:11, padding:'3px 5px', width:'100%', background:'transparent', border:'1px solid #E5E7EB', borderRadius:5, color:'#374151' }}
                             value={r.receivedDate||''} onChange={e=>updateFieldDirect(r.id,{receivedDate:e.target.value})}
                           />
@@ -733,17 +746,19 @@ export default function PurchaseFollowup() {
                           {remaining > 0 ? `AED ${remaining.toLocaleString()}` : (r.budget ? '✓ Settled' : '—')}
                         </td>
                         <td>
-                          <select value={r.paymentStatus} onChange={e=>updatePaymentDirect(r.id,e.target.value)}
-                            style={{ width:'100%', padding:'4px 8px', borderRadius:7, fontSize:11, fontWeight:700, cursor:'pointer', outline:'none', background:pc?.bg||'#F3F4F6', border:`1px solid ${pc?pc.tc+'55':'#D1D5DB'}`, color:pc?.tc||'#6B7280' }}>
+                          <select disabled={readOnly} value={r.paymentStatus} onChange={e=>updatePaymentDirect(r.id,e.target.value)}
+                            style={{ width:'100%', padding:'4px 8px', borderRadius:7, fontSize:11, fontWeight:700, cursor:'pointer', outline:'none', background:pc?.bg||'#F3F4F6', border:`1px solid ${pc?pc.tc+'55':'#D1D5DB'}`, color:pc?.tc||'#6B7280' , ...(readOnly ? { appearance: 'none', WebkitAppearance: 'none', cursor: 'default', opacity: 1 } : {}) }}>
                             {PAYMENT_STATUSES.map(s=><option key={s} value={s} style={{ background:'#FFFFFF' }}>{s||'— Not set —'}</option>)}
                           </select>
                         </td>
                         <td style={{ position:'sticky', right:0, background:'#FFFFFF', zIndex:2, boxShadow:'-1px 0 0 #E5E7EB', padding:'4px', textAlign:'center' }}>
                           <div style={{ display:'flex', flexDirection:'column', gap:3, alignItems:'center' }}>
+                            {!readOnly && (<>
                             <button onClick={()=>openPayModal(r)}
                               style={{ width:30, height:26, borderRadius:5, background:'rgba(34,197,94,0.15)', border:'1px solid rgba(34,197,94,0.5)', color:'#22c55e', cursor:'pointer', fontSize:16, display:'flex', alignItems:'center', justifyContent:'center', fontWeight:700 }}
                               title="Add Payment">+</button>
                             <button onClick={e=>openMenu(e,r)} style={{ width:30, height:26, borderRadius:5, background:'#F8FAFC', border:'1px solid #E5E7EB', color:'#94a3b8', cursor:'pointer', fontSize:15, display:'flex', alignItems:'center', justifyContent:'center' }} title="More">⋮</button>
+                            </>)}
                           </div>
                         </td>
                       </tr>
@@ -834,7 +849,7 @@ export default function PurchaseFollowup() {
                       <td>—</td>
                       <td><span style={{ padding:'2px 10px', borderRadius:20, fontSize:11, fontWeight:700, background:'rgba(71,85,105,0.3)', color:'#94a3b8', border:'1px solid rgba(71,85,105,0.5)' }}>Rejected</span></td>
                       <td style={{ position:'sticky', right:0, background:'#FFFFFF', zIndex:2, boxShadow:'-1px 0 0 #E5E7EB', padding:'4px', textAlign:'center' }}>
-                        <button onClick={e=>openMenu(e,row.rec)} style={{ width:30, height:28, borderRadius:6, background:'#F8FAFC', border:'1px solid #E5E7EB', color:'#94a3b8', cursor:'pointer', fontSize:16, display:'flex', alignItems:'center', justifyContent:'center' }}>⋮</button>
+                        {!readOnly && <button onClick={e=>openMenu(e,row.rec)} style={{ width:30, height:28, borderRadius:6, background:'#F8FAFC', border:'1px solid #E5E7EB', color:'#94a3b8', cursor:'pointer', fontSize:16, display:'flex', alignItems:'center', justifyContent:'center' }}>⋮</button>}
                       </td>
                     </tr>
                   );
@@ -846,7 +861,7 @@ export default function PurchaseFollowup() {
                         <td style={{ fontSize:13, fontWeight:700, color:'#1e293b', wordBreak:'break-word' }}>{row.rec.itemDescription}</td>
                         <td style={{ fontSize:12, color:'#60a5fa', fontFamily:'monospace', fontWeight:700 }}>{row.rec.prNumber||'—'}</td>
                         <td style={{ padding:'4px 6px' }}>
-                          <input type="date" className="input-dark"
+                          <input type="date" disabled={readOnly} className="input-dark"
                             style={{ fontSize:11, padding:'3px 5px', width:'100%', background:'transparent', border:'1px solid #E5E7EB', borderRadius:5, color:'#374151' }}
                             value={row.rec.receivedDate||''} onChange={e=>updateFieldDirect(row.rec.id,{receivedDate:e.target.value})}
                           />
@@ -860,7 +875,7 @@ export default function PurchaseFollowup() {
                           </span>
                         </td>
                         <td style={{ position:'sticky', right:0, background:'#FFFFFF', zIndex:2, boxShadow:'-1px 0 0 #E5E7EB', padding:'4px', textAlign:'center' }}>
-                          <button onClick={e=>openMenu(e,row.rec)} style={{ width:30, height:28, borderRadius:6, background:'#F8FAFC', border:'1px solid #E5E7EB', color:'#94a3b8', cursor:'pointer', fontSize:16, display:'flex', alignItems:'center', justifyContent:'center' }}>⋮</button>
+                          {!readOnly && <button onClick={e=>openMenu(e,row.rec)} style={{ width:30, height:28, borderRadius:6, background:'#F8FAFC', border:'1px solid #E5E7EB', color:'#94a3b8', cursor:'pointer', fontSize:16, display:'flex', alignItems:'center', justifyContent:'center' }}>⋮</button>}
                         </td>
                       </tr>
                     );
