@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import {
-  BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
+  BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LabelList,
 } from 'recharts';
 import {
   AlertTriangle, CheckCircle, CheckCircle2, Clock, Users, DollarSign, ShoppingCart, PackageCheck,
@@ -205,10 +205,32 @@ export default function Dashboard() {
     accEntries.forEach((e: any) => { const d = e.entryDate ? new Date(e.entryDate) : null; if (d && d.getFullYear() === yr) months[d.getMonth()].rental += e.totalCost || 0; });
     purchases.forEach((r: any) => (r.paymentHistory || []).forEach((tx: any) => { const d = tx.date ? new Date(tx.date) : null; if (d && d.getFullYear() === yr) months[d.getMonth()].purchase += tx.amount || 0; }));
     const thisM = months[m];
-    const chart = months.slice(0, m + 1).map(x => ({ m: x.m, outsource: Math.round(x.outsource / 100) / 10, rental: Math.round(x.rental / 100) / 10, purchase: Math.round(x.purchase / 100) / 10 }));
+    // evenly spaced "nice" y-axis ticks with headroom for the total labels
+    const maxTotal = Math.max(0, ...months.slice(0, m + 1).map(x => x.outsource + x.rental + x.purchase));
+    const raw = (maxTotal * 1.15) / 4 || 1, mag = Math.pow(10, Math.floor(Math.log10(raw)));
+    const interval = [1, 2, 2.5, 5, 10].map(k => k * mag).find(v => v >= raw) || 10 * mag;
+    const yTicks = [0, 1, 2, 3, 4].map(k => k * interval);
+    // actual AED values; `total` is shown above each month's bar
+    const chart = months.slice(0, m + 1).map(x => ({ m: x.m, outsource: Math.round(x.outsource), rental: Math.round(x.rental), purchase: Math.round(x.purchase), total: Math.round(x.outsource + x.rental + x.purchase) }));
     const yearTotal = months.reduce((s, x) => s + x.outsource + x.rental + x.purchase, 0);
-    return { thisM, monthTotal: thisM.outsource + thisM.rental, chart, yearTotal, hasData: yearTotal > 0 };
+    return { thisM, monthTotal: thisM.outsource + thisM.rental, chart, yearTotal, hasData: yearTotal > 0, yTicks };
   }, [outDash, rentalEntries, accEntries, purchases]);
+
+  // Month total (actual AED) drawn above the topmost non-empty segment of each stacked bar
+  const STACK = ['outsource', 'rental', 'purchase'] as const;
+  // used as LabelList content with dataKey={d => d}, so props.value is that month's data row
+  const totalLabel = (key: typeof STACK[number]) => (props: any) => {
+    const d: any = props.value;
+    if (!d || !d.total) return null;
+    const top = [...STACK].reverse().find(k => d[k] > 0);
+    if (top !== key) return null;
+    const vb = props.viewBox || props;   // recharts 3 passes the bar's box as viewBox
+    return (
+      <text x={vb.x + vb.width / 2} y={Math.min(vb.y, vb.y + vb.height) - 6} textAnchor="middle" fontSize={10} fontWeight={700} fill="#334155">
+        {d.total.toLocaleString()}
+      </text>
+    );
+  };
 
   // ── Follow-ups & reminders ──
   const F = useMemo(() => followups.filter(f => f.status !== 'Completed' && f.status !== 'Cancelled')
@@ -419,19 +441,28 @@ export default function Dashboard() {
 
       {/* ══ COST + FOLLOW-UPS / REMINDERS ══ */}
       <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1.5fr) minmax(0,1fr)', gap: 10, marginBottom: 14 }}>
-        <Section icon={<DollarSign size={15}/>} title={`Monthly Cost ${NOW.getFullYear()} (AED '000)`} right={<span style={{ fontSize: 11, color: '#9CA3AF' }}>Year to date {aedK(C.yearTotal)}</span>}>
+        <Section icon={<DollarSign size={15}/>} title={`Monthly Cost ${NOW.getFullYear()} (AED)`} right={<span style={{ fontSize: 11, color: '#9CA3AF' }}>Year to date {aedK(C.yearTotal)}</span>}>
           {!C.hasData ? <Empty text={loading ? 'Loading…' : 'No outsource, rental or purchase payments recorded this year.'}/> : (
             <>
               <div style={{ height: 210 }}>
                 <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={C.chart} barSize={18}>
+                  <BarChart data={C.chart} barSize={26} margin={{ top: 18, right: 6, left: 0, bottom: 0 }}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#F3F4F6" vertical={false}/>
                     <XAxis dataKey="m" tick={{ fill: '#9CA3AF', fontSize: 10 }} axisLine={false} tickLine={false}/>
-                    <YAxis tick={{ fill: '#9CA3AF', fontSize: 10 }} axisLine={false} tickLine={false} tickFormatter={v => `${v}K`}/>
-                    <Tooltip formatter={(v: any) => `AED ${v}K`}/>
-                    <Bar dataKey="outsource" name="Outsource" stackId="a" fill="#3B82F6"/>
-                    <Bar dataKey="rental" name="Rental" stackId="a" fill="#8B5CF6"/>
-                    <Bar dataKey="purchase" name="Purchase payments" stackId="a" fill="#22C55E" radius={[4, 4, 0, 0]}/>
+                    <YAxis tick={{ fill: '#9CA3AF', fontSize: 10 }} axisLine={false} tickLine={false}
+                      domain={[0, C.yTicks[4]]} ticks={C.yTicks} interval={0}
+                      tickFormatter={v => v >= 1000 ? `${+(v / 1000).toFixed(1)}K` : String(v)}/>
+                    <Tooltip formatter={(v: any) => `AED ${Math.round(Number(v) || 0).toLocaleString()}`}
+                      labelFormatter={(label: any, payload: any) => `${label} — Total AED ${Math.round(payload?.[0]?.payload?.total || 0).toLocaleString()}`}/>
+                    <Bar dataKey="outsource" name="Outsource" stackId="a" fill="#3B82F6">
+                      <LabelList dataKey={(d: any) => d} content={totalLabel('outsource')}/>
+                    </Bar>
+                    <Bar dataKey="rental" name="Rental" stackId="a" fill="#8B5CF6">
+                      <LabelList dataKey={(d: any) => d} content={totalLabel('rental')}/>
+                    </Bar>
+                    <Bar dataKey="purchase" name="Purchase payments" stackId="a" fill="#22C55E" radius={[4, 4, 0, 0]}>
+                      <LabelList dataKey={(d: any) => d} content={totalLabel('purchase')}/>
+                    </Bar>
                   </BarChart>
                 </ResponsiveContainer>
               </div>
