@@ -1,6 +1,6 @@
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
-import { STATUS_FLOW, STATUS_XLS, normaliseStatus, isRejected, statusLabel } from '../config/purchaseStatus';
+import { STATUS_FLOW, STATUS_XLS, STATUS_WEB, normaliseStatus, isRejected, statusLabel } from '../config/purchaseStatus';
 import { analyse, stageCells, fmt, days, type Rec } from '../components/PurchaseStatusHistory';
 import { COMPANY_NAME, COMPANY_LOC, DEPT_NAME } from '../config/dept';
 
@@ -8,7 +8,7 @@ import { COMPANY_NAME, COMPANY_LOC, DEPT_NAME } from '../config/dept';
 // History (date each step was reached). A4 landscape, company logo on page 1.
 
 export interface ReportRecord extends Rec {
-  requiredTimeline: string; reqDate: string; budget: number; leadTime: string; workingTime?: string;
+  section?: string; requiredTimeline: string; reqDate: string; budget: number; leadTime: string; workingTime?: string;
 }
 
 const NIL = 'Nil';
@@ -33,17 +33,17 @@ async function logoPng(): Promise<string | null> {
   } catch { return null; }
 }
 
-const fmtDay = (s: string) => {
-  if (!s) return NIL;
-  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(s);
-  const d = m ? new Date(+m[1], +m[2] - 1, +m[3]) : new Date(s);
-  return isNaN(d.getTime()) ? s : fmt(d);
-};
-const fmtMonth = (s: string) => {
+// Same colours as the Pending Purchase page
+const rgba = (c: string): [number, number, number] => { const m = /rgba?\((\d+),\s*(\d+),\s*(\d+)/.exec(c); return m ? [+m[1], +m[2], +m[3]] : [100, 116, 139]; };
+const TIMELINE_RGB: Record<string, [number, number, number]> = { 'Primary Priority': [249, 115, 22], 'Second Priority': [34, 197, 94] };
+const daysRgb = (n: number): [number, number, number] => n > 90 ? [239, 68, 68] : n > 30 ? [245, 158, 11] : [100, 116, 139];
+// App date style: "2 Jan 26"
+const appDate = (s: string) => {
   if (!s) return NIL;
   const d = new Date(s);
-  return isNaN(d.getTime()) ? s : d.toLocaleDateString('en-GB', { month: 'short', year: '2-digit' });
+  return isNaN(d.getTime()) ? s : d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: '2-digit' });
 };
+const daysSince = (s: string) => (s ? Math.floor((Date.now() - new Date(s).getTime()) / 86400000) : 0);
 const or = (v: unknown) => (v === undefined || v === null || String(v).trim() === '' ? NIL : String(v));
 
 export async function exportPurchaseReportPDF(all: ReportRecord[]) {
@@ -71,59 +71,92 @@ export async function exportPurchaseReportPDF(all: ReportRecord[]) {
   doc.text(`${COMPANY_LOC}`, pw - M, 15, { align: 'right' });
   doc.setDrawColor(203, 213, 225); doc.setLineWidth(0.4); doc.line(M, 21, pw - M, 21);
 
-  // ── Summary: how many pending items at each step ──
-  const steps = STATUS_FLOW.slice(0, -1);   // Material Received is not pending
-  const counts = steps.map(st => pending.filter(p => p.a.current === st).length);
-  const notSet = pending.filter(p => !p.a.current).length;
-  autoTable(doc, {
-    startY: 24, margin: { left: M, right: M },
-    head: [['Total pending', ...steps.map((st, i) => `${i + 1}. ${SHORT[i]}`), 'No status']],
-    body: [[String(pending.length), ...counts.map(String), String(notSet)]],
-    theme: 'grid',
-    headStyles: { fillColor: [15, 23, 42], textColor: 255, fontSize: 7.5, halign: 'center', valign: 'middle' },
-    bodyStyles: { fontSize: 11, fontStyle: 'bold', halign: 'center', textColor: [15, 23, 42] },
-    didParseCell: d => {
-      const st = steps[d.column.index - 1];
-      if (d.section === 'head' && st) d.cell.styles.fillColor = hex(STATUS_XLS[st]);
-    },
-  });
-
-  // ── Section 1: Pending Purchase ──
-  let y = (doc as any).lastAutoTable.finalY + 8;
+  // ── Section 1: Pending Purchase — same columns, order, grouping and colours as the app page ──
+  let y = 27;
   const section = (title: string, sub: string) => {
     doc.setFont('helvetica', 'bold'); doc.setFontSize(11.5); doc.setTextColor(15, 23, 42); doc.text(title, M, y);
     doc.setFont('helvetica', 'normal'); doc.setFontSize(8); doc.setTextColor(100, 116, 139); doc.text(sub, M, y + 4.5);
     y += 7;
   };
-  section(`1. Pending Purchase (${pending.length})`, 'Items not yet received, oldest request first. Days = days since request.');
+  // Like the app: sorted by days (highest first); a section heading row whenever the section changes; Sl restarts per section
+  type Row = { kind: 'section'; label: string } | { kind: 'data'; p: typeof pending[number]; sl: number };
+  const rows: Row[] = [];
+  const slOf = new Map<string, number>();
+  let curSection: string | undefined, sl = 0;
+  for (const p of [...pending].sort((x, y2) => daysSince(y2.r.requestDate) - daysSince(x.r.requestDate))) {
+    const sec = p.r.section || '';
+    if (sec !== curSection) { if (sec) rows.push({ kind: 'section', label: sec }); curSection = sec; sl = 0; }
+    rows.push({ kind: 'data', p, sl: ++sl }); slOf.set(p.r.id, sl);
+  }
+  const dataRows = rows.filter((r): r is Extract<Row, { kind: 'data' }> => r.kind === 'data');
+  pending.sort((x, y2) => dataRows.findIndex(d => d.p === x) - dataRows.findIndex(d => d.p === y2));   // history follows the same order
+
+  section(`1. Pending Purchase (${pending.length})`, 'Same layout as the Pending Purchase page. Days = days since request date.');
   autoTable(doc, {
     startY: y, margin: { left: M, right: M, top: 14, bottom: 14 }, rowPageBreak: 'avoid',   // keep rows whole; leave room for the footer
-    head: [['Sl.', 'Item Description', 'PR / RFQ No.', 'Request Date', 'Days', 'Required Timeline', 'Current Status', 'Req. Date', 'Budget (AED)', 'Lead Time']],
-    body: pending.map(({ r, a }, i) => [
-      String(i + 1), or(r.itemDescription), or(r.prNumber), fmtDay(r.requestDate),
-      a.start ? String(days(a.start, today)) : NIL, or(r.requiredTimeline),
-      a.current ? statusLabel(a.current) : NIL, fmtMonth(r.reqDate),
-      r.budget ? r.budget.toLocaleString('en-AE') : NIL, or(r.leadTime),
-    ]),
+    head: [['Sl.', 'Item Description', 'Request Date', 'Days', 'Required Timeline', 'Current Status', 'PR Number', 'Req. Date', 'Budget', 'Lead Time', 'Working Time']],
+    body: rows.map(row => row.kind === 'section'
+      ? [{ content: row.label, colSpan: 11, styles: { fillColor: [226, 232, 240], fontStyle: 'bold', textColor: [30, 41, 59], halign: 'left' } }]
+      : (() => {
+          const { r, a } = row.p; const n = daysSince(r.requestDate);
+          return [
+            String(row.sl), or(r.itemDescription), r.requestDate ? appDate(r.requestDate) : NIL,
+            r.requestDate && n > 0 ? String(n) : NIL, or(r.requiredTimeline),
+            a.current ? statusLabel(a.current) : NIL, or(r.prNumber),
+            r.reqDate ? appDate(r.reqDate).replace(/^\d+ /, '') : NIL,      // "Oct 26", as on the page
+            r.budget ? r.budget.toLocaleString() : NIL, or(r.leadTime), or(r.workingTime),
+          ];
+        })()) as any,
     theme: 'grid',
-    headStyles: { fillColor: [30, 58, 95], textColor: 255, fontSize: 8, valign: 'middle' },
-    bodyStyles: { fontSize: 8, valign: 'middle', textColor: [30, 41, 59] },
-    alternateRowStyles: { fillColor: [248, 250, 252] },
+    headStyles: { fillColor: [248, 250, 252], textColor: [71, 85, 105], fontSize: 7.5, fontStyle: 'bold', valign: 'middle', lineColor: [226, 232, 240] },
+    bodyStyles: { fontSize: 8.5, valign: 'middle', textColor: [30, 41, 59], lineColor: [226, 232, 240], minCellHeight: 7.5, cellPadding: 1.4 },
     columnStyles: {
-      0: { cellWidth: 9, halign: 'center' }, 1: { cellWidth: 66 }, 2: { cellWidth: 30 }, 3: { cellWidth: 21, halign: 'center' },
-      4: { cellWidth: 12, halign: 'center', fontStyle: 'bold' }, 5: { cellWidth: 25 }, 6: { cellWidth: 46, fontStyle: 'bold' },
-      7: { cellWidth: 18, halign: 'center' }, 8: { cellWidth: 22, halign: 'right' }, 9: { cellWidth: 28 },
+      0: { cellWidth: 9, halign: 'center', textColor: [100, 116, 139] }, 1: { cellWidth: 62 }, 2: { cellWidth: 20 },
+      3: { cellWidth: 12, halign: 'center', fontStyle: 'bold' }, 4: { cellWidth: 26, fontStyle: 'bold' },
+      5: { cellWidth: 46, fontStyle: 'bold' }, 6: { cellWidth: 30, font: 'courier' }, 7: { cellWidth: 16, halign: 'center' },
+      8: { cellWidth: 18, halign: 'right', fontStyle: 'bold' }, 9: { cellWidth: 19, halign: 'center' }, 10: { cellWidth: 19, halign: 'center' },
     },
     didParseCell: d => {
       if (d.section !== 'body') return;
-      if (d.column.index === 6) {
-        const st = pending[d.row.index]?.a.current;
-        if (st && STATUS_XLS[st]) { d.cell.styles.fillColor = hex(STATUS_XLS[st]); d.cell.styles.textColor = [255, 255, 255]; }
+      const row = rows[d.row.index];
+      if (!row || row.kind !== 'data') return;
+      const { r, a } = row.p;
+      if (d.cell.raw === NIL) { d.cell.styles.textColor = [148, 163, 184]; d.cell.styles.fontStyle = 'italic'; return; }
+      switch (d.column.index) {
+        case 3: d.cell.styles.textColor = daysRgb(daysSince(r.requestDate)); break;
+        case 4: d.cell.styles.textColor = TIMELINE_RGB[r.requiredTimeline] ?? [100, 116, 139]; break;
+        case 5: if (STATUS_WEB[a.current]) { d.cell.styles.fillColor = rgba(STATUS_WEB[a.current].bg); d.cell.styles.textColor = [255, 255, 255]; } break;
+        case 6: d.cell.styles.textColor = [59, 130, 246]; break;
+        case 8: d.cell.styles.textColor = [22, 163, 74]; break;
       }
-      if (d.column.index === 4) d.cell.styles.textColor = [220, 38, 38];
-      if (d.cell.raw === NIL) { d.cell.styles.textColor = [148, 163, 184]; d.cell.styles.fontStyle = 'italic'; }
     },
   });
+
+  // ── Summary: pending items at each step — placed at the BOTTOM of a page, just above the footer ──
+  const SUMMARY_H = 22;   // title + table height (mm)
+  const drawSummary = () => {
+    y = ph - 14 - SUMMARY_H;
+    section('Summary — pending items at each step', `As of ${fmt(today)}`);
+    const steps = STATUS_FLOW.slice(0, -1);   // Material Received is not pending
+    const counts = steps.map(st => pending.filter(p => p.a.current === st).length);
+    const notSet = pending.filter(p => !p.a.current).length;
+    autoTable(doc, {
+      startY: y, margin: { left: M, right: M, bottom: 12 }, pageBreak: 'avoid',
+      head: [['Total pending', ...steps.map((_, i) => `${i + 1}. ${SHORT[i]}`), 'No status']],
+      body: [[String(pending.length), ...counts.map(String), String(notSet)]],
+      theme: 'grid',
+      headStyles: { fillColor: [15, 23, 42], textColor: 255, fontSize: 7.5, halign: 'center', valign: 'middle' },
+      bodyStyles: { fontSize: 11, fontStyle: 'bold', halign: 'center', textColor: [15, 23, 42] },
+      didParseCell: d => {
+        const st = steps[d.column.index - 1];
+        if (d.section === 'head' && st) d.cell.styles.fillColor = hex(STATUS_XLS[st]);
+      },
+    });
+  };
+  // Room under the Pending Purchase table on its last page? Put the summary there; otherwise at the bottom of the last page.
+  const afterPending = (doc as any).lastAutoTable.finalY as number;
+  const summaryOnPendingPage = afterPending + 6 < ph - 14 - SUMMARY_H;
+  if (summaryOnPendingPage) drawSummary();
 
   // ── Section 2: Pending Purchase History ──
   doc.addPage();
@@ -136,7 +169,7 @@ export async function exportPurchaseReportPDF(all: ReportRecord[]) {
     startY: y, margin: { left: M, right: M, top: 14, bottom: 14 }, rowPageBreak: 'avoid',   // keep rows whole; leave room for the footer
     head: [['Sl.', 'Item / PR No.', ...STATUS_FLOW.map((_, i) => `Step ${i + 1}\n${SHORT[i]}`), 'Days Open']],
     body: pending.map(({ r, a }, i) => [
-      String(i + 1), `${or(r.itemDescription)}\n${or(r.prNumber)}`,
+      String(slOf.get(r.id) ?? i + 1), `${or(r.itemDescription)}\n${or(r.prNumber)}`,
       ...histCells[i].map(cellText),
       a.start ? `${days(a.start, today)}` : NIL,
     ]),
@@ -163,6 +196,11 @@ export async function exportPurchaseReportPDF(all: ReportRecord[]) {
       }
     },
   });
+
+  if (!summaryOnPendingPage) {
+    if ((doc as any).lastAutoTable.finalY + 6 >= ph - 14 - SUMMARY_H) doc.addPage();
+    drawSummary();
+  }
 
   // ── Footer on every page ──
   const n = doc.getNumberOfPages();
