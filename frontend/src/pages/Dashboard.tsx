@@ -48,6 +48,9 @@ const CARD: React.CSSProperties = {
 const JOB_STATUS_COLOR: Record<string, string> = { Open: '#3B82F6', Ongoing: '#F59E0B', 'Follow Up': '#8B5CF6', 'Partially Done': '#06B6D4', 'In Progress': '#F59E0B', 'On Hold': '#94A3B8' };
 const PRIO_COLOR: Record<string, string> = { Critical: '#DC2626', High: '#EA580C', Medium: '#D97706', Low: '#16A34A' };
 
+// Responsible teams in Job Tracker order (same list as the Job Tracker form)
+const DEPT_ORDER = ['GT-E&I', 'EBC', 'Creative', 'GT-PUR', 'GT-IT', 'Contractor', 'GT-M&U', 'GT-PRD', 'OEM', 'Others'];
+const STATUS_ORDER = ['Open', 'Ongoing', 'Follow Up', 'Partially Done'];
 const isEI = (j: any) => /E\s*&\s*I/i.test(j.assignedTo || '');
 const isOpenJob = (j: any) => j.status !== 'Completed' && j.status !== 'Cancelled';
 
@@ -128,6 +131,28 @@ export default function Dashboard() {
       .map(([name, v]) => ({ name, v })).sort((a, b) => b.v - a.v).slice(0, 7);
     const focus = [...overdue, ...thisWeek].sort((a, b) => (a.dueDate || '').localeCompare(b.dueDate || ''));
     return { open, overdue, thisWeek, noDate, doneThis, doneLast, byStatus, byArea, focus };
+  }, [jobs]);
+
+  // ── Pending jobs by department (all responsible teams) ──
+  const D = useMemo(() => {
+    const open = jobs.filter(isOpenJob);
+    const map = new Map<string, any[]>();
+    open.forEach(j => { const k = (j.assignedTo || '').trim() || 'Not assigned'; map.set(k, [...(map.get(k) || []), j]); });
+    const rank = (k: string) => { const i = DEPT_ORDER.indexOf(k); return k === 'Not assigned' ? 999 : i < 0 ? 500 : i; };
+    const rows = [...map.entries()].map(([dept, list]) => {
+      const d = (j: any) => parseDay(j.dueDate);
+      const status = STATUS_ORDER.map(st => ({ st, n: list.filter(j => (j.status || 'Open') === st).length }));
+      const other = list.length - status.reduce((s, x) => s + x.n, 0);
+      return {
+        dept, total: list.length,
+        overdue: list.filter(j => { const x = d(j); return x && x < today0; }).length,
+        week: list.filter(j => { const x = d(j); return x && x >= today0 && x <= weekEnd; }).length,
+        noDate: list.filter(j => !d(j)).length,
+        high: list.filter(j => j.priority === 'High' || j.priority === 'Critical').length,
+        status: other > 0 ? [...status, { st: 'Other', n: other }] : status,
+      };
+    }).sort((a, b) => rank(a.dept) - rank(b.dept) || b.total - a.total || a.dept.localeCompare(b.dept));
+    return { rows, total: open.length, overdue: rows.reduce((s, r) => s + r.overdue, 0), max: Math.max(1, ...rows.map(r => r.total)) };
   }, [jobs]);
 
   // ── Purchase Status ──
@@ -260,6 +285,58 @@ export default function Dashboard() {
             <div style={{ fontSize: 11, color: '#64748B', marginTop: 4 }}>{k.sub}</div>
           </div>
         ))}
+      </div>
+
+      {/* ══ PENDING JOBS BY DEPARTMENT ══ */}
+      <div style={{ marginBottom: 14 }}>
+        <Section icon={<Users size={15}/>} title="Pending Jobs by Department"
+          right={<span style={{ fontSize: 11, color: '#9CA3AF' }}>{D.total} open across {D.rows.length} department{D.rows.length === 1 ? '' : 's'} · <b style={{ color: D.overdue ? '#DC2626' : '#16A34A' }}>{D.overdue} overdue</b></span>}
+          link={canGo('/job-tracker') ? 'Job Tracker' : undefined} onLink={() => go('/job-tracker')}>
+          {D.rows.length === 0 ? <Empty text={loading ? 'Loading…' : 'No open jobs in the Job Tracker.'}/> : (
+            <div style={{ overflowX: 'auto' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 760 }}>
+                <thead><tr>
+                  {['Department', 'Open', 'Overdue', 'Due this week', 'No due date', 'High / Critical', 'Status'].map((h, i) => (
+                    <th key={h} style={{ ...th, textAlign: i === 0 || i === 6 ? 'left' : 'center', width: i === 6 ? '34%' : undefined }}>{h}</th>
+                  ))}
+                </tr></thead>
+                <tbody>
+                  {D.rows.map(r => {
+                    const ei = /E\s*&\s*I/i.test(r.dept);
+                    const num = (n: number, c: string) => <span style={{ fontWeight: 800, color: n ? c : '#CBD5E1' }}>{n}</span>;
+                    return (
+                      <tr key={r.dept} style={{ background: ei ? '#EFF6FF' : undefined }}>
+                        <td style={{ ...td, fontWeight: 700, color: '#1E293B', whiteSpace: 'nowrap' }}>{r.dept}{ei && <span style={{ marginLeft: 6, fontSize: 9, fontWeight: 800, color: '#2563EB', background: '#DBEAFE', padding: '1px 6px', borderRadius: 8 }}>OUR DEPT</span>}</td>
+                        <td style={{ ...td, textAlign: 'center' }}><span style={{ fontSize: 15, fontWeight: 900, color: '#1E293B' }}>{r.total}</span></td>
+                        <td style={{ ...td, textAlign: 'center' }}>{num(r.overdue, '#DC2626')}</td>
+                        <td style={{ ...td, textAlign: 'center' }}>{num(r.week, '#D97706')}</td>
+                        <td style={{ ...td, textAlign: 'center' }}>{num(r.noDate, '#64748B')}</td>
+                        <td style={{ ...td, textAlign: 'center' }}>{num(r.high, '#EA580C')}</td>
+                        <td style={td}>
+                          <div title={r.status.filter(x => x.n).map(x => `${x.st}: ${x.n}`).join(' · ')} style={{ display: 'flex', height: 12, borderRadius: 6, overflow: 'hidden', background: '#F1F5F9', width: `${Math.max(8, (r.total / D.max) * 100)}%` }}>
+                            {r.status.filter(x => x.n).map(x => <div key={x.st} style={{ width: `${(x.n / r.total) * 100}%`, background: JOB_STATUS_COLOR[x.st] || '#94A3B8' }}/>)}
+                          </div>
+                          <div style={{ fontSize: 10, color: '#64748B', marginTop: 3 }}>{r.status.filter(x => x.n).map(x => `${x.st} ${x.n}`).join(' · ')}</div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                  <tr style={{ background: '#F8FAFC' }}>
+                    <td style={{ ...td, fontWeight: 800 }}>Total</td>
+                    <td style={{ ...td, textAlign: 'center', fontWeight: 900 }}>{D.total}</td>
+                    <td style={{ ...td, textAlign: 'center', fontWeight: 800, color: '#DC2626' }}>{D.overdue}</td>
+                    <td style={{ ...td, textAlign: 'center', fontWeight: 800 }}>{D.rows.reduce((s, r) => s + r.week, 0)}</td>
+                    <td style={{ ...td, textAlign: 'center', fontWeight: 800 }}>{D.rows.reduce((s, r) => s + r.noDate, 0)}</td>
+                    <td style={{ ...td, textAlign: 'center', fontWeight: 800 }}>{D.rows.reduce((s, r) => s + r.high, 0)}</td>
+                    <td style={{ ...td, fontSize: 10, color: '#64748B' }}>
+                      {STATUS_ORDER.map(st => <span key={st} style={{ marginRight: 10, whiteSpace: 'nowrap' }}><span style={{ display: 'inline-block', width: 8, height: 8, borderRadius: 2, background: JOB_STATUS_COLOR[st], marginRight: 4 }}/>{st}</span>)}
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          )}
+        </Section>
       </div>
 
       {/* ══ E&I JOBS ══ */}
