@@ -1,854 +1,454 @@
-// @ts-nocheck
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import {
-  AreaChart, Area, BarChart, Bar, LineChart, Line, PieChart, Pie, Cell,
-  XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
+  BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
 } from 'recharts';
 import {
-  TrendingUp, TrendingDown, Bell, Activity, Zap, Wrench, AlertTriangle,
-  CheckCircle, CheckCircle2, Clock, Users, DollarSign, Gauge, Cpu,
-  Calendar, Package, RefreshCw, ChevronRight, Battery, Monitor, Server,
-  FileText, User, Building2, BarChart2, BarChart3, Radio,
-  ClipboardList, ArrowUpRight, ArrowDownRight, Thermometer, Star,
-  UserCheck, HardDrive, Settings, Search, MapPin,
+  AlertTriangle, CheckCircle, CheckCircle2, Clock, Users, DollarSign, ShoppingCart, PackageCheck,
+  ClipboardList, CalendarCheck, ChevronRight, Calendar, Bell, Repeat, FileText, Zap, RefreshCw,
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { apiFetch } from '../utils/api';
 import { DEPT_NAME, COMPANY_NAME, COMPANY_LOC } from '../config/dept';
+import { canSeePage } from '../config/access';
+import { STATUS_FLOW, STATUS_XLS, normaliseStatus, isRejected } from '../config/purchaseStatus';
+import { WORK_CODES, LEAVE_CODES, CODE_MAP } from '../config/attendanceCodes';
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
-const NOW    = new Date();
-const hour   = NOW.getHours();
-const greet  = hour < 12 ? 'Good Morning' : hour < 17 ? 'Good Afternoon' : 'Good Evening';
-const shift  = hour < 8  ? 'Night Shift'  : hour < 16  ? 'Day Shift'     : 'Evening Shift';
+// Dashboard built only from the modules' real data (Job Tracker, Purchase Status,
+// Attendance, Outsource, Rental, Org Chart). Nothing here is sample data.
+
+// ─── Dates ────────────────────────────────────────────────────────────────────
+const NOW = new Date();
+const hour = NOW.getHours();
+const greet = hour < 12 ? 'Good Morning' : hour < 17 ? 'Good Afternoon' : 'Good Evening';
+const shiftLbl = hour < 8 ? 'Night Shift' : hour < 16 ? 'Day Shift' : 'Evening Shift';
 const dateLbl = NOW.toLocaleDateString('en-US', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+const DAY = 86400000;
+const iso = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+const TODAY = iso(NOW);
+const parseDay = (s: string): Date | null => {
+  if (!s) return null;
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(s);
+  const d = m ? new Date(+m[1], +m[2] - 1, +m[3]) : new Date(s);
+  return isNaN(d.getTime()) ? null : d;
+};
+const today0 = parseDay(TODAY)!;
+const weekStart = (() => { const d = new Date(today0); d.setDate(d.getDate() - ((d.getDay() + 6) % 7)); return d; })();
+const weekEnd = new Date(weekStart.getTime() + 6 * DAY);
+const sameMonth = (d: Date | null, y: number, m: number) => !!d && d.getFullYear() === y && d.getMonth() === m;
+const fmtD = (s: string) => { const d = parseDay(s); return d ? d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }) : 'Nil'; };
+const aedK = (n: number) => n >= 1000 ? `AED ${(n / 1000).toFixed(n >= 100000 ? 0 : 1)}K` : `AED ${Math.round(n).toLocaleString()}`;
+const MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
-// ─── Design tokens ────────────────────────────────────────────────────────────
-const CARD: any = {
-  background: '#FFFFFF', borderRadius: 16,
+// ─── Style ────────────────────────────────────────────────────────────────────
+const CARD: React.CSSProperties = {
+  background: '#FFFFFF', borderRadius: 16, border: '1px solid #F1F5F9',
   boxShadow: '0 1px 4px rgba(0,0,0,0.07), 0 1px 2px rgba(0,0,0,0.04)',
-  border: '1px solid #F1F5F9',
 };
-const PAGE_BG = '#F0F4F8';
+const JOB_STATUS_COLOR: Record<string, string> = { Open: '#3B82F6', Ongoing: '#F59E0B', 'Follow Up': '#8B5CF6', 'Partially Done': '#06B6D4', 'In Progress': '#F59E0B', 'On Hold': '#94A3B8' };
+const PRIO_COLOR: Record<string, string> = { Critical: '#DC2626', High: '#EA580C', Medium: '#D97706', Low: '#16A34A' };
 
-// ─── KPI definitions ──────────────────────────────────────────────────────────
-const KPIS = [
-  { id:'oee',    label:'OEE',                value:'87.4', unit:'%',   color:'#22C55E', bg:'#F0FDF4', border:'#BBF7D0',
-    gradient:'linear-gradient(135deg,#22C55E,#16A34A)',  icon:<Gauge size={26}/>,   trend:'up',   trendVal:'+2.1%',
-    sub:'Overall Equipment Effectiveness',   equip:'Clamp Meter' },
-  { id:'mtbf',   label:'MTBF',               value:'342',  unit:'hrs', color:'#3B82F6', bg:'#EFF6FF', border:'#BFDBFE',
-    gradient:'linear-gradient(135deg,#3B82F6,#1D4ED8)',  icon:<Activity size={26}/>, trend:'up',  trendVal:'+18hrs',
-    sub:'Mean Time Between Failures',        equip:'Digital Multimeter' },
-  { id:'mttr',   label:'MTTR',               value:'2.3',  unit:'hrs', color:'#F97316', bg:'#FFF7ED', border:'#FED7AA',
-    gradient:'linear-gradient(135deg,#F97316,#EA580C)',  icon:<Clock size={26}/>,   trend:'down', trendVal:'-0.4hrs',
-    sub:'Mean Time To Repair',               equip:'Insulation Tester' },
-  { id:'pm',     label:'PM Compliance',       value:'94.2', unit:'%',   color:'#8B5CF6', bg:'#F5F3FF', border:'#DDD6FE',
-    gradient:'linear-gradient(135deg,#8B5CF6,#7C3AED)',  icon:<CheckCircle size={26}/>, trend:'up', trendVal:'+3.5%',
-    sub:'Preventive Maintenance',            equip:'Loop Calibrator' },
-  { id:'elec',   label:'Electrical Avail.',   value:'98.7', unit:'%',   color:'#F59E0B', bg:'#FFFBEB', border:'#FDE68A',
-    gradient:'linear-gradient(135deg,#F59E0B,#D97706)',  icon:<Zap size={26}/>,     trend:'up',  trendVal:'+0.3%',
-    sub:'Electrical Uptime Availability',    equip:'VFD Panel' },
-  { id:'inst',   label:'Instr. Avail.',       value:'97.1', unit:'%',   color:'#06B6D4', bg:'#ECFEFF', border:'#A5F3FC',
-    gradient:'linear-gradient(135deg,#06B6D4,#0891B2)',  icon:<Radio size={26}/>,   trend:'up',  trendVal:'+1.2%',
-    sub:'Instrumentation Uptime',            equip:'HART Communicator' },
-  { id:'pf',     label:'Power Factor',        value:'0.94', unit:'PF',  color:'#EC4899', bg:'#FDF2F8', border:'#FBCFE8',
-    gradient:'linear-gradient(135deg,#EC4899,#DB2777)',  icon:<Battery size={26}/>, trend:'up',  trendVal:'+0.02',
-    sub:'Plant Power Factor',                equip:'Power Analyzer' },
-  { id:'budget', label:'Budget Utilization',  value:'68.3', unit:'%',   color:'#14B8A6', bg:'#F0FDFA', border:'#99F6E4',
-    gradient:'linear-gradient(135deg,#14B8A6,#0D9488)',  icon:<DollarSign size={26}/>, trend:'up', trendVal:'+5.2%',
-    sub:'YTD Budget Utilization',            equip:'ERP Dashboard' },
-];
+const isEI = (j: any) => /E\s*&\s*I/i.test(j.assignedTo || '');
+const isOpenJob = (j: any) => j.status !== 'Completed' && j.status !== 'Cancelled';
 
-// ─── Status cards ─────────────────────────────────────────────────────────────
-const STATUS_CARDS = [
-  { label:'Active Breakdowns', value:3,       icon:<AlertTriangle size={24}/>, color:'#EF4444', bg:'#FEF2F2', border:'#FECACA', sub:'2 Critical · 1 Minor',              borderLeft:'#EF4444' },
-  { label:'PM Due Today',      value:7,       icon:<Calendar size={24}/>,      color:'#F59E0B', bg:'#FFFBEB', border:'#FDE68A', sub:'3 Electrical · 4 Instrumentation',  borderLeft:'#F59E0B' },
-  { label:'Running Machines',  value:'42/45', icon:<Activity size={24}/>,      color:'#22C55E', bg:'#F0FDF4', border:'#BBF7D0', sub:'3 Machines scheduled for PM',       borderLeft:'#22C55E' },
-  { label:'Open Work Orders',  value:12,      icon:<ClipboardList size={24}/>, color:'#3B82F6', bg:'#EFF6FF', border:'#BFDBFE', sub:'5 High Priority',                   borderLeft:'#3B82F6' },
-];
-
-// ─── Staffing (computed dynamically from /api/employees) ──────────────────────
-
-// ─── Maintenance progress ─────────────────────────────────────────────────────
-const MAINT = [
-  { label:'Planning',    value:8,  color:'#3B82F6', pct:8  },
-  { label:'In Progress', value:15, color:'#F59E0B', pct:15 },
-  { label:'On Hold',     value:4,  color:'#EF4444', pct:4  },
-  { label:'Completed',   value:73, color:'#22C55E', pct:73 },
-];
-
-// ─── Reminders ────────────────────────────────────────────────────────────────
-const REMINDERS = [
-  { freq:'Daily',     color:'#3B82F6', bg:'#EFF6FF', border:'#BFDBFE',
-    items:['Inspect MCC panels','Check UPS battery levels','Log energy readings'] },
-  { freq:'Weekly',    color:'#22C55E', bg:'#F0FDF4', border:'#BBF7D0',
-    items:['Test emergency lighting','PM on conveyor motors'] },
-  { freq:'Monthly',   color:'#8B5CF6', bg:'#F5F3FF', border:'#DDD6FE',
-    items:['Infrared thermography scan','VFD parameter backup'] },
-  { freq:'Quarterly', color:'#F59E0B', bg:'#FFFBEB', border:'#FDE68A',
-    items:['Megger test — HT cables','Full PLC backup'] },
-  { freq:'Yearly',    color:'#EF4444', bg:'#FEF2F2', border:'#FECACA',
-    items:['Annual shutdown PM','Transformer oil test'] },
-];
-
-// ─── Pending jobs ─────────────────────────────────────────────────────────────
-// ─── Area order (same as Job Tracker) ─────────────────────────────────────────
-const DASH_AREA_LIST = ['Batch Plant','Furnace','Rolling Machine','Lehr','Cutting Line','Cullet Return','Solar Line','Green House','Utility','Diesel Engine','UPS','Electrical Panel','Raw Material','General','Power Plant','IT','Project'];
-
-// ─── Chart data ───────────────────────────────────────────────────────────────
-const pmTrend = [
-  {m:'Jan',pm:88,tgt:95},{m:'Feb',pm:86,tgt:95},{m:'Mar',pm:90,tgt:95},{m:'Apr',pm:91,tgt:95},
-  {m:'May',pm:89,tgt:95},{m:'Jun',pm:92,tgt:95},{m:'Jul',pm:93,tgt:95},{m:'Aug',pm:94,tgt:95},
-];
-const bkdData = [
-  {cat:'Electrical',n:12,fill:'#3B82F6'},{cat:'Mechanical',n:8,fill:'#F59E0B'},
-  {cat:'Instrument',n:6,fill:'#8B5CF6'},{cat:'Utility',n:4,fill:'#22C55E'},{cat:'Civil',n:2,fill:'#EF4444'},
-];
-const eqHealth  = [{name:'Good',v:68,c:'#22C55E'},{name:'Fair',v:22,c:'#F59E0B'},{name:'Critical',v:10,c:'#EF4444'}];
-const woStatus  = [{name:'Completed',v:73,c:'#22C55E'},{name:'In Progress',v:15,c:'#3B82F6'},{name:'On Hold',v:8,c:'#F59E0B'},{name:'Cancelled',v:4,c:'#EF4444'}];
-// costData replaced by liveCostData fetched from finance APIs
-const energyD   = [{m:'Jan',k:128},{m:'Feb',k:119},{m:'Mar',k:132},{m:'Apr',k:125},{m:'May',k:138},{m:'Jun',k:142},{m:'Jul',k:136},{m:'Aug',k:131}];
-const mtbfD     = [{m:'Jan',v:290},{m:'Feb',v:305},{m:'Mar',v:298},{m:'Apr',v:312},{m:'May',v:320},{m:'Jun',v:330},{m:'Jul',v:338},{m:'Aug',v:342}];
-const mttrD     = [{m:'Jan',v:3.2},{m:'Feb',v:3.0},{m:'Mar',v:2.9},{m:'Apr',v:2.8},{m:'May',v:2.7},{m:'Jun',v:2.5},{m:'Jul',v:2.4},{m:'Aug',v:2.3}];
-
-// ─── Mini components ──────────────────────────────────────────────────────────
-const Tip = ({ active, payload, label }: any) => {
-  if (!active || !payload?.length) return null;
+function Section({ icon, title, link, onLink, children, right }: { icon: React.ReactNode; title: string; link?: string; onLink?: () => void; children: React.ReactNode; right?: React.ReactNode }) {
   return (
-    <div style={{ background:'#fff', border:'1px solid #E5E7EB', borderRadius:10, padding:'10px 14px',
-      boxShadow:'0 4px 16px rgba(0,0,0,0.10)', fontSize:12 }}>
-      {label && <div style={{ fontWeight:700, color:'#374151', marginBottom:5 }}>{label}</div>}
-      {payload.map((p:any, i:number) => (
-        <div key={i} style={{ color:p.color||'#374151', fontWeight:600 }}>{p.name}: {p.value}</div>
-      ))}
-    </div>
-  );
-};
-
-const PrioBadge = ({ p }: { p:string }) => {
-  const m: Record<string,any> = {
-    Critical:{bg:'#FEF2F2',tc:'#EF4444'}, High:{bg:'#FFF7ED',tc:'#F97316'},
-    Medium:{bg:'#FFFBEB',tc:'#F59E0B'},   Low:{bg:'#F0FDF4',tc:'#22C55E'},
-  };
-  const c = m[p]||m.Low;
-  return <span style={{ fontSize:10,fontWeight:800,padding:'2px 9px',borderRadius:20,background:c.bg,color:c.tc,border:`1px solid ${c.tc}40` }}>{p}</span>;
-};
-
-const StatBadge = ({ s }: { s:string }) => {
-  const m: Record<string,any> = {
-    Open:{bg:'#EFF6FF',tc:'#3B82F6'}, 'In Progress':{bg:'#FFFBEB',tc:'#F59E0B'},
-    'On Hold':{bg:'#FEF2F2',tc:'#EF4444'}, Completed:{bg:'#F0FDF4',tc:'#22C55E'},
-  };
-  const c = m[s]||m.Open;
-  return <span style={{ fontSize:10,fontWeight:800,padding:'2px 9px',borderRadius:20,background:c.bg,color:c.tc,border:`1px solid ${c.tc}40` }}>{s}</span>;
-};
-
-function EquipBadge({ gradient, icon, w=78, h=68 }: { gradient:string; icon:React.ReactNode; w?:number; h?:number }) {
-  return (
-    <div style={{ width:w, height:h, borderRadius:12, background:gradient, flexShrink:0, display:'flex',
-      alignItems:'center', justifyContent:'center', position:'relative', overflow:'hidden',
-      boxShadow:'0 4px 14px rgba(0,0,0,0.18)' }}>
-      <div style={{ position:'absolute', top:-10, right:-10, width:34, height:34, borderRadius:'50%', background:'rgba(255,255,255,0.18)' }}/>
-      <div style={{ position:'absolute', bottom:-8, left:-8, width:26, height:26, borderRadius:'50%', background:'rgba(255,255,255,0.10)' }}/>
-      <div style={{ color:'#fff', position:'relative', zIndex:1, opacity:0.96 }}>{icon}</div>
-    </div>
-  );
-}
-
-function SectionTitle({ icon, label, action }: { icon:React.ReactNode; label:string; action?:string }) {
-  return (
-    <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:16 }}>
-      <div style={{ display:'flex', alignItems:'center', gap:8 }}>
-        <span style={{ color:'#374151' }}>{icon}</span>
-        <span style={{ fontSize:14, fontWeight:800, color:'#1E293B' }}>{label}</span>
+    <div style={{ ...CARD, padding: 16, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+        <span style={{ color: '#374151', display: 'flex' }}>{icon}</span>
+        <span style={{ fontSize: 14, fontWeight: 800, color: '#1E293B' }}>{title}</span>
+        {right}
+        {link && onLink && (
+          <span onClick={onLink} style={{ marginLeft: 'auto', fontSize: 11, color: '#3B82F6', fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 2 }}>
+            {link} <ChevronRight size={12}/>
+          </span>
+        )}
       </div>
-      {action && <span style={{ fontSize:11, color:'#3B82F6', fontWeight:700, cursor:'pointer', display:'flex', alignItems:'center', gap:2 }}>{action} <ChevronRight size={12}/></span>}
+      {children}
     </div>
   );
 }
+const Empty = ({ text }: { text: string }) => <div style={{ padding: '22px 8px', textAlign: 'center', color: '#9CA3AF', fontSize: 12 }}>{text}</div>;
 
-// ─── Dashboard ────────────────────────────────────────────────────────────────
 export default function Dashboard() {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const [orgPositions,  setOrgPositions]  = useState<any[]>([]);
-  const [dashJobs,      setDashJobs]      = useState<any[]>([]);
-  const [dashFollowups, setDashFollowups] = useState<any[]>([]);
-  const [liveCostData,  setLiveCostData]  = useState<any[]>([]);
+  const go = (path: string) => { if (canSeePage(user?.role, path)) navigate(path); };
+  const canGo = (path: string) => canSeePage(user?.role, path);
 
-  useEffect(() => {
-    apiFetch('/api/org-positions').then(d => setOrgPositions(Array.isArray(d) ? d : [])).catch(() => {});
-    apiFetch('/api/pending-jobs').then(d => {
-      if (Array.isArray(d)) {
-        const active = d.filter((j: any) => j.status !== 'Completed')
-          .sort((a: any, b: any) => {
-            const ai = DASH_AREA_LIST.indexOf(a.asset || ''); const bi = DASH_AREA_LIST.indexOf(b.asset || '');
-            return (ai === -1 ? 999 : ai) - (bi === -1 ? 999 : bi);
-          });
-        setDashJobs(active.slice(0, 5));
-      }
-    }).catch(() => {});
-    apiFetch('/api/followup-jobs').then(d => {
-      if (Array.isArray(d)) setDashFollowups(d.filter((f: any) => f.status !== 'Completed' && f.status !== 'Cancelled').slice(0, 5));
-    }).catch(() => {});
+  const [loading, setLoading] = useState(true);
+  const [jobs, setJobs] = useState<any[]>([]);
+  const [followups, setFollowups] = useState<any[]>([]);
+  const [reminders, setReminders] = useState<any[]>([]);
+  const [purchases, setPurchases] = useState<any[]>([]);
+  const [team, setTeam] = useState<any[]>([]);
+  const [attMonth, setAttMonth] = useState<any[]>([]);
+  const [org, setOrg] = useState<any[]>([]);
+  const [outDash, setOutDash] = useState<any>({});
+  const [rentalEntries, setRentalEntries] = useState<any[]>([]);
+  const [accEntries, setAccEntries] = useState<any[]>([]);
 
-    // ── Finance cost data (E&I Costing + Purchase) ──────────────────────────
-    const yr   = new Date().getFullYear();
-    const from = `${yr}-01-01`;
-    const to   = `${yr}-12-31`;
-    const MON  = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-    // Pre-seed all 12 months with zero so the full year always shows
-    const map: Record<string, { m:string; outsource:number; rental:number; purchase:number }> = {};
-    for (let i = 1; i <= 12; i++) {
-      map[`${yr}-${String(i).padStart(2,'0')}`] = { m: MON[i - 1], outsource: 0, rental: 0, purchase: 0 };
-    }
+  const load = () => {
+    setLoading(true);
+    const yr = NOW.getFullYear(), from = `${yr}-01-01`, to = `${yr}-12-31`;
+    const arr = (d: any) => (Array.isArray(d) ? d : []);
     Promise.all([
+      apiFetch('/api/pending-jobs').then(arr).catch(() => []),
+      apiFetch('/api/followup-jobs').then(arr).catch(() => []),
+      apiFetch('/api/reminders').then(arr).catch(() => []),
+      apiFetch('/api/purchase-followup').then(arr).catch(() => []),
+      apiFetch('/api/attendance/team').then(arr).catch(() => []),
+      apiFetch(`/api/attendance?year=${yr}&month=${NOW.getMonth() + 1}`).then(arr).catch(() => []),
+      apiFetch('/api/org-positions').then(arr).catch(() => []),
       apiFetch('/api/outsource/dashboard').catch(() => ({})),
-      apiFetch(`/api/equipment-entries?from=${from}&to=${to}&limit=2000`).catch(() => ({ entries: [] })),
-      apiFetch(`/api/accessories?from=${from}&to=${to}&limit=2000`).catch(() => ({ entries: [] })),
-      apiFetch('/api/purchase-followup').catch(() => []),
-    ]).then(([outDash, eqData, accData, purData]) => {
-      const slot = (monthNum: number, year: number) => {
-        const key = `${year}-${String(monthNum).padStart(2,'0')}`;
-        if (!map[key]) map[key] = { m: MON[monthNum - 1], outsource: 0, rental: 0, purchase: 0 };
-        return map[key];
-      };
-      (outDash.monthlyCostTrend || []).forEach((e: any) => {
-        slot(e._id.month, e._id.year).outsource += e.totalCost || 0;
-      });
-      (eqData.entries || []).forEach((e: any) => {
-        if (!e.workDate) return;
-        const d = new Date(e.workDate);
-        slot(d.getMonth() + 1, d.getFullYear()).rental += e.totalCost || 0;
-      });
-      (accData.entries || []).forEach((e: any) => {
-        if (!e.entryDate) return;
-        const d = new Date(e.entryDate);
-        slot(d.getMonth() + 1, d.getFullYear()).rental += e.totalCost || 0;
-      });
-      (Array.isArray(purData) ? purData : []).forEach((rec: any) => {
-        if (!['Payment Done','Partial Payment Done'].includes(rec.paymentStatus)) return;
-        const hist = rec.paymentHistory || [];
-        if (hist.length > 0) {
-          hist.forEach((tx: any) => {
-            if (!tx.date) return;
-            const d = new Date(tx.date);
-            if (d.getFullYear() === yr) slot(d.getMonth() + 1, yr).purchase += tx.amount || 0;
-          });
-        } else {
-          const ds = rec.receivedDate || rec.requestDate || '';
-          if (!ds) return;
-          const d = new Date(ds);
-          if (d.getFullYear() === yr) slot(d.getMonth() + 1, yr).purchase += rec.budget || 0;
-        }
-      });
-      const result = Object.entries(map)
-        .sort(([a], [b]) => a.localeCompare(b))
-        .map(([, v]) => ({
-          m:        v.m,
-          outsource: Math.round(v.outsource / 1000),
-          rental:    Math.round(v.rental    / 1000),
-          purchase:  Math.round(v.purchase  / 1000),
-        }));
-      setLiveCostData(result);
-    });
-  }, []);
+      apiFetch(`/api/equipment-entries?from=${from}&to=${to}&limit=2000`).then((d: any) => d?.entries || []).catch(() => []),
+      apiFetch(`/api/accessories?from=${from}&to=${to}&limit=2000`).then((d: any) => d?.entries || []).catch(() => []),
+    ]).then(([j, f, r, p, t, a, o, od, re, ac]) => {
+      setJobs(j); setFollowups(f); setReminders(r); setPurchases(p); setTeam(t); setAttMonth(a);
+      setOrg(o); setOutDash(od || {}); setRentalEntries(re); setAccEntries(ac);
+    }).finally(() => setLoading(false));
+  };
+  useEffect(load, []);
 
-  // Mirror exact logic from OrgChartSummary
+  // ── Job Tracker (E&I) ──
+  const J = useMemo(() => {
+    const ei = jobs.filter(isEI);
+    const open = ei.filter(isOpenJob);
+    const due = (j: any) => parseDay(j.dueDate);
+    const overdue = open.filter(j => { const d = due(j); return d && d < today0; });
+    const thisWeek = open.filter(j => { const d = due(j); return d && d >= today0 && d <= weekEnd; });
+    const noDate = open.filter(j => !due(j));
+    const y = NOW.getFullYear(), m = NOW.getMonth();
+    const lm = new Date(y, m - 1, 1);
+    const doneThis = ei.filter(j => j.status === 'Completed' && sameMonth(parseDay(j.completedDate), y, m)).length;
+    const doneLast = ei.filter(j => j.status === 'Completed' && sameMonth(parseDay(j.completedDate), lm.getFullYear(), lm.getMonth())).length;
+    const byStatus = Object.entries(open.reduce((acc: Record<string, number>, j) => { acc[j.status || 'Open'] = (acc[j.status || 'Open'] || 0) + 1; return acc; }, {}))
+      .map(([name, v]) => ({ name, v, c: JOB_STATUS_COLOR[name] || '#94A3B8' })).sort((a, b) => b.v - a.v);
+    const byArea = Object.entries(open.reduce((acc: Record<string, number>, j) => { const k = j.asset || 'Other'; acc[k] = (acc[k] || 0) + 1; return acc; }, {}))
+      .map(([name, v]) => ({ name, v })).sort((a, b) => b.v - a.v).slice(0, 7);
+    const focus = [...overdue, ...thisWeek].sort((a, b) => (a.dueDate || '').localeCompare(b.dueDate || ''));
+    return { open, overdue, thisWeek, noDate, doneThis, doneLast, byStatus, byArea, focus };
+  }, [jobs]);
+
+  // ── Purchase Status ──
+  const P = useMemo(() => {
+    const recs = purchases.map(r => ({ ...r, currentStatus: normaliseStatus(r.currentStatus || '') }));
+    const pending = recs.filter(r => r.currentStatus !== 'Material Received' && !isRejected(r.currentStatus));
+    const steps = STATUS_FLOW.slice(0, -1).map((st, i) => ({ name: `${i + 1}. ${st}`, short: st, v: pending.filter(r => r.currentStatus === st).length, c: STATUS_XLS[st] }));
+    const noStatus = pending.filter(r => !r.currentStatus).length;
+    const age = (r: any) => { const d = parseDay(r.requestDate); return d ? Math.round((today0.getTime() - d.getTime()) / DAY) : 0; };
+    const oldest = [...pending].sort((a, b) => age(b) - age(a)).slice(0, 5).map(r => ({ ...r, age: age(r) }));
+    const y = NOW.getFullYear(), m = NOW.getMonth();
+    const receivedAt = (r: any) => {
+      const h = (r.statusHistory || []).filter((x: any) => normaliseStatus(x.status) === 'Material Received').map((x: any) => new Date(x.at));
+      return h.length ? h.sort((a: Date, b: Date) => a.getTime() - b.getTime())[0] : parseDay(r.receivedDate);
+    };
+    const receivedThisMonth = recs.filter(r => r.currentStatus === 'Material Received' && sameMonth(receivedAt(r), y, m)).length;
+    const budgetPending = pending.reduce((s, r) => s + (r.budget || 0), 0);
+    const avgAge = pending.length ? Math.round(pending.reduce((s, r) => s + age(r), 0) / pending.length) : 0;
+    return { pending, steps, noStatus, oldest, receivedThisMonth, budgetPending, avgAge, totalReceived: recs.filter(r => r.currentStatus === 'Material Received').length };
+  }, [purchases]);
+
+  // ── Attendance today ──
+  const A = useMemo(() => {
+    const dayNo = NOW.getDate();
+    const idKey = (s: string) => { const m = String(s || '').toUpperCase().replace(/[^A-Z0-9]/g, '').match(/^([A-Z]*)0*(\d+)$/); return m ? m[1] + m[2] : String(s); };
+    const codeByEmp = new Map<string, string>();
+    attMonth.forEach((r: any) => codeByEmp.set(idKey(r.empId), (r.entries || []).find((e: any) => e.day === dayNo)?.code || ''));
+    const people = team.map((t: any) => ({ name: t.empName, role: t.role, code: codeByEmp.get(idKey(t.empId)) || '' }));
+    const present = people.filter(p => WORK_CODES.has(p.code));
+    const leave = people.filter(p => LEAVE_CODES.has(p.code));
+    const off = people.filter(p => p.code === 'WO' || p.code === 'NH');
+    const notMarked = people.filter(p => !p.code);
+    const shifts = ['A', 'B', 'C', 'PR'].map(c => ({ c, n: present.filter(p => p.code === c).length })).filter(x => x.n);
+    return { people, present, leave, off, notMarked, shifts };
+  }, [team, attMonth]);
+
+  // ── Costs (Outsource + Rental + Purchase payments) ──
+  const C = useMemo(() => {
+    const yr = NOW.getFullYear(), m = NOW.getMonth();
+    const months = MON.map(mm => ({ m: mm, outsource: 0, rental: 0, purchase: 0 }));
+    (outDash.monthlyCostTrend || []).forEach((e: any) => { if (e?._id?.year === yr && months[e._id.month - 1]) months[e._id.month - 1].outsource += e.totalCost || 0; });
+    rentalEntries.forEach((e: any) => { const d = e.workDate ? new Date(e.workDate) : null; if (d && d.getFullYear() === yr) months[d.getMonth()].rental += e.totalCost || 0; });
+    accEntries.forEach((e: any) => { const d = e.entryDate ? new Date(e.entryDate) : null; if (d && d.getFullYear() === yr) months[d.getMonth()].rental += e.totalCost || 0; });
+    purchases.forEach((r: any) => (r.paymentHistory || []).forEach((tx: any) => { const d = tx.date ? new Date(tx.date) : null; if (d && d.getFullYear() === yr) months[d.getMonth()].purchase += tx.amount || 0; }));
+    const thisM = months[m];
+    const chart = months.slice(0, m + 1).map(x => ({ m: x.m, outsource: Math.round(x.outsource / 100) / 10, rental: Math.round(x.rental / 100) / 10, purchase: Math.round(x.purchase / 100) / 10 }));
+    const yearTotal = months.reduce((s, x) => s + x.outsource + x.rental + x.purchase, 0);
+    return { thisM, monthTotal: thisM.outsource + thisM.rental, chart, yearTotal, hasData: yearTotal > 0 };
+  }, [outDash, rentalEntries, accEntries, purchases]);
+
+  // ── Follow-ups & reminders ──
+  const F = useMemo(() => followups.filter(f => f.status !== 'Completed' && f.status !== 'Cancelled')
+    .sort((a, b) => (a.nextFollowupDate || '9').localeCompare(b.nextFollowupDate || '9')).slice(0, 5), [followups]);
+  const R = useMemo(() => reminders.filter(r => r.status !== 'Completed').filter(r => { const d = parseDay(r.dueDate); return d && d.getTime() <= today0.getTime() + 7 * DAY; })
+    .sort((a, b) => (a.dueDate || '').localeCompare(b.dueDate || '')).slice(0, 5), [reminders]);
+
+  // ── Staffing (Org Chart) ──
   const getRS = (p: any) => p.recruitmentStatus || (p.personName?.trim() ? 'joined' : 'pending');
-  const total       = orgPositions.length;
-  const joinedCount = orgPositions.filter(p => getRS(p) === 'joined').length;
-  const readyCount  = orgPositions.filter(p => getRS(p) === 'ready_to_join').length;
-  const hrCount     = orgPositions.filter(p => getRS(p) === 'hr_process').length;
-  const pendingCount= orgPositions.filter(p => getRS(p) === 'pending').length;
-  const fillPct     = total > 0 ? +((joinedCount / total) * 100).toFixed(1) : 0;
-  const activeCount = joinedCount; // kept for banner compatibility
-  const pct = (n: number) => total > 0 ? Math.round((n / total) * 100) : 0;
-
-  const STAFFING = [
-    { label:'Total Positions', value: total,        pct: 100,            color:'#3B82F6', bg:'#EFF6FF', border:'#BFDBFE', icon:<Users size={20}/> },
-    { label:'Joined',          value: joinedCount,  pct: pct(joinedCount), color:'#22C55E', bg:'#F0FDF4', border:'#BBF7D0', icon:<CheckCircle size={20}/> },
-    { label:'Ready to Join',   value: readyCount,   pct: pct(readyCount),  color:'#06B6D4', bg:'#ECFEFF', border:'#A5F3FC', icon:<Clock size={20}/> },
-    { label:'HR Process',      value: hrCount,      pct: pct(hrCount),     color:'#8B5CF6', bg:'#F5F3FF', border:'#DDD6FE', icon:<FileText size={20}/> },
-    { label:'Pending',         value: pendingCount, pct: pct(pendingCount),color:'#EF4444', bg:'#FEF2F2', border:'#FECACA', icon:<AlertTriangle size={20}/> },
+  const pct = (n: number) => (org.length ? Math.round((n / org.length) * 100) : 0);
+  const STAFF = [
+    { label: 'Total Positions', v: org.length, color: '#3B82F6', bg: '#EFF6FF', icon: <Users size={18}/> },
+    { label: 'Joined', v: org.filter(p => getRS(p) === 'joined').length, color: '#22C55E', bg: '#F0FDF4', icon: <CheckCircle size={18}/> },
+    { label: 'Ready to Join', v: org.filter(p => getRS(p) === 'ready_to_join').length, color: '#06B6D4', bg: '#ECFEFF', icon: <Clock size={18}/> },
+    { label: 'HR Process', v: org.filter(p => getRS(p) === 'hr_process').length, color: '#8B5CF6', bg: '#F5F3FF', icon: <FileText size={18}/> },
+    { label: 'Pending', v: org.filter(p => getRS(p) === 'pending').length, color: '#EF4444', bg: '#FEF2F2', icon: <AlertTriangle size={18}/> },
   ];
 
+  const KPIS = [
+    { label: 'Open E&I Jobs', value: J.open.length, color: '#3B82F6', icon: <ClipboardList size={20}/>, path: '/job-tracker',
+      sub: <><b style={{ color: J.overdue.length ? '#DC2626' : '#16A34A' }}>{J.overdue.length} overdue</b> · {J.thisWeek.length} due this week</> },
+    { label: 'Jobs Completed', value: J.doneThis, color: '#16A34A', icon: <CheckCircle2 size={20}/>, path: '/job-tracker',
+      sub: <>this month · last month {J.doneLast}</> },
+    { label: 'Pending Purchases', value: P.pending.length, color: '#F59E0B', icon: <ShoppingCart size={20}/>, path: '/purchase/followup',
+      sub: <>avg {P.avgAge} days open · {aedK(P.budgetPending)}</> },
+    { label: 'Material Received', value: P.receivedThisMonth, color: '#0D9488', icon: <PackageCheck size={20}/>, path: '/purchase/followup',
+      sub: <>this month · {P.totalReceived} received in total</> },
+    { label: "Today's Attendance", value: A.people.length ? `${A.present.length}/${A.people.length}` : 'Nil', color: '#6366F1', icon: <CalendarCheck size={20}/>, path: '/attendance',
+      sub: <>{A.leave.length} on leave · <b style={{ color: A.notMarked.length ? '#DC2626' : '#64748B' }}>{A.notMarked.length} not marked</b></> },
+    { label: 'Cost This Month', value: aedK(C.monthTotal), color: '#EC4899', icon: <DollarSign size={20}/>, path: '/contractor/report',
+      sub: <>Outsource {aedK(C.thisM.outsource)} · Rental {aedK(C.thisM.rental)}</> },
+  ];
+
+  const th: React.CSSProperties = { padding: '7px 8px', textAlign: 'left', fontSize: 9, fontWeight: 800, color: '#6B7280', textTransform: 'uppercase', letterSpacing: 0.6, borderBottom: '2px solid #F1F5F9', whiteSpace: 'nowrap' };
+  const td: React.CSSProperties = { padding: '8px', fontSize: 12, borderBottom: '1px solid #F8FAFC', color: '#374151' };
+
   return (
-    <div style={{ background:PAGE_BG, margin:'-20px -24px', padding:'24px 28px', minHeight:'calc(100vh - 60px)', fontFamily:"'Inter','Segoe UI',system-ui,sans-serif", color:'#111827' }}>
+    <div style={{ background: '#F0F4F8', margin: '-20px -24px', padding: '24px 28px', minHeight: 'calc(100vh - 60px)', fontFamily: "'Inter','Segoe UI',system-ui,sans-serif", color: '#111827' }}>
 
-      {/* ══ HEADER ══════════════════════════════════════════════════════════════ */}
-      <div style={{ ...CARD, marginBottom:22, overflow:'hidden', background:'#fff' }}>
-        {/* Blue top accent bar */}
-        <div style={{ height:4, background:'linear-gradient(90deg,#1E40AF,#3B82F6,#06B6D4,#22C55E)' }}/>
-        <div style={{ padding:'18px 24px', display:'flex', justifyContent:'space-between', alignItems:'center', flexWrap:'wrap', gap:16 }}>
-          <div style={{ display:'flex', alignItems:'center', gap:18 }}>
-            {/* Logo circle */}
-            <div style={{ width:52, height:52, borderRadius:14, background:'linear-gradient(135deg,#1E40AF,#3B82F6)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:22, color:'#fff', fontWeight:900, flexShrink:0, boxShadow:'0 4px 12px rgba(59,130,246,0.35)' }}>
-              ⚡
-            </div>
-            <div>
-              <div style={{ fontSize:11, color:'#9CA3AF', fontWeight:700, textTransform:'uppercase', letterSpacing:1, marginBottom:3 }}>
-                {DEPT_NAME} Maintenance Management System
-              </div>
-              <div style={{ fontSize:20, fontWeight:900, color:'#1E293B', lineHeight:1.2 }}>
-                {greet}, {user?.name || 'Mr. Rabin'} 👋
-              </div>
-              <div style={{ display:'flex', gap:18, marginTop:7, flexWrap:'wrap' }}>
-                {[
-                  { icon:<Calendar size={12}/>, label:dateLbl },
-                  { icon:<Clock size={12}/>,    label:shift },
-                  { icon:<Building2 size={12}/>,label: COMPANY_NAME },
-                  { icon:<MapPin size={12}/>,   label: COMPANY_LOC  },
-                ].map((x,i) => (
-                  <span key={i} style={{ fontSize:11, color:'#6B7280', display:'flex', alignItems:'center', gap:5, fontWeight:500 }}>
-                    <span style={{ color:'#9CA3AF' }}>{x.icon}</span>{x.label}
-                  </span>
-                ))}
-              </div>
+      {/* ══ HEADER ══ */}
+      <div style={{ ...CARD, padding: '18px 22px', marginBottom: 14, position: 'relative', overflow: 'hidden' }}>
+        <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 4, background: 'linear-gradient(90deg,#3B82F6,#06B6D4)' }}/>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap' }}>
+          <div style={{ width: 48, height: 48, borderRadius: 14, background: 'linear-gradient(135deg,#3B82F6,#1D4ED8)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff' }}><Zap size={22}/></div>
+          <div>
+            <div style={{ fontSize: 10, fontWeight: 700, color: '#94A3B8', letterSpacing: 1.5, textTransform: 'uppercase' }}>{DEPT_NAME} Maintenance Management System</div>
+            <div style={{ fontSize: 21, fontWeight: 800, color: '#0F172A' }}>{greet}, {user?.name || 'there'} 👋</div>
+            <div style={{ display: 'flex', gap: 14, fontSize: 11, color: '#64748B', marginTop: 2, flexWrap: 'wrap' }}>
+              <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}><Calendar size={12}/>{dateLbl}</span>
+              <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}><Clock size={12}/>{shiftLbl}</span>
+              <span>{COMPANY_NAME} · {COMPANY_LOC}</span>
             </div>
           </div>
-
-          <div style={{ display:'flex', gap:10, alignItems:'center', flexWrap:'wrap' }}>
-            {/* Alert badges */}
-            <div style={{ display:'flex', alignItems:'center', gap:7, background:'#FEF2F2', border:'1px solid #FECACA', borderRadius:10, padding:'8px 14px', cursor:'pointer' }}>
-              <AlertTriangle size={13} color="#EF4444"/>
-              <span style={{ fontSize:12, fontWeight:700, color:'#EF4444' }}>3 Active Breakdowns</span>
-            </div>
-            <div style={{ display:'flex', alignItems:'center', gap:7, background:'#FFFBEB', border:'1px solid #FDE68A', borderRadius:10, padding:'8px 14px', cursor:'pointer' }}>
-              <Calendar size={13} color="#F59E0B"/>
-              <span style={{ fontSize:12, fontWeight:700, color:'#F59E0B' }}>7 PM Due Today</span>
-            </div>
-            {/* Bell */}
-            <div style={{ position:'relative', cursor:'pointer' }}>
-              <div style={{ width:40, height:40, borderRadius:12, background:'#F8FAFC', border:'1px solid #E5E7EB', display:'flex', alignItems:'center', justifyContent:'center' }}>
-                <Bell size={17} color="#374151"/>
-              </div>
-              <div style={{ position:'absolute', top:-4, right:-4, width:16, height:16, background:'#EF4444', borderRadius:'50%', fontSize:9, color:'#fff', display:'flex', alignItems:'center', justifyContent:'center', fontWeight:900, border:'2px solid #fff' }}>5</div>
-            </div>
-            {/* Avatar */}
-            <div style={{ width:40, height:40, borderRadius:12, background:'linear-gradient(135deg,#1E40AF,#3B82F6)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:15, fontWeight:900, color:'#fff', cursor:'pointer', boxShadow:'0 2px 8px rgba(59,130,246,0.3)' }}>
-              {(user?.name||'R').charAt(0)}
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* ══ KPI CARDS — all 8 in one row ══════════════════════════════════════ */}
-      <div style={{ display:'grid', gridTemplateColumns:'repeat(8,1fr)', gap:10, marginBottom:16 }}>
-        {KPIS.map(k => (
-          <div key={k.id} style={{ ...CARD, padding:'12px 14px', background:k.bg, border:`1px solid ${k.border}`, position:'relative', overflow:'hidden' }}>
-            {/* Top accent line */}
-            <div style={{ position:'absolute', top:0, left:0, right:0, height:3, background:k.gradient, borderRadius:'16px 16px 0 0' }}/>
-            {/* Label row + badge */}
-            <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:8 }}>
-              <div style={{ flex:1, minWidth:0, paddingRight:6 }}>
-                <div style={{ fontSize:11, fontWeight:800, color:'#6B7280', textTransform:'uppercase', letterSpacing:0.8, lineHeight:1.3 }}>{k.label}</div>
-              </div>
-              <EquipBadge gradient={k.gradient} icon={k.icon} w={52} h={46}/>
-            </div>
-            {/* Value */}
-            <div style={{ display:'flex', alignItems:'baseline', gap:4, marginBottom:8 }}>
-              <span style={{ fontSize:30, fontWeight:900, color:k.color, lineHeight:1, letterSpacing:-1 }}>{k.value}</span>
-              <span style={{ fontSize:14, color:'#6B7280', fontWeight:700 }}>{k.unit}</span>
-            </div>
-            {/* Trend */}
-            <div style={{ display:'flex', alignItems:'center', gap:4, padding:'3px 7px', background:'rgba(255,255,255,0.75)', borderRadius:7, width:'fit-content' }}>
-              {k.trend === 'up'
-                ? <ArrowUpRight size={12} color="#22C55E"/>
-                : <ArrowDownRight size={12} color="#EF4444"/>}
-              <span style={{ fontSize:11, fontWeight:800, color:k.trend==='up'?'#22C55E':'#EF4444' }}>{k.trendVal}</span>
-            </div>
-            {/* Equip label */}
-            <div style={{ position:'absolute', bottom:5, right:8, fontSize:8, color:'#9CA3AF', fontStyle:'italic' }}>{k.equip}</div>
-          </div>
-        ))}
-      </div>
-
-      {/* ══ STATUS CARDS ════════════════════════════════════════════════════════ */}
-      <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:10, marginBottom:16 }}>
-        {STATUS_CARDS.map((s,i) => (
-          <div key={i} style={{ ...CARD, padding:'14px 18px', display:'flex', alignItems:'center', gap:14,
-            borderLeft:`4px solid ${s.borderLeft}`, background:s.bg, border:`1px solid ${s.border}`,
-            borderLeftColor:s.borderLeft, position:'relative', overflow:'hidden' }}>
-            <div style={{ width:46, height:46, borderRadius:13, background:`${s.color}18`, display:'flex', alignItems:'center', justifyContent:'center', color:s.color, flexShrink:0 }}>
-              {s.icon}
-            </div>
-            <div>
-              <div style={{ fontSize:32, fontWeight:900, color:s.color, lineHeight:1, letterSpacing:-1 }}>{s.value}</div>
-              <div style={{ fontSize:13, fontWeight:700, color:'#374151', marginTop:3 }}>{s.label}</div>
-              <div style={{ fontSize:11, color:'#6B7280', marginTop:2 }}>{s.sub}</div>
-            </div>
-          </div>
-        ))}
-      </div>
-
-      {/* ══ STAFFING STRIP ══════════════════════════════════════════════════════ */}
-      <div style={{ display:'grid', gridTemplateColumns:'repeat(5,1fr)', gap:10, marginBottom:16 }}>
-        {STAFFING.map((s,i) => (
-          <div key={i}
-            onClick={() => navigate('/org-chart/summary')}
-            style={{ ...CARD, padding:'16px 20px', border:`1px solid ${s.border}`, background:s.bg,
-              cursor:'pointer', transition:'all 0.18s', display:'flex', alignItems:'center', gap:14,
-              borderLeft:`4px solid ${s.color}` }}
-            onMouseOver={e => { e.currentTarget.style.boxShadow='0 4px 16px rgba(0,0,0,0.10)'; e.currentTarget.style.transform='translateY(-2px)'; }}
-            onMouseOut={e => { e.currentTarget.style.boxShadow=''; e.currentTarget.style.transform=''; }}
-          >
-            {/* Icon badge */}
-            <div style={{ width:46, height:46, borderRadius:13, background:`${s.color}20`, display:'flex', alignItems:'center', justifyContent:'center', color:s.color, flexShrink:0 }}>
-              {s.icon}
-            </div>
-            <div style={{ flex:1, minWidth:0 }}>
-              <div style={{ fontSize:28, fontWeight:900, color:s.color, lineHeight:1, letterSpacing:-1 }}>{s.value}</div>
-              <div style={{ fontSize:12, fontWeight:700, color:'#374151', marginTop:3 }}>{s.label}</div>
-              {i > 0 && (
-                <div style={{ fontSize:11, color:s.color, fontWeight:700, marginTop:2 }}>{s.pct}%</div>
-              )}
-            </div>
-          </div>
-        ))}
-      </div>
-
-      {/* ══ MIDDLE ROW ══════════════════════════════════════════════════════════ */}
-      <div style={{ display:'grid', gridTemplateColumns:'1fr 220px 240px', gap:10, marginBottom:16, alignItems:'start' }}>
-
-        {/* Project Financials */}
-        <div style={{ ...CARD, padding:'16px' }}>
-          <SectionTitle icon={<DollarSign size={15}/>} label="Project Financials" action="Full Report"/>
-          {/* Summary tiles */}
-          <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:10, marginBottom:18 }}>
-            {[
-              {label:'Total Budget', value:'AED 850K', color:'#3B82F6', bg:'#EFF6FF', icon:<DollarSign size={16}/>},
-              {label:'Total Spent',  value:'AED 581K', color:'#F59E0B', bg:'#FFFBEB', icon:<TrendingUp size={16}/>},
-              {label:'Remaining',    value:'AED 269K', color:'#22C55E', bg:'#F0FDF4', icon:<BarChart3 size={16}/>},
-            ].map((f,i) => (
-              <div key={i} style={{ background:f.bg, borderRadius:14, padding:'14px', textAlign:'center', border:`1px solid ${f.color}20` }}>
-                <div style={{ color:f.color, marginBottom:6, display:'flex', justifyContent:'center' }}>{f.icon}</div>
-                <div style={{ fontSize:16, fontWeight:900, color:f.color }}>{f.value}</div>
-                <div style={{ fontSize:9, color:'#6B7280', marginTop:3, fontWeight:700, textTransform:'uppercase', letterSpacing:0.6 }}>{f.label}</div>
-              </div>
-            ))}
-          </div>
-          {/* Horizontal bars */}
-          <div style={{ marginBottom:16 }}>
-            {[
-              {label:'Total Budget',value:100,color:'#3B82F6',display:'AED 850K'},
-              {label:'Spent',       value:68.4,color:'#F59E0B',display:'AED 581K'},
-              {label:'Remaining',   value:31.6,color:'#22C55E',display:'AED 269K'},
-            ].map((b,i) => (
-              <div key={i} style={{ marginBottom:10 }}>
-                <div style={{ display:'flex', justifyContent:'space-between', fontSize:11, marginBottom:4 }}>
-                  <span style={{ color:'#374151', fontWeight:600 }}>{b.label}</span>
-                  <span style={{ color:b.color, fontWeight:800 }}>{b.display}</span>
-                </div>
-                <div style={{ height:6, background:'#F3F4F6', borderRadius:99, overflow:'hidden' }}>
-                  <div style={{ height:'100%', width:`${b.value}%`, background:b.color, borderRadius:99 }}/>
-                </div>
-              </div>
-            ))}
-          </div>
-          {/* Stacked bar chart */}
-          <div style={{ height:140 }}>
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={liveCostData} barSize={20} barGap={2}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#F3F4F6" vertical={false}/>
-                <XAxis dataKey="m" tick={{fill:'#9CA3AF',fontSize:10}} axisLine={false} tickLine={false}/>
-                <YAxis tick={{fill:'#9CA3AF',fontSize:10}} axisLine={false} tickLine={false} tickFormatter={v=>`${v}K`}/>
-                <Tooltip content={<Tip/>} formatter={(v:any)=>`AED ${v}K`}/>
-                <Bar dataKey="outsource" name="Outsource" stackId="a" fill="#3B82F6"/>
-                <Bar dataKey="rental"    name="Rental"    stackId="a" fill="#8B5CF6"/>
-                <Bar dataKey="purchase"  name="Purchase"  stackId="a" fill="#22C55E" radius={[4,4,0,0]}/>
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-          <div style={{ display:'flex', gap:16, marginTop:8, justifyContent:'center' }}>
-            {[{c:'#3B82F6',l:'Outsource'},{c:'#8B5CF6',l:'Rental'},{c:'#22C55E',l:'Purchase'}].map((x,i)=>(
-              <div key={i} style={{ display:'flex', alignItems:'center', gap:5 }}>
-                <div style={{ width:10,height:4,borderRadius:2,background:x.c }}/>
-                <span style={{ fontSize:10,color:'#6B7280' }}>{x.l}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Maintenance Progress */}
-        <div style={{ ...CARD, padding:'16px' }}>
-          <SectionTitle icon={<BarChart2 size={15}/>} label="Maintenance" />
-          <div style={{ textAlign:'center', marginBottom:14 }}>
-            <div style={{ height:120, position:'relative' }}>
-              <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Pie data={MAINT} cx="50%" cy="50%" innerRadius={34} outerRadius={52} dataKey="value" paddingAngle={3}>
-                    {MAINT.map((m,i)=><Cell key={i} fill={m.color}/>)}
-                  </Pie>
-                  <Tooltip content={<Tip/>}/>
-                </PieChart>
-              </ResponsiveContainer>
-              <div style={{ position:'absolute', top:'50%', left:'50%', transform:'translate(-50%,-50%)', textAlign:'center', pointerEvents:'none' }}>
-                <div style={{ fontSize:20,fontWeight:900,color:'#1E293B' }}>100</div>
-                <div style={{ fontSize:9,color:'#6B7280' }}>Work Orders</div>
-              </div>
-            </div>
-          </div>
-          {MAINT.map((m,i)=>(
-            <div key={i} style={{ marginBottom:10 }}>
-              <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:4 }}>
-                <div style={{ display:'flex', alignItems:'center', gap:7 }}>
-                  <div style={{ width:8,height:8,borderRadius:'50%',background:m.color }}/>
-                  <span style={{ fontSize:11,color:'#374151',fontWeight:600 }}>{m.label}</span>
-                </div>
-                <div style={{ display:'flex', gap:6, alignItems:'center' }}>
-                  <span style={{ fontSize:13,fontWeight:900,color:m.color }}>{m.value}</span>
-                  <span style={{ fontSize:9,color:'#9CA3AF' }}>{m.pct}%</span>
-                </div>
-              </div>
-              <div style={{ height:5,background:'#F3F4F6',borderRadius:99,overflow:'hidden' }}>
-                <div style={{ height:'100%',width:`${m.pct}%`,background:m.color,borderRadius:99 }}/>
-              </div>
-            </div>
-          ))}
-        </div>
-
-        {/* Reminder Center */}
-        <div style={{ ...CARD, padding:'16px' }}>
-          <SectionTitle icon={<Bell size={15}/>} label="Reminder Center" action="All"/>
-          <div style={{ display:'flex', flexDirection:'column', gap:9 }}>
-            {REMINDERS.map((r,i)=>(
-              <div key={i} style={{ background:r.bg, borderRadius:12, padding:'10px 12px', border:`1px solid ${r.border}`, position:'relative', overflow:'hidden' }}>
-                <div style={{ position:'absolute', top:-8,right:-8,width:30,height:30,borderRadius:'50%',background:r.color,opacity:0.08 }}/>
-                <div style={{ fontSize:9,fontWeight:900,color:r.color,textTransform:'uppercase',letterSpacing:1,marginBottom:5,display:'flex',alignItems:'center',gap:5 }}>
-                  <div style={{ width:6,height:6,borderRadius:'50%',background:r.color }}/>{r.freq}
-                </div>
-                {r.items.slice(0,2).map((item,j)=>(
-                  <div key={j} style={{ display:'flex',alignItems:'flex-start',gap:6,fontSize:10,color:'#374151',marginBottom:3 }}>
-                    <div style={{ width:3,height:3,borderRadius:'50%',background:r.color,marginTop:4,flexShrink:0 }}/>
-                    <span style={{ lineHeight:1.3 }}>{item}</span>
-                  </div>
-                ))}
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      {/* ══ JOBS & FOLLOW-UP ════════════════════════════════════════════════════ */}
-      <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10, marginBottom:14 }}>
-
-        {/* Pending Jobs */}
-        <div style={{ ...CARD, padding:'16px' }}>
-          <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:16 }}>
-            <div style={{ display:'flex', alignItems:'center', gap:8 }}>
-              <span style={{ color:'#374151' }}><ClipboardList size={15}/></span>
-              <span style={{ fontSize:14, fontWeight:800, color:'#1E293B' }}>Pending Jobs</span>
-              <span style={{ fontSize:11, color:'#9CA3AF' }}>({dashJobs.length} shown)</span>
-            </div>
-            <span onClick={() => navigate('/job-tracker')} style={{ fontSize:11, color:'#3B82F6', fontWeight:700, cursor:'pointer', display:'flex', alignItems:'center', gap:2 }}>View All <ChevronRight size={12}/></span>
-          </div>
-          <div style={{ overflowX:'auto' }}>
-            <table style={{ width:'100%', borderCollapse:'collapse' }}>
-              <thead>
-                <tr style={{ background:'#F8FAFC' }}>
-                  {['Area / Location','Description','Priority','Responsible','Status'].map(h=>(
-                    <th key={h} style={{ padding:'9px 10px',textAlign:'left',fontSize:9,fontWeight:800,color:'#6B7280',textTransform:'uppercase',letterSpacing:0.8,borderBottom:'2px solid #F1F5F9',whiteSpace:'nowrap' }}>{h}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {dashJobs.length === 0 && (
-                  <tr><td colSpan={5} style={{ padding:'24px 10px', textAlign:'center', color:'#9CA3AF', fontSize:12 }}>No active pending jobs</td></tr>
-                )}
-                {dashJobs.map((j,i)=>(
-                  <tr key={j._id||j.id} style={{ background:i%2===0?'#FAFAFA':'#FFF' }}>
-                    <td style={{ padding:'9px 10px' }}>
-                      <span style={{ display:'inline-block', padding:'2px 8px', borderRadius:6, background:'#EFF6FF', color:'#1D4ED8', fontWeight:700, fontSize:11, whiteSpace:'nowrap' }}>{j.asset || '—'}</span>
-                    </td>
-                    <td style={{ padding:'9px 10px',fontSize:11,color:'#374151',fontWeight:500,maxWidth:160,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap' }}>{j.description}</td>
-                    <td style={{ padding:'9px 10px' }}><PrioBadge p={j.priority}/></td>
-                    <td style={{ padding:'9px 10px',fontSize:11,color:'#374151' }}>{j.assignedTo || '—'}</td>
-                    <td style={{ padding:'9px 10px' }}><StatBadge s={j.status}/></td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-
-        {/* Follow-up Widget */}
-        <div style={{ ...CARD, padding:'16px' }}>
-          <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:16 }}>
-            <div style={{ display:'flex', alignItems:'center', gap:8 }}>
-              <span style={{ color:'#374151' }}><RefreshCw size={15}/></span>
-              <span style={{ fontSize:14, fontWeight:800, color:'#1E293B' }}>Follow-up Status</span>
-            </div>
-            <span onClick={() => navigate('/job-tracker')} style={{ fontSize:11, color:'#3B82F6', fontWeight:700, cursor:'pointer', display:'flex', alignItems:'center', gap:2 }}>View All <ChevronRight size={12}/></span>
-          </div>
-          <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
-            {dashFollowups.length === 0 && (
-              <div style={{ textAlign:'center', padding:'24px 0', color:'#9CA3AF', fontSize:12 }}>No open follow-ups</div>
+          <div style={{ marginLeft: 'auto', display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+            {canGo('/job-tracker') && (
+              <button onClick={() => go('/job-tracker')} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 14px', borderRadius: 10, cursor: 'pointer', fontSize: 12, fontWeight: 700,
+                border: `1px solid ${J.overdue.length ? '#FECACA' : '#BBF7D0'}`, background: J.overdue.length ? '#FEF2F2' : '#F0FDF4', color: J.overdue.length ? '#DC2626' : '#16A34A' }}>
+                <AlertTriangle size={14}/> {J.overdue.length} Overdue E&amp;I Job{J.overdue.length === 1 ? '' : 's'}
+              </button>
             )}
-            {dashFollowups.map((f)=>{
-              const progressMap: Record<string,number> = { Pending:20, 'In Progress':60, Completed:100, Cancelled:0 };
-              const colorMap: Record<string,string>   = { Pending:'#F59E0B', 'In Progress':'#3B82F6', Completed:'#22C55E', Cancelled:'#EF4444' };
-              const progress = progressMap[f.status] ?? 20;
-              const color    = colorMap[f.status]   ?? '#F59E0B';
-              const owner    = f.responsiblePerson || '?';
-              const dateStr  = f.nextFollowupDate ? new Date(f.nextFollowupDate).toLocaleDateString('en-GB',{day:'numeric',month:'short'}) : '—';
-              return (
-                <div key={f._id||f.id} style={{ background:'#FAFAFA', borderRadius:12, padding:'12px 14px', border:'1px solid #F1F5F9', display:'flex', alignItems:'center', gap:12 }}>
-                  <div style={{ width:38,height:38,borderRadius:'50%',background:`${color}20`,border:`2px solid ${color}40`,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0,fontSize:13,fontWeight:900,color }}>
-                    {owner.charAt(0).toUpperCase()}
-                  </div>
-                  <div style={{ flex:1, minWidth:0 }}>
-                    <div style={{ display:'flex', justifyContent:'space-between', marginBottom:3 }}>
-                      <span style={{ fontSize:12,fontWeight:700,color:'#374151' }}>{owner}</span>
-                      <span style={{ fontSize:10,color:'#9CA3AF' }}>{dateStr}</span>
-                    </div>
-                    <div style={{ fontSize:11,color:'#6B7280',marginBottom:6,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap' }}>{f.description}</div>
-                    <div style={{ display:'flex', alignItems:'center', gap:8 }}>
-                      <div style={{ flex:1,height:5,background:'#F3F4F6',borderRadius:99,overflow:'hidden' }}>
-                        <div style={{ height:'100%',width:`${progress}%`,background:color,borderRadius:99,transition:'width 0.4s' }}/>
-                      </div>
-                      <span style={{ fontSize:10,fontWeight:800,color,flexShrink:0 }}>{f.status}</span>
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
+            <button onClick={() => go('/purchase/followup')} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 14px', borderRadius: 10, cursor: 'pointer', fontSize: 12, fontWeight: 700, border: '1px solid #FDE68A', background: '#FFFBEB', color: '#B45309' }}>
+              <ShoppingCart size={14}/> {P.pending.length} Pending Purchase{P.pending.length === 1 ? '' : 's'}
+            </button>
+            <button onClick={load} title="Refresh" style={{ padding: '8px 10px', borderRadius: 10, cursor: 'pointer', border: '1px solid #E2E8F0', background: '#fff', color: '#64748B', display: 'flex', alignItems: 'center' }}>
+              <RefreshCw size={14} style={{ animation: loading ? 'spin 1s linear infinite' : undefined }}/>
+            </button>
           </div>
         </div>
       </div>
 
-      {/* ══ CHARTS ROW 1 ════════════════════════════════════════════════════════ */}
-      <div style={{ display:'grid', gridTemplateColumns:'1.8fr 1fr 0.85fr 0.85fr', gap:10, marginBottom:14 }}>
-
-        {/* PM Compliance Trend */}
-        <div style={{ ...CARD, padding:'16px' }}>
-          <SectionTitle icon={<TrendingUp size={15}/>} label="PM Compliance Trend"/>
-          <div style={{ display:'flex', gap:16, marginBottom:12 }}>
-            <div style={{ fontSize:28,fontWeight:900,color:'#22C55E' }}>94.2<span style={{ fontSize:14,color:'#6B7280',fontWeight:600 }}>%</span></div>
-            <div style={{ display:'flex', alignItems:'center', gap:5, background:'#F0FDF4', borderRadius:8, padding:'4px 10px' }}>
-              <ArrowUpRight size={13} color="#22C55E"/>
-              <span style={{ fontSize:11,fontWeight:800,color:'#22C55E' }}>+3.5%</span>
+      {/* ══ KPI CARDS (real data) ══ */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 10, marginBottom: 14 }}>
+        {KPIS.map(k => (
+          <div key={k.label} onClick={() => go(k.path)} title={canGo(k.path) ? 'Open module' : undefined}
+            style={{ ...CARD, padding: '14px 16px', borderTop: `3px solid ${k.color}`, cursor: canGo(k.path) ? 'pointer' : 'default' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+              <div style={{ fontSize: 10, fontWeight: 800, color: '#64748B', textTransform: 'uppercase', letterSpacing: 0.8 }}>{k.label}</div>
+              <div style={{ width: 34, height: 34, borderRadius: 10, background: `${k.color}18`, color: k.color, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{k.icon}</div>
             </div>
+            <div style={{ fontSize: 28, fontWeight: 900, color: k.color, lineHeight: 1.1, marginTop: 2 }}>{loading ? '…' : k.value}</div>
+            <div style={{ fontSize: 11, color: '#64748B', marginTop: 4 }}>{k.sub}</div>
           </div>
-          <div style={{ height:180 }}>
-            <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={pmTrend}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#F3F4F6" vertical={false}/>
-                <XAxis dataKey="m" tick={{fill:'#9CA3AF',fontSize:10}} axisLine={false} tickLine={false}/>
-                <YAxis domain={[80,100]} tick={{fill:'#9CA3AF',fontSize:10}} axisLine={false} tickLine={false}/>
-                <Tooltip content={<Tip/>}/>
-                <Line type="monotone" dataKey="tgt" name="Target" stroke="#E5E7EB" strokeDasharray="5 5" strokeWidth={1.5} dot={false}/>
-                <Line type="monotone" dataKey="pm" name="PM Compliance %" stroke="#22C55E" strokeWidth={2.5} dot={{r:3,fill:'#22C55E',strokeWidth:0}} activeDot={{r:5,fill:'#22C55E'}}/>
-              </LineChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
-
-        {/* Breakdown Analysis */}
-        <div style={{ ...CARD, padding:'16px' }}>
-          <SectionTitle icon={<AlertTriangle size={15}/>} label="Breakdown Analysis"/>
-          <div style={{ height:220 }}>
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={bkdData} layout="vertical" barSize={16}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#F3F4F6" horizontal={false}/>
-                <XAxis type="number" tick={{fill:'#9CA3AF',fontSize:10}} axisLine={false} tickLine={false}/>
-                <YAxis type="category" dataKey="cat" tick={{fill:'#374151',fontSize:10}} axisLine={false} tickLine={false} width={72}/>
-                <Tooltip content={<Tip/>}/>
-                <Bar dataKey="n" name="Count" radius={[0,8,8,0]}>
-                  {bkdData.map((d,i)=><Cell key={i} fill={d.fill}/>)}
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
-
-        {/* Equipment Health */}
-        <div style={{ ...CARD, padding:'16px' }}>
-          <SectionTitle icon={<Activity size={15}/>} label="Equipment Health"/>
-          <div style={{ height:140, position:'relative' }}>
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie data={eqHealth} cx="50%" cy="50%" innerRadius={40} outerRadius={60} dataKey="v" paddingAngle={3}>
-                  {eqHealth.map((e,i)=><Cell key={i} fill={e.c}/>)}
-                </Pie>
-                <Tooltip content={<Tip/>}/>
-              </PieChart>
-            </ResponsiveContainer>
-            <div style={{ position:'absolute',top:'50%',left:'50%',transform:'translate(-50%,-50%)',textAlign:'center',pointerEvents:'none' }}>
-              <div style={{ fontSize:20,fontWeight:900,color:'#22C55E' }}>68%</div>
-              <div style={{ fontSize:9,color:'#6B7280' }}>Good</div>
-            </div>
-          </div>
-          <div style={{ display:'flex', flexDirection:'column', gap:6, marginTop:10 }}>
-            {eqHealth.map((e,i)=>(
-              <div key={i} style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
-                <div style={{ display:'flex', gap:7, alignItems:'center' }}>
-                  <div style={{ width:8,height:8,borderRadius:'50%',background:e.c }}/>
-                  <span style={{ fontSize:11,color:'#374151',fontWeight:600 }}>{e.name}</span>
-                </div>
-                <span style={{ fontSize:12,fontWeight:800,color:e.c }}>{e.v}%</span>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* WO Status */}
-        <div style={{ ...CARD, padding:'16px' }}>
-          <SectionTitle icon={<CheckCircle size={15}/>} label="Work Order Status"/>
-          <div style={{ height:140, position:'relative' }}>
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie data={woStatus} cx="50%" cy="50%" innerRadius={40} outerRadius={60} dataKey="v" paddingAngle={3}>
-                  {woStatus.map((w,i)=><Cell key={i} fill={w.c}/>)}
-                </Pie>
-                <Tooltip content={<Tip/>}/>
-              </PieChart>
-            </ResponsiveContainer>
-            <div style={{ position:'absolute',top:'50%',left:'50%',transform:'translate(-50%,-50%)',textAlign:'center',pointerEvents:'none' }}>
-              <div style={{ fontSize:20,fontWeight:900,color:'#22C55E' }}>100</div>
-              <div style={{ fontSize:9,color:'#6B7280' }}>Total WOs</div>
-            </div>
-          </div>
-          <div style={{ display:'flex', flexDirection:'column', gap:6, marginTop:10 }}>
-            {woStatus.map((w,i)=>(
-              <div key={i} style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
-                <div style={{ display:'flex', gap:7, alignItems:'center' }}>
-                  <div style={{ width:8,height:8,borderRadius:'50%',background:w.c }}/>
-                  <span style={{ fontSize:11,color:'#374151',fontWeight:600 }}>{w.name}</span>
-                </div>
-                <span style={{ fontSize:12,fontWeight:800,color:w.c }}>{w.v}</span>
-              </div>
-            ))}
-          </div>
-        </div>
+        ))}
       </div>
 
-      {/* ══ CHARTS ROW 2 ════════════════════════════════════════════════════════ */}
-      <div style={{ display:'grid', gridTemplateColumns:'1.8fr 1fr 1fr 1fr', gap:10 }}>
+      {/* ══ E&I JOBS ══ */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1.7fr) minmax(0,1fr)', gap: 10, marginBottom: 14 }}>
+        <Section icon={<ClipboardList size={15}/>} title="E&I Jobs — Overdue & This Week"
+          right={<span style={{ fontSize: 11, color: '#9CA3AF' }}>{weekStart.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })} – {weekEnd.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}</span>}
+          link={canGo('/job-tracker') ? 'Job Tracker' : undefined} onLink={() => go('/job-tracker')}>
+          {J.focus.length === 0 ? <Empty text={J.open.length ? `No E&I jobs overdue or due this week. ${J.noDate.length} open job(s) have no due date.` : 'No open E&I jobs.'}/> : (
+            <div style={{ overflowX: 'auto', maxHeight: 330, overflowY: 'auto' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                <thead><tr>{['Due', 'Area', 'Description', 'Priority', 'In-Charge', 'Status'].map(h => <th key={h} style={th}>{h}</th>)}</tr></thead>
+                <tbody>
+                  {J.focus.slice(0, 12).map(j => {
+                    const d = parseDay(j.dueDate)!; const late = d < today0; const days = Math.round((d.getTime() - today0.getTime()) / DAY);
+                    return (
+                      <tr key={j._id || j.id} style={{ background: late ? '#FEF2F2' : undefined }}>
+                        <td style={{ ...td, whiteSpace: 'nowrap', fontWeight: 700, color: late ? '#DC2626' : days === 0 ? '#D97706' : '#1E293B' }}>
+                          {fmtD(j.dueDate)}<div style={{ fontSize: 10, fontWeight: 600 }}>{late ? `${-days}d late` : days === 0 ? 'Today' : `in ${days}d`}</div>
+                        </td>
+                        <td style={{ ...td, whiteSpace: 'nowrap' }}>{j.asset || 'Nil'}</td>
+                        <td style={{ ...td, fontWeight: 500, color: '#1E293B' }}>{j.description}</td>
+                        <td style={td}><span style={{ fontSize: 10, fontWeight: 700, color: PRIO_COLOR[j.priority] || '#64748B' }}>{j.priority}</span></td>
+                        <td style={{ ...td, whiteSpace: 'nowrap', maxWidth: 140, overflow: 'hidden', textOverflow: 'ellipsis' }} title={j.completedBy}>{j.completedBy || 'Nil'}</td>
+                        <td style={td}><span style={{ fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 10, background: `${JOB_STATUS_COLOR[j.status] || '#94A3B8'}20`, color: JOB_STATUS_COLOR[j.status] || '#64748B', whiteSpace: 'nowrap' }}>{j.status}</span></td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </Section>
 
-        {/* Monthly Maintenance Cost */}
-        <div style={{ ...CARD, padding:'16px' }}>
-          <SectionTitle icon={<DollarSign size={15}/>} label="Monthly Maintenance Cost (AED '000)"/>
-          {liveCostData.length === 0 ? (
-            <div style={{ height:200, display:'flex', alignItems:'center', justifyContent:'center', color:'#9CA3AF', fontSize:12 }}>Loading cost data…</div>
-          ) : (
-            <>
-              <div style={{ height:200 }}>
+        <Section icon={<ClipboardList size={15}/>} title="Open E&I Jobs" right={<span style={{ fontSize: 11, color: '#9CA3AF' }}>{J.open.length} total · {J.noDate.length} without due date</span>}>
+          {J.open.length === 0 ? <Empty text="No open E&I jobs."/> : (
+            <div style={{ display: 'grid', gridTemplateColumns: '130px 1fr', gap: 10, alignItems: 'center' }}>
+              <div style={{ position: 'relative', height: 130 }}>
                 <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={liveCostData} barGap={1} barSize={16}>
+                  <PieChart><Pie data={J.byStatus} dataKey="v" nameKey="name" innerRadius={42} outerRadius={60} paddingAngle={2} stroke="none">
+                    {J.byStatus.map(s => <Cell key={s.name} fill={s.c}/>)}
+                  </Pie><Tooltip/></PieChart>
+                </ResponsiveContainer>
+                <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', pointerEvents: 'none' }}>
+                  <div style={{ fontSize: 22, fontWeight: 900, color: '#1E293B' }}>{J.open.length}</div><div style={{ fontSize: 9, color: '#94A3B8' }}>open</div>
+                </div>
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                {J.byStatus.map(s => (
+                  <div key={s.name} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12 }}>
+                    <span style={{ width: 9, height: 9, borderRadius: '50%', background: s.c }}/>{s.name}<b style={{ marginLeft: 'auto', color: s.c }}>{s.v}</b>
+                  </div>
+                ))}
+              </div>
+              <div style={{ gridColumn: '1 / -1', borderTop: '1px solid #F1F5F9', paddingTop: 8 }}>
+                <div style={{ fontSize: 10, fontWeight: 800, color: '#64748B', textTransform: 'uppercase', marginBottom: 6 }}>By area</div>
+                {J.byArea.map(a => (
+                  <div key={a.name} style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 5, fontSize: 12 }}>
+                    <span style={{ width: 95, color: '#475569', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{a.name}</span>
+                    <div style={{ flex: 1, height: 8, background: '#F1F5F9', borderRadius: 4 }}><div style={{ width: `${(a.v / J.byArea[0].v) * 100}%`, height: '100%', background: '#3B82F6', borderRadius: 4 }}/></div>
+                    <b style={{ width: 22, textAlign: 'right', color: '#1E293B' }}>{a.v}</b>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </Section>
+      </div>
+
+      {/* ══ PURCHASE + ATTENDANCE ══ */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1.3fr) minmax(0,1fr)', gap: 10, marginBottom: 14 }}>
+        <Section icon={<ShoppingCart size={15}/>} title="Purchase Pipeline" right={<span style={{ fontSize: 11, color: '#9CA3AF' }}>{P.pending.length} pending · {aedK(P.budgetPending)}</span>}
+          link="E&I Purchase Status" onLink={() => go('/purchase/followup')}>
+          {P.pending.length === 0 ? <Empty text="No pending purchases."/> : (
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+              <div>
+                {P.steps.map(s => (
+                  <div key={s.name} style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 7, fontSize: 12 }}>
+                    <span style={{ width: 150, color: '#475569', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }} title={s.name}>{s.name}</span>
+                    <div style={{ flex: 1, height: 10, background: '#F1F5F9', borderRadius: 5 }}>
+                      <div style={{ width: `${(s.v / Math.max(1, ...P.steps.map(x => x.v))) * 100}%`, height: '100%', background: s.c, borderRadius: 5 }}/>
+                    </div>
+                    <b style={{ width: 20, textAlign: 'right' }}>{s.v}</b>
+                  </div>
+                ))}
+                {P.noStatus > 0 && <div style={{ fontSize: 11, color: '#94A3B8' }}>{P.noStatus} item(s) without a status</div>}
+              </div>
+              <div>
+                <div style={{ fontSize: 10, fontWeight: 800, color: '#64748B', textTransform: 'uppercase', marginBottom: 6 }}>Oldest pending</div>
+                {P.oldest.map(r => (
+                  <div key={r._id || r.id} style={{ display: 'flex', gap: 8, alignItems: 'center', padding: '5px 0', borderBottom: '1px solid #F8FAFC' }}>
+                    <span style={{ minWidth: 42, fontSize: 12, fontWeight: 800, color: r.age > 90 ? '#DC2626' : r.age > 30 ? '#D97706' : '#64748B' }}>{r.age}d</span>
+                    <div style={{ minWidth: 0 }}>
+                      <div style={{ fontSize: 12, fontWeight: 600, color: '#1E293B', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }} title={r.itemDescription}>{r.itemDescription}</div>
+                      <div style={{ fontSize: 10, color: '#94A3B8' }}>{r.currentStatus || 'No status'} · {r.prNumber || 'Nil'}</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </Section>
+
+        <Section icon={<CalendarCheck size={15}/>} title="Today's Attendance" right={<span style={{ fontSize: 11, color: '#9CA3AF' }}>{NOW.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}</span>}
+          link={canGo('/attendance') ? 'Attendance' : undefined} onLink={() => go('/attendance')}>
+          {A.people.length === 0 ? <Empty text="No team in the attendance sheet."/> : (
+            <>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 6, marginBottom: 10 }}>
+                {[{ l: 'Present', v: A.present.length, c: '#16A34A' }, { l: 'Leave', v: A.leave.length, c: '#F59E0B' }, { l: 'Off / Holiday', v: A.off.length, c: '#CA8A04' }, { l: 'Not marked', v: A.notMarked.length, c: A.notMarked.length ? '#DC2626' : '#94A3B8' }].map(x => (
+                  <div key={x.l} style={{ background: `${x.c}12`, borderRadius: 10, padding: '8px 6px', textAlign: 'center' }}>
+                    <div style={{ fontSize: 20, fontWeight: 900, color: x.c }}>{x.v}</div><div style={{ fontSize: 10, color: '#64748B' }}>{x.l}</div>
+                  </div>
+                ))}
+              </div>
+              {A.shifts.length > 0 && <div style={{ fontSize: 11, color: '#475569', marginBottom: 8 }}>On duty: {A.shifts.map(s => `${CODE_MAP[s.c]?.label || s.c} ${s.n}`).join(' · ')}</div>}
+              {[{ t: 'On leave', list: A.leave, c: '#B45309' }, { t: 'Not marked yet', list: A.notMarked, c: '#DC2626' }].filter(g => g.list.length).map(g => (
+                <div key={g.t} style={{ marginBottom: 6 }}>
+                  <div style={{ fontSize: 10, fontWeight: 800, color: g.c, textTransform: 'uppercase' }}>{g.t}</div>
+                  <div style={{ fontSize: 12, color: '#334155' }}>{g.list.map(p => p.name + (p.code ? ` (${p.code})` : '')).join(', ')}</div>
+                </div>
+              ))}
+            </>
+          )}
+        </Section>
+      </div>
+
+      {/* ══ COST + FOLLOW-UPS / REMINDERS ══ */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1.5fr) minmax(0,1fr)', gap: 10, marginBottom: 14 }}>
+        <Section icon={<DollarSign size={15}/>} title={`Monthly Cost ${NOW.getFullYear()} (AED '000)`} right={<span style={{ fontSize: 11, color: '#9CA3AF' }}>Year to date {aedK(C.yearTotal)}</span>}>
+          {!C.hasData ? <Empty text={loading ? 'Loading…' : 'No outsource, rental or purchase payments recorded this year.'}/> : (
+            <>
+              <div style={{ height: 210 }}>
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={C.chart} barSize={18}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#F3F4F6" vertical={false}/>
-                    <XAxis dataKey="m" tick={{fill:'#9CA3AF',fontSize:10}} axisLine={false} tickLine={false}/>
-                    <YAxis tick={{fill:'#9CA3AF',fontSize:10}} axisLine={false} tickLine={false} tickFormatter={v=>`${v}K`}/>
-                    <Tooltip content={<Tip/>} formatter={(v:any)=>`AED ${v}K`}/>
+                    <XAxis dataKey="m" tick={{ fill: '#9CA3AF', fontSize: 10 }} axisLine={false} tickLine={false}/>
+                    <YAxis tick={{ fill: '#9CA3AF', fontSize: 10 }} axisLine={false} tickLine={false} tickFormatter={v => `${v}K`}/>
+                    <Tooltip formatter={(v: any) => `AED ${v}K`}/>
                     <Bar dataKey="outsource" name="Outsource" stackId="a" fill="#3B82F6"/>
-                    <Bar dataKey="rental"    name="Rental"    stackId="a" fill="#8B5CF6"/>
-                    <Bar dataKey="purchase"  name="Purchase"  stackId="a" fill="#22C55E" radius={[4,4,0,0]}/>
+                    <Bar dataKey="rental" name="Rental" stackId="a" fill="#8B5CF6"/>
+                    <Bar dataKey="purchase" name="Purchase payments" stackId="a" fill="#22C55E" radius={[4, 4, 0, 0]}/>
                   </BarChart>
                 </ResponsiveContainer>
               </div>
-              <div style={{ display:'flex', gap:16, marginTop:8, justifyContent:'center' }}>
-                {[{c:'#3B82F6',l:'Outsource'},{c:'#8B5CF6',l:'Rental'},{c:'#22C55E',l:'Purchase'}].map((x,i)=>(
-                  <div key={i} style={{ display:'flex', alignItems:'center', gap:5 }}>
-                    <div style={{ width:12,height:4,borderRadius:2,background:x.c }}/>
-                    <span style={{ fontSize:10,color:'#6B7280' }}>{x.l}</span>
-                  </div>
+              <div style={{ display: 'flex', gap: 16, justifyContent: 'center', fontSize: 10, color: '#6B7280' }}>
+                {[{ c: '#3B82F6', l: 'Outsource' }, { c: '#8B5CF6', l: 'Rental (work + accessories)' }, { c: '#22C55E', l: 'Purchase payments' }].map(x => (
+                  <span key={x.l} style={{ display: 'flex', alignItems: 'center', gap: 5 }}><span style={{ width: 12, height: 4, borderRadius: 2, background: x.c }}/>{x.l}</span>
                 ))}
               </div>
             </>
           )}
-        </div>
+        </Section>
 
-        {/* Energy Consumption */}
-        <div style={{ ...CARD, padding:'16px' }}>
-          <SectionTitle icon={<Zap size={15}/>} label="Energy Consumption"/>
-          <div style={{ marginBottom:12 }}>
-            <div style={{ fontSize:26,fontWeight:900,color:'#F59E0B' }}>131K<span style={{ fontSize:12,color:'#6B7280',fontWeight:600 }}> kWh</span></div>
-            <div style={{ fontSize:10,color:'#6B7280',marginTop:2 }}>Current month consumption</div>
-          </div>
-          <div style={{ height:155 }}>
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={energyD}>
-                <defs>
-                  <linearGradient id="eg" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%"  stopColor="#F59E0B" stopOpacity={0.18}/>
-                    <stop offset="95%" stopColor="#F59E0B" stopOpacity={0.01}/>
-                  </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="#F3F4F6" vertical={false}/>
-                <XAxis dataKey="m" tick={{fill:'#9CA3AF',fontSize:9}} axisLine={false} tickLine={false}/>
-                <YAxis tick={{fill:'#9CA3AF',fontSize:9}} axisLine={false} tickLine={false} tickFormatter={v=>`${v}K`}/>
-                <Tooltip content={<Tip/>}/>
-                <Area type="monotone" dataKey="k" name="kWh (thousands)" stroke="#F59E0B" strokeWidth={2} fill="url(#eg)" dot={false}/>
-              </AreaChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
-
-        {/* MTBF Trend */}
-        <div style={{ ...CARD, padding:'16px' }}>
-          <SectionTitle icon={<TrendingUp size={15}/>} label="MTBF Trend"/>
-          <div style={{ marginBottom:12 }}>
-            <div style={{ fontSize:26,fontWeight:900,color:'#3B82F6' }}>342<span style={{ fontSize:12,color:'#6B7280',fontWeight:600 }}> hrs</span></div>
-            <div style={{ display:'flex', alignItems:'center', gap:5 }}>
-              <ArrowUpRight size={12} color="#22C55E"/>
-              <span style={{ fontSize:10,color:'#22C55E',fontWeight:700 }}>Improving trend</span>
+        <Section icon={<Repeat size={15}/>} title="Follow-ups & Reminders" link={canGo('/job-tracker') ? 'Job Tracker' : undefined} onLink={() => go('/job-tracker')}>
+          <div style={{ fontSize: 10, fontWeight: 800, color: '#8B5CF6', textTransform: 'uppercase', marginBottom: 4 }}>Open follow-ups ({followups.filter(f => f.status !== 'Completed' && f.status !== 'Cancelled').length})</div>
+          {F.length === 0 ? <Empty text="No open follow-ups."/> : F.map(f => (
+            <div key={f._id || f.id} style={{ display: 'flex', gap: 8, padding: '5px 0', borderBottom: '1px solid #F8FAFC', fontSize: 12 }}>
+              <span style={{ minWidth: 50, fontWeight: 700, color: f.nextFollowupDate && f.nextFollowupDate < TODAY ? '#DC2626' : '#475569' }}>{fmtD(f.nextFollowupDate)}</span>
+              <span style={{ color: '#1E293B', flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={f.description}>{f.description}</span>
+              <span style={{ color: '#94A3B8', whiteSpace: 'nowrap' }}>{f.responsiblePerson}</span>
             </div>
-          </div>
-          <div style={{ height:155 }}>
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={mtbfD}>
-                <defs>
-                  <linearGradient id="mbg" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%"  stopColor="#3B82F6" stopOpacity={0.15}/>
-                    <stop offset="95%" stopColor="#3B82F6" stopOpacity={0.01}/>
-                  </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="#F3F4F6" vertical={false}/>
-                <XAxis dataKey="m" tick={{fill:'#9CA3AF',fontSize:9}} axisLine={false} tickLine={false}/>
-                <YAxis domain={[260,360]} tick={{fill:'#9CA3AF',fontSize:9}} axisLine={false} tickLine={false}/>
-                <Tooltip content={<Tip/>}/>
-                <Area type="monotone" dataKey="v" name="MTBF (hrs)" stroke="#3B82F6" strokeWidth={2} fill="url(#mbg)" dot={false}/>
-              </AreaChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
-
-        {/* MTTR Trend */}
-        <div style={{ ...CARD, padding:'16px' }}>
-          <SectionTitle icon={<TrendingDown size={15}/>} label="MTTR Trend"/>
-          <div style={{ marginBottom:12 }}>
-            <div style={{ fontSize:26,fontWeight:900,color:'#22C55E' }}>2.3<span style={{ fontSize:12,color:'#6B7280',fontWeight:600 }}> hrs</span></div>
-            <div style={{ display:'flex', alignItems:'center', gap:5 }}>
-              <ArrowDownRight size={12} color="#22C55E"/>
-              <span style={{ fontSize:10,color:'#22C55E',fontWeight:700 }}>Decreasing (Good)</span>
+          ))}
+          <div style={{ fontSize: 10, fontWeight: 800, color: '#0891B2', textTransform: 'uppercase', margin: '10px 0 4px', display: 'flex', alignItems: 'center', gap: 4 }}><Bell size={11}/> Reminders — overdue & next 7 days</div>
+          {R.length === 0 ? <Empty text="No reminders due."/> : R.map(r => (
+            <div key={r._id || r.id} style={{ display: 'flex', gap: 8, padding: '5px 0', borderBottom: '1px solid #F8FAFC', fontSize: 12 }}>
+              <span style={{ minWidth: 50, fontWeight: 700, color: r.dueDate < TODAY ? '#DC2626' : r.dueDate === TODAY ? '#D97706' : '#475569' }}>{r.dueDate === TODAY ? 'Today' : fmtD(r.dueDate)}</span>
+              <span style={{ color: '#1E293B', flex: 1 }}>{r.title}</span>
+              <span style={{ color: '#94A3B8' }}>{r.frequency}</span>
             </div>
-          </div>
-          <div style={{ height:155 }}>
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={mttrD}>
-                <defs>
-                  <linearGradient id="mtrg" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%"  stopColor="#22C55E" stopOpacity={0.15}/>
-                    <stop offset="95%" stopColor="#22C55E" stopOpacity={0.01}/>
-                  </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="#F3F4F6" vertical={false}/>
-                <XAxis dataKey="m" tick={{fill:'#9CA3AF',fontSize:9}} axisLine={false} tickLine={false}/>
-                <YAxis domain={[2,3.5]} tick={{fill:'#9CA3AF',fontSize:9}} axisLine={false} tickLine={false}/>
-                <Tooltip content={<Tip/>}/>
-                <Area type="monotone" dataKey="v" name="MTTR (hrs)" stroke="#22C55E" strokeWidth={2} fill="url(#mtrg)" dot={false}/>
-              </AreaChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
+          ))}
+        </Section>
       </div>
 
-      {/* ══ FOOTER ══════════════════════════════════════════════════════════════ */}
-      <div style={{ marginTop:24, textAlign:'center', fontSize:11, color:'#9CA3AF', paddingBottom:8 }}>
-        {DEPT_NAME} Maintenance Management System · {COMPANY_NAME} · {COMPANY_LOC} · {dateLbl}
+      {/* ══ STAFFING (Org Chart) ══ */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5,1fr)', gap: 10, marginBottom: 14 }}>
+        {STAFF.map((s, i) => (
+          <div key={s.label} onClick={() => go('/org-chart/summary')} style={{ ...CARD, padding: '14px 16px', display: 'flex', alignItems: 'center', gap: 12, borderLeft: `4px solid ${s.color}`, cursor: canGo('/org-chart/summary') ? 'pointer' : 'default' }}>
+            <div style={{ width: 38, height: 38, borderRadius: 10, background: s.bg, color: s.color, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{s.icon}</div>
+            <div>
+              <div style={{ fontSize: 22, fontWeight: 900, color: s.color, lineHeight: 1 }}>{s.v}</div>
+              <div style={{ fontSize: 12, fontWeight: 600, color: '#334155' }}>{s.label}</div>
+              {i > 0 && <div style={{ fontSize: 10, color: s.color, fontWeight: 700 }}>{pct(s.v)}%</div>}
+            </div>
+          </div>
+        ))}
       </div>
 
+      <div style={{ textAlign: 'center', fontSize: 11, color: '#94A3B8' }}>
+        {COMPANY_NAME} · {DEPT_NAME} Maintenance Management System · All figures from live module data
+      </div>
     </div>
   );
 }
