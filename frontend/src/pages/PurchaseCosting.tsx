@@ -138,6 +138,28 @@ export default function PurchaseCosting() {
   );
 
   const monthLabel = `${MONTHS[selMonth - 1]} ${selYear}`;
+
+  // ── Totals for the selected view (Yearly = whole year incl. carry-over, Monthly = selected month) ──
+  const sumRows = (k: 'budgCost' | 'recvCost' | 'poCost' | 'tranCost' | 'budgCount' | 'recvCount' | 'poCount' | 'tranCount') => yearlyRows.reduce((s, r) => s + r[k], 0);
+  const carryPOCost   = carryOverPO.reduce((s, r) => s + (r.budget || 0), 0);
+  const carryTranCost = carryOverTran.reduce((s, r) => s + (r.budget || 0), 0);
+  const isYear = viewMode === 'yearly';
+  const mRow = yearlyRows[selMonth - 1];
+  const view = isYear ? {
+    label: `Year ${selYear}`,
+    budget: sumRows('budgCost') + carryOverBudg, budgetN: sumRows('budgCount') + carryOver.length,
+    used: sumRows('recvCost'), usedN: sumRows('recvCount'),
+    po: sumRows('poCost') + carryPOCost, poN: sumRows('poCount') + carryOverPO.length,
+    transit: sumRows('tranCost') + carryTranCost, transitN: sumRows('tranCount') + carryOverTran.length,
+  } : {
+    label: monthLabel,
+    budget: mRow?.budgCost || 0, budgetN: mRow?.budgCount || 0,
+    used: costReceived, usedN: receivedThisMonth.length,
+    po: costPO, poN: poThisMonth.length,
+    transit: costInTransit, transitN: inTransit.length,
+  };
+  const remaining = Math.max(0, view.budget - view.used);
+  const usedPct = view.budget > 0 ? Math.min(100, Math.round((view.used / view.budget) * 100)) : 0;
   const years = Array.from({ length: 5 }, (_, i) => now.getFullYear() - 2 + i);
 
   // ── PDF ───────────────────────────────────────────────────────────────────────
@@ -230,17 +252,17 @@ export default function PurchaseCosting() {
   };
 
   // ── Sub-components ────────────────────────────────────────────────────────────
-  const SummaryCard = ({ label, sub, value, count, color, bg, border, icon }: any) => (
-    <div style={{ padding: '16px 20px', borderRadius: 14, background: bg, border: `1.5px solid ${border}` }}>
+  const SummaryCard = ({ label, sub, value, count, color, bg, border, icon, footer }: any) => (
+    <div style={{ padding: '14px 16px', borderRadius: 14, background: bg, border: `1.5px solid ${border}`, minWidth: 0 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 10 }}>
         <div>
           <div style={{ fontSize: 11, color, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.4 }}>{label}</div>
-          <div style={{ fontSize: 10, color, opacity: 0.6, marginTop: 2 }}>{sub}</div>
+          <div style={{ fontSize: 10, color: '#64748b', marginTop: 2 }}>{sub}</div>
         </div>
         <div style={{ color, opacity: 0.7 }}>{icon}</div>
       </div>
-      <div style={{ fontSize: 26, fontWeight: 900, color, letterSpacing: -0.5 }}>AED {fmtAED(value)}</div>
-      <div style={{ fontSize: 11, color, opacity: 0.6, marginTop: 4 }}>{count} item{count !== 1 ? 's' : ''}</div>
+      <div style={{ fontSize: 24, fontWeight: 900, color, letterSpacing: -0.5, whiteSpace: 'nowrap' }}>AED {fmtAED(value)}</div>
+      {footer ?? <div style={{ fontSize: 11, color: '#64748b', marginTop: 4 }}>{count} item{count !== 1 ? 's' : ''}</div>}
     </div>
   );
 
@@ -309,7 +331,7 @@ export default function PurchaseCosting() {
       <div className="glass-card" style={{ padding: '16px 22px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
         <div>
           <div style={{ fontSize: 18, fontWeight: 700, color: '#1e293b' }}>E &amp; I Material Cost Report</div>
-          <div style={{ fontSize: 12, color: '#64748b', marginTop: 3 }}>Cost of materials received &amp; POs raised — {monthLabel}</div>
+          <div style={{ fontSize: 12, color: '#64748b', marginTop: 3 }}>Cost of materials received &amp; POs raised — {view.label}</div>
         </div>
         <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
           {/* Monthly / Yearly toggle */}
@@ -346,40 +368,38 @@ export default function PurchaseCosting() {
         </div>
       </div>
 
-      {/* Summary Cards */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 14 }}>
-        <SummaryCard
-          label="Materials Received" sub={`Cost used — ${monthLabel}`}
-          value={costReceived} count={receivedThisMonth.length}
-          color="#22c55e" bg="rgba(34,197,94,0.08)" border="rgba(34,197,94,0.3)"
-          icon={<CheckCircle2 size={20} />}
-        />
-        <SummaryCard
-          label="POs Raised This Month" sub="Total value ordered"
-          value={costPO} count={poThisMonth.length}
-          color="#3b82f6" bg="rgba(59,130,246,0.08)" border="rgba(59,130,246,0.3)"
-          icon={<Package size={20} />}
-        />
-        <SummaryCard
-          label="In Transit / Pending" sub="PO done, not yet received"
-          value={costInTransit} count={inTransit.length}
-          color="#f59e0b" bg="rgba(245,158,11,0.08)" border="rgba(245,158,11,0.3)"
-          icon={<Truck size={20} />}
-        />
-        <SummaryCard
-          label="Total Received YTD" sub={`Full year ${selYear}`}
-          value={costYTD} count={receivedYTD.length}
-          color="#a78bfa" bg="rgba(139,92,246,0.08)" border="rgba(139,92,246,0.3)"
-          icon={<TrendingUp size={20} />}
-        />
+      {/* Summary Cards — follow the selected view (year or month) */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))', gap: 12 }}>
+        <SummaryCard label="Budget" sub={`${view.label}${isYear && carryOver.length ? ' · incl. carry-over' : ''}`}
+          value={view.budget} count={view.budgetN}
+          color="#d97706" bg="rgba(245,158,11,0.07)" border="rgba(245,158,11,0.3)" icon={<TrendingUp size={20} />}/>
+        <SummaryCard label="Cost Used" sub={`Materials received — ${view.label}`}
+          value={view.used} count={view.usedN}
+          color="#16a34a" bg="rgba(34,197,94,0.07)" border="rgba(34,197,94,0.3)" icon={<CheckCircle2 size={20} />}/>
+        <SummaryCard label="POs Raised" sub={`Total value ordered — ${view.label}`}
+          value={view.po} count={view.poN}
+          color="#2563eb" bg="rgba(59,130,246,0.07)" border="rgba(59,130,246,0.3)" icon={<Package size={20} />}/>
+        <SummaryCard label="In Transit / Pending" sub="PO done, not yet received"
+          value={view.transit} count={view.transitN}
+          color="#ea580c" bg="rgba(249,115,22,0.07)" border="rgba(249,115,22,0.3)" icon={<Truck size={20} />}/>
+        <SummaryCard label="Remaining Budget" sub="Budget − Cost used"
+          value={remaining} color="#7c3aed" bg="rgba(139,92,246,0.07)" border="rgba(139,92,246,0.3)" icon={<TrendingUp size={20} />}
+          footer={
+            <div style={{ marginTop: 6 }}>
+              <div style={{ height: 6, background: 'rgba(124,58,237,0.15)', borderRadius: 3 }}>
+                <div style={{ width: `${usedPct}%`, height: '100%', background: '#7c3aed', borderRadius: 3 }}/>
+              </div>
+              <div style={{ fontSize: 11, color: '#64748b', marginTop: 3 }}>{usedPct}% of budget used</div>
+            </div>
+          }/>
       </div>
 
       {/* ── YEARLY VIEW ── */}
       {viewMode === 'yearly' && (
         <div className="glass-card" style={{ padding: 0, overflow: 'hidden' }}>
-          <div style={{ padding: '14px 20px', borderBottom: '1px solid rgba(255,255,255,0.06)', display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-            <TrendingUp size={17} color="#a78bfa" />
-            <span style={{ fontWeight: 700, color: '#a78bfa', fontSize: 14 }}>Year Overview — {selYear}</span>
+          <div style={{ padding: '14px 20px', borderBottom: '1px solid #EEF2F7', display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+            <TrendingUp size={17} color="#7c3aed" />
+            <span style={{ fontWeight: 800, color: '#1e293b', fontSize: 14 }}>Year Overview — {selYear}</span>
             <span style={{ fontSize: 11, color: '#64748b', marginLeft: 6 }}>Monthly cost breakdown for all 12 months</span>
             <div style={{ marginLeft: 'auto', display: 'flex', gap: 28, alignItems: 'center' }}>
               <div style={{ textAlign: 'right' }}>
@@ -391,22 +411,44 @@ export default function PurchaseCosting() {
                 <div style={{ fontSize: 10, color: '#64748b', marginBottom: 1 }}>YTD Received</div>
                 <div style={{ fontWeight: 800, color: '#22c55e', fontSize: 15 }}>AED {fmtAED(costYTD)}</div>
               </div>
+              <div style={{ width: 1, height: 32, background: '#E2E8F0' }} />
+              <div style={{ textAlign: 'right' }}>
+                <div style={{ fontSize: 10, color: '#64748b', marginBottom: 1 }}>Remaining Budget</div>
+                <div style={{ fontWeight: 800, color: '#7c3aed', fontSize: 15 }}>AED {fmtAED(Math.max(0, totalBudgetAll - costYTD))}</div>
+              </div>
             </div>
           </div>
           <div style={{ overflowX: 'auto' }}>
-            <table className="data-table" style={{ fontSize: 12 }}>
+            <table className="data-table" style={{ fontSize: 12, tableLayout: 'fixed', width: '100%', minWidth: 1050 }}>
+              <colgroup>
+                <col style={{ width: 44 }}/><col style={{ width: 190 }}/>
+                <col style={{ width: 62 }}/><col style={{ width: 120 }}/>
+                <col style={{ width: 62 }}/><col style={{ width: 120 }}/>
+                <col style={{ width: 120 }}/>
+                <col style={{ width: 62 }}/><col style={{ width: 120 }}/>
+                <col style={{ width: 62 }}/><col style={{ width: 120 }}/>
+              </colgroup>
               <thead>
                 <tr>
-                  <th style={{ width: 36, textAlign: 'center' }}>Sl.</th>
-                  <th style={{ width: 130 }}>Month</th>
-                  <th style={{ textAlign: 'center', width: 70 }}>Items</th>
-                  <th style={{ textAlign: 'right', width: 150, color: '#fbbf24' }}>Budget (AED)</th>
-                  <th style={{ textAlign: 'center', width: 70 }}>Recv.</th>
-                  <th style={{ textAlign: 'right', width: 150 }}>Cost Used (AED)</th>
-                  <th style={{ textAlign: 'center', width: 70 }}>PO Items</th>
-                  <th style={{ textAlign: 'right', width: 150 }}>PO Value (AED)</th>
-                  <th style={{ textAlign: 'center', width: 70 }}>Transit</th>
-                  <th style={{ textAlign: 'right', width: 150 }}>Transit Value (AED)</th>
+                  <th colSpan={2}></th>
+                  <th colSpan={2} style={{ textAlign: 'center', color: '#d97706', borderBottom: '2px solid #fcd34d' }}>Budget</th>
+                  <th colSpan={2} style={{ textAlign: 'center', color: '#16a34a', borderBottom: '2px solid #86efac' }}>Received (Cost Used)</th>
+                  <th style={{ textAlign: 'center', color: '#7c3aed', borderBottom: '2px solid #c4b5fd' }}>Remaining</th>
+                  <th colSpan={2} style={{ textAlign: 'center', color: '#2563eb', borderBottom: '2px solid #93c5fd' }}>PO Raised</th>
+                  <th colSpan={2} style={{ textAlign: 'center', color: '#ea580c', borderBottom: '2px solid #fdba74' }}>In Transit</th>
+                </tr>
+                <tr>
+                  <th style={{ textAlign: 'center' }}>Sl.</th>
+                  <th>Month</th>
+                  <th style={{ textAlign: 'center' }}>Items</th>
+                  <th style={{ textAlign: 'right' }}>AED</th>
+                  <th style={{ textAlign: 'center' }}>Items</th>
+                  <th style={{ textAlign: 'right' }}>AED</th>
+                  <th style={{ textAlign: 'right' }}>AED</th>
+                  <th style={{ textAlign: 'center' }}>Items</th>
+                  <th style={{ textAlign: 'right' }}>AED</th>
+                  <th style={{ textAlign: 'center' }}>Items</th>
+                  <th style={{ textAlign: 'right' }}>AED</th>
                 </tr>
               </thead>
               <tbody>
@@ -424,8 +466,9 @@ export default function PurchaseCosting() {
                     <td style={{ textAlign: 'right', fontWeight: 900, fontSize: 13, color: '#fbbf24' }}>
                       AED {fmtAED(carryOverBudg)}
                     </td>
-                    <td style={{ textAlign: 'center', color: '#475569' }}>—</td>
-                    <td style={{ textAlign: 'right', color: '#475569' }}>—</td>
+                    <td style={{ textAlign: 'center', color: '#94a3b8' }}>—</td>
+                    <td style={{ textAlign: 'right', color: '#94a3b8' }}>—</td>
+                    <td style={{ textAlign: 'right', fontWeight: 800, fontSize: 13, color: '#7c3aed' }}>AED {fmtAED(carryOverBudg)}</td>
                     <td style={{ textAlign: 'center', fontWeight: 700, color: carryOverPO.length > 0 ? '#3b82f6' : '#475569' }}>
                       {carryOverPO.length > 0 ? carryOverPO.length : '—'}
                     </td>
@@ -446,7 +489,7 @@ export default function PurchaseCosting() {
                   return (
                     <tr key={row.month} style={{ background: isCurrentMonth ? 'rgba(59,130,246,0.08)' : undefined }}>
                       <td style={{ textAlign: 'center', color: '#64748b' }}>{i + 1}</td>
-                      <td style={{ fontWeight: 700, color: isCurrentMonth ? '#60a5fa' : '#e2e8f0' }}>
+                      <td style={{ fontWeight: 700, color: isCurrentMonth ? '#2563eb' : hasData || row.budgCount ? '#1e293b' : '#94a3b8' }}>
                         {row.month}
                         {isCurrentMonth && <span style={{ fontSize: 9, color: '#60a5fa', marginLeft: 6, background: 'rgba(59,130,246,0.2)', borderRadius: 4, padding: '1px 5px' }}>Current</span>}
                       </td>
@@ -461,6 +504,9 @@ export default function PurchaseCosting() {
                       </td>
                       <td style={{ textAlign: 'right', fontWeight: row.recvCost > 0 ? 800 : 400, fontSize: row.recvCost > 0 ? 13 : 12, color: row.recvCost > 0 ? '#22c55e' : '#475569' }}>
                         {row.recvCost > 0 ? `AED ${fmtAED(row.recvCost)}` : '—'}
+                      </td>
+                      <td style={{ textAlign: 'right', fontWeight: 800, fontSize: 13, color: row.budgCost - row.recvCost > 0 ? '#7c3aed' : row.budgCost > 0 ? '#16a34a' : '#94a3b8' }}>
+                        {row.budgCost > 0 ? (row.budgCost - row.recvCost > 0 ? `AED ${fmtAED(row.budgCost - row.recvCost)}` : '✓ 0') : '—'}
                       </td>
                       <td style={{ textAlign: 'center', color: row.poCount > 0 ? '#3b82f6' : '#475569', fontWeight: row.poCount > 0 ? 700 : 400 }}>
                         {row.poCount > 0 ? row.poCount : '—'}
@@ -494,6 +540,9 @@ export default function PurchaseCosting() {
                   </td>
                   <td style={{ textAlign: 'right', fontWeight: 900, fontSize: 14, color: '#22c55e', padding: '10px 14px' }}>
                     AED {fmtAED(yearlyRows.reduce((s, r) => s + r.recvCost, 0))}
+                  </td>
+                  <td style={{ textAlign: 'right', fontWeight: 900, fontSize: 14, color: '#7c3aed', padding: '10px 14px' }}>
+                    AED {fmtAED(Math.max(0, yearlyRows.reduce((s, r) => s + r.budgCost - r.recvCost, 0) + carryOverBudg))}
                   </td>
                   <td style={{ textAlign: 'center', fontWeight: 800, color: '#3b82f6' }}>
                     {yearlyRows.reduce((s, r) => s + r.poCount, 0) + carryOverPO.length}
@@ -560,21 +609,22 @@ export default function PurchaseCosting() {
         display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 14,
       }}>
         <div>
-          <div style={{ fontWeight: 700, color: '#22c55e', fontSize: 15 }}>Total Cost Used — {monthLabel}</div>
-          <div style={{ fontSize: 11, color: '#64748b', marginTop: 3 }}>Materials received and accepted this month</div>
+          <div style={{ fontWeight: 800, color: '#16a34a', fontSize: 15 }}>Total Cost Used — {view.label}</div>
+          <div style={{ fontSize: 11, color: '#64748b', marginTop: 3 }}>Materials received and accepted {isYear ? 'this year' : 'this month'}</div>
         </div>
-        <div style={{ display: 'flex', gap: 40, alignItems: 'center' }}>
+        <div style={{ display: 'flex', gap: 28, alignItems: 'center', flexWrap: 'wrap' }}>
           {[
-            { label: 'Received', value: costReceived, color: '#22c55e' },
-            { label: 'In Transit', value: costInTransit, color: '#f59e0b' },
-            { label: `YTD ${selYear}`, value: costYTD, color: '#a78bfa' },
+            { label: 'Budget', value: view.budget, color: '#d97706' },
+            { label: 'Cost Used', value: view.used, color: '#16a34a' },
+            { label: 'In Transit', value: view.transit, color: '#ea580c' },
+            { label: 'Remaining', value: remaining, color: '#7c3aed' },
           ].map((item, i, arr) => (
-            <div key={item.label} style={{ display: 'flex', alignItems: 'center', gap: 40 }}>
+            <div key={item.label} style={{ display: 'flex', alignItems: 'center', gap: 28 }}>
               <div style={{ textAlign: 'center' }}>
                 <div style={{ fontSize: 11, color: '#64748b', marginBottom: 3 }}>{item.label}</div>
                 <div style={{ fontSize: 22, fontWeight: 900, color: item.color }}>AED {fmtAED(item.value)}</div>
               </div>
-              {i < arr.length - 1 && <div style={{ width: 1, height: 40, background: 'rgba(255,255,255,0.1)' }} />}
+              {i < arr.length - 1 && <div style={{ width: 1, height: 40, background: '#D1FAE5' }} />}
             </div>
           ))}
         </div>
