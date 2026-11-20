@@ -333,21 +333,37 @@ export default function PurchaseFollowup() {
     setPayModal({ record: r, amount: '', date: new Date().toISOString().slice(0, 10), remarks: '' });
   };
 
-  const savePayment = async () => {
-    if (!payModal) return;
-    const amt = parseFloat(payModal.amount);
-    if (!amt || amt <= 0) { alert('Enter a valid payment amount.'); return; }
-    const rec = records.find(r => r.id === payModal.record.id);
-    if (!rec) return;
-    const hist = [...(rec.paymentHistory || []), { date: payModal.date, amount: amt, remarks: payModal.remarks }];
+  // Add a payment; the payment status follows from what has been paid
+  const addPayment = async (id: string, amount: number, date: string, remarks: string) => {
+    const rec = records.find(r => r.id === id);
+    if (!rec) return false;
+    const hist = [...(rec.paymentHistory || []), { date, amount, remarks }];
     const paid = hist.reduce((s, p) => s + p.amount, 0);
     const rem  = Math.max(0, (rec.budget || 0) - paid);
     const ps   = rem <= 0 ? 'Payment Done' : 'Partial Payment Done';
     try {
       const updated = await apiFetch(`/api/purchase-followup/${rec.id}`, { method: 'PUT', body: JSON.stringify({ paymentHistory: hist, paymentStatus: ps }) });
-      setRecords(rs => rs.map(r => r.id === rec.id ? updated : r));
-      setPayModal(null);
-    } catch (e: any) { alert(e.message || 'Failed to save payment'); }
+      setRecords(rs => rs.map(r => r.id === rec.id ? { ...updated, currentStatus: normaliseStatus(updated.currentStatus || '') } : r));
+      return true;
+    } catch (e: any) { alert(e.message || 'Failed to save payment'); return false; }
+  };
+  const savePayment = async () => {
+    if (!payModal) return;
+    const amt = parseFloat(payModal.amount);
+    if (!amt || amt <= 0) { alert('Enter a valid payment amount.'); return; }
+    if (await addPayment(payModal.record.id, amt, payModal.date, payModal.remarks)) setPayModal(null);
+  };
+  // Inline "add paid amount + date" row in the Completed table
+  const [payInline, setPayInline] = useState<{ id: string; amount: string; date: string; remarks: string } | null>(null);
+  const [payInlineBusy, setPayInlineBusy] = useState(false);
+  const saveInlinePayment = async () => {
+    if (!payInline) return;
+    const amt = parseFloat(payInline.amount);
+    if (!amt || amt <= 0) { alert('Enter the paid amount.'); return; }
+    if (!payInline.date) { alert('Enter the paid date.'); return; }
+    setPayInlineBusy(true);
+    if (await addPayment(payInline.id, amt, payInline.date, payInline.remarks)) setPayInline(null);
+    setPayInlineBusy(false);
   };
 
   const filtered = useMemo(() => {
@@ -855,8 +871,12 @@ export default function PurchaseFollowup() {
                   );
                   if (row.kind === 'po') {
                     const tp = getTotalPaid(row.rec); const rm = getRemaining(row.rec); const full = rm <= 0;
+                    const nPay = (row.rec.paymentHistory || []).length;
+                    const editing = payInline?.id === row.rec.id;
+                    const todayIso = new Date().toISOString().slice(0, 10);
                     return (
-                      <tr key={`po-${row.rec.id}`} style={{ background: full ? 'rgba(34,197,94,0.08)' : 'rgba(245,158,11,0.05)', borderLeft: full ? '3px solid rgba(34,197,94,0.6)' : '3px solid rgba(245,158,11,0.5)' }}>
+                      <React.Fragment key={`po-${row.rec.id}`}>
+                      <tr style={{ background: full ? 'rgba(34,197,94,0.08)' : 'rgba(245,158,11,0.05)', borderLeft: full ? '3px solid rgba(34,197,94,0.6)' : '3px solid rgba(245,158,11,0.5)' }}>
                         <td style={{ textAlign:'center', fontSize:12, color:'#64748b', fontWeight:700 }}>{row.idx+1}</td>
                         <td style={{ fontSize:13, fontWeight:700, color:'#1e293b', wordBreak:'break-word' }}>{row.rec.itemDescription}</td>
                         <td style={{ fontSize:12, color:'#60a5fa', fontFamily:'monospace', fontWeight:700 }}>{row.rec.prNumber||'—'}</td>
@@ -867,17 +887,64 @@ export default function PurchaseFollowup() {
                           />
                         </td>
                         <td style={{ textAlign:'right', fontSize:12, color:'#374151', fontWeight:700 }}>{row.rec.budget ? `AED ${row.rec.budget.toLocaleString()}` : '—'}</td>
-                        <td style={{ textAlign:'right', fontSize:12, color:'#a855f7', fontWeight:700 }}>{tp > 0 ? `AED ${tp.toLocaleString()}` : '—'}</td>
+                        <td style={{ textAlign:'right', fontSize:12, color:'#a855f7', fontWeight:700 }}>
+                          {readOnly || full ? (tp > 0 ? `AED ${tp.toLocaleString()}` : '—') : (
+                            <button title="Enter paid amount and date" onClick={() => setPayInline(editing ? null : { id: row.rec.id, amount: String(rm || ''), date: todayIso, remarks: '' })}
+                              style={{ display:'inline-flex', alignItems:'center', gap:4, padding:'3px 8px', borderRadius:6, cursor:'pointer', fontSize:11, fontWeight:700,
+                                border:'1px dashed #c084fc', background: editing ? '#f3e8ff' : '#faf5ff', color:'#7c3aed' }}>
+                              {tp > 0 ? `AED ${tp.toLocaleString()}` : '+ Add paid'}
+                            </button>
+                          )}
+                        </td>
                         <td style={{ textAlign:'right', fontSize:12, fontWeight:700, color: rm>0 ? '#f59e0b' : '#22c55e' }}>{rm > 0 ? `AED ${rm.toLocaleString()}` : '✓ Fully Paid'}</td>
                         <td>
-                          <span style={{ padding:'3px 10px', borderRadius:20, fontSize:11, fontWeight:700, background: full?'rgba(34,197,94,0.18)':'rgba(245,158,11,0.18)', color: full?'#22c55e':'#f59e0b', border:`1px solid ${full?'rgba(34,197,94,0.4)':'rgba(245,158,11,0.4)'}` }}>
-                            {full ? '✓ Payment Done' : `◑ ${(row.rec.paymentHistory||[]).length} payment${(row.rec.paymentHistory||[]).length!==1?'s':''} made`}
+                          {/* status follows the payments entered */}
+                          <span style={{ padding:'3px 10px', borderRadius:20, fontSize:11, fontWeight:700, whiteSpace:'nowrap',
+                            background: full?'rgba(34,197,94,0.18)': tp>0 ? 'rgba(168,85,247,0.15)' : 'rgba(245,158,11,0.18)',
+                            color: full?'#16a34a': tp>0 ? '#7c3aed' : '#d97706',
+                            border:`1px solid ${full?'rgba(34,197,94,0.4)': tp>0 ? 'rgba(168,85,247,0.4)' : 'rgba(245,158,11,0.4)'}` }}>
+                            {full ? '✓ Payment Done' : tp > 0 ? `◑ Partially paid · ${nPay} payment${nPay!==1?'s':''}` : '○ Not paid yet'}
                           </span>
                         </td>
                         <td style={{ position:'sticky', right:0, background:'#FFFFFF', zIndex:2, boxShadow:'-1px 0 0 #E5E7EB', padding:'4px', textAlign:'center' }}>
                           {!readOnly && <button onClick={e=>openMenu(e,row.rec)} style={{ width:30, height:28, borderRadius:6, background:'#F8FAFC', border:'1px solid #E5E7EB', color:'#94a3b8', cursor:'pointer', fontSize:16, display:'flex', alignItems:'center', justifyContent:'center' }}>⋮</button>}
                         </td>
                       </tr>
+                      {editing && payInline && (
+                        <tr style={{ background:'#faf5ff' }}>
+                          <td></td>
+                          <td colSpan={7} style={{ padding:'8px 10px' }}>
+                            <div style={{ display:'flex', alignItems:'flex-end', gap:10, flexWrap:'wrap' }}>
+                              <label style={{ fontSize:11, color:'#6b21a8', fontWeight:700 }}>Paid amount (AED)
+                                <input type="number" min={0} autoFocus value={payInline.amount} onChange={e=>setPayInline(v=>v?{...v,amount:e.target.value}:v)}
+                                  onKeyDown={e=>{ if(e.key==='Enter') saveInlinePayment(); if(e.key==='Escape') setPayInline(null); }}
+                                  style={{ display:'block', marginTop:3, width:120, padding:'5px 8px', fontSize:12, border:'1.5px solid #c084fc', borderRadius:6 }}/>
+                              </label>
+                              <label style={{ fontSize:11, color:'#6b21a8', fontWeight:700 }}>Paid date
+                                <input type="date" value={payInline.date} max={todayIso} onChange={e=>setPayInline(v=>v?{...v,date:e.target.value}:v)}
+                                  style={{ display:'block', marginTop:3, padding:'4px 8px', fontSize:12, border:'1.5px solid #c084fc', borderRadius:6 }}/>
+                              </label>
+                              <label style={{ fontSize:11, color:'#6b21a8', fontWeight:700, flex:1, minWidth:160 }}>Remarks (optional)
+                                <input value={payInline.remarks} placeholder="e.g. Cheque #12345" onChange={e=>setPayInline(v=>v?{...v,remarks:e.target.value}:v)}
+                                  onKeyDown={e=>{ if(e.key==='Enter') saveInlinePayment(); if(e.key==='Escape') setPayInline(null); }}
+                                  style={{ display:'block', marginTop:3, width:'100%', boxSizing:'border-box', padding:'5px 8px', fontSize:12, border:'1.5px solid #c084fc', borderRadius:6 }}/>
+                              </label>
+                              <div style={{ display:'flex', gap:4 }}>
+                                <button type="button" onClick={()=>setPayInline(v=>v?{...v,amount:String(rm)}:v)} style={{ padding:'5px 8px', fontSize:11, borderRadius:6, border:'1px solid #e9d5ff', background:'#fff', color:'#7c3aed', cursor:'pointer' }}>Full {rm.toLocaleString()}</button>
+                                <button type="button" onClick={()=>setPayInline(v=>v?{...v,amount:String(Math.round(rm/2))}:v)} style={{ padding:'5px 8px', fontSize:11, borderRadius:6, border:'1px solid #e9d5ff', background:'#fff', color:'#7c3aed', cursor:'pointer' }}>50%</button>
+                              </div>
+                              <button type="button" disabled={payInlineBusy} onClick={saveInlinePayment} className="btn-primary" style={{ fontSize:12, padding:'6px 14px' }}>{payInlineBusy ? 'Saving…' : 'Save payment'}</button>
+                              <button type="button" onClick={()=>setPayInline(null)} className="btn-secondary" style={{ fontSize:12, padding:'6px 12px' }}>Cancel</button>
+                            </div>
+                            {(() => { const a = parseFloat(payInline.amount) || 0; const after = Math.max(0, rm - a);
+                              return <div style={{ fontSize:11, marginTop:6, color: after <= 0 ? '#16a34a' : '#7c3aed', fontWeight:600 }}>
+                                {a > 0 ? (after <= 0 ? '→ Status will change to ✓ Payment Done' : `→ Status will change to Partially paid · AED ${after.toLocaleString()} remaining`) : 'Enter the amount paid'}
+                              </div>; })()}
+                          </td>
+                          <td></td>
+                        </tr>
+                      )}
+                      </React.Fragment>
                     );
                   }
                   // payment transaction row
