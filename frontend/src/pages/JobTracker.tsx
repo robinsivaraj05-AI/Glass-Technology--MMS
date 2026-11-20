@@ -4,7 +4,7 @@ import * as XLSX from 'xlsx';
 import {
   ClipboardList, Bell, RefreshCw, Plus, Edit2, Trash2, CheckCircle2,
   AlertTriangle, Clock, Search, Download, FileDown, Upload, FileSpreadsheet,
-  LayoutDashboard, AlarmClock, Repeat, X, User, Users, CalendarDays, Zap,
+  LayoutDashboard, AlarmClock, Repeat, X, User, Users, CalendarDays, Zap, ChevronDown, ChevronRight,
 } from 'lucide-react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -107,6 +107,41 @@ function isOverdue(dueDate: string, status: string) {
   const t = parseLocalDate(today);
   return !!d && !!t && d < t;
 }
+// ── Weekly E&I task list helpers ──
+// E&I jobs = Responsible "GT-E&I"
+const isEIJob = (j: PendingJob) => /E\s*&\s*I/i.test(j.assignedTo || '');
+const isOpenJob = (j: PendingJob) => j.status !== 'Completed' && j.status !== 'Cancelled';
+// Weeks run Monday → Sunday
+function weekStart(d: Date) { const x = new Date(d.getFullYear(), d.getMonth(), d.getDate()); x.setDate(x.getDate() - ((x.getDay() + 6) % 7)); return x; }
+const wkFmt = (d: Date) => d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+interface WeekGroup { key: string; title: string; range: string; tone: string; jobs: PendingJob[]; }
+function weeklyGroups(jobs: PendingJob[]): WeekGroup[] {
+  const t0 = parseLocalDate(today)!;
+  const thisWeek = weekStart(t0).getTime();
+  const overdue: PendingJob[] = [], noDate: PendingJob[] = [];
+  const byWeek = new Map<number, PendingJob[]>();
+  for (const j of jobs.filter(j => isEIJob(j) && isOpenJob(j))) {
+    const d = j.dueDate ? parseLocalDate(j.dueDate) : null;
+    if (!d) { noDate.push(j); continue; }
+    if (d < t0) { overdue.push(j); continue; }
+    const w = weekStart(d).getTime();
+    byWeek.set(w, [...(byWeek.get(w) || []), j]);
+  }
+  const byDue = (a: PendingJob, b: PendingJob) => (a.dueDate || '').localeCompare(b.dueDate || '');
+  const groups: WeekGroup[] = [];
+  if (overdue.length) groups.push({ key: 'overdue', title: 'Overdue', range: 'Past due date', tone: '#ef4444', jobs: overdue.sort(byDue) });
+  // always show this week and next week, even when empty
+  const keys = new Set([thisWeek, thisWeek + 7 * 86400000, ...byWeek.keys()]);
+  [...keys].sort((a, b) => a - b).forEach(w => {
+    const start = new Date(w), end = new Date(w); end.setDate(end.getDate() + 6);
+    const n = Math.round((w - thisWeek) / (7 * 86400000));
+    const title = n === 0 ? 'This week' : n === 1 ? 'Next week' : `In ${n} weeks`;
+    groups.push({ key: String(w), title, range: `${wkFmt(start)} – ${wkFmt(end)} ${end.getFullYear()}`, tone: n === 0 ? '#f59e0b' : n === 1 ? '#3b82f6' : '#64748b', jobs: (byWeek.get(w) || []).sort(byDue) });
+  });
+  if (noDate.length) groups.push({ key: 'nodate', title: 'No due date', range: 'Set a due date to plan these', tone: '#94a3b8', jobs: noDate });
+  return groups;
+}
+
 function autoId(prefix: string, list: any[]) {
   return `${prefix}-${new Date().getFullYear()}-${String(list.length + 1).padStart(3, '0')}`;
 }
@@ -350,6 +385,11 @@ export default function JobTracker() {
     } finally { setLoading(false); }
   };
   useEffect(() => { fetchAll(); }, []);
+
+  // ── Weekly E&I task list ──
+  const weekGroups = useMemo(() => weeklyGroups(pendingJobs), [pendingJobs]);
+  const [weekOpen, setWeekOpen] = useState<Record<string, boolean>>({});
+  const isWeekOpen = (g: WeekGroup, i: number) => weekOpen[g.key] ?? (g.key === 'overdue' || i < 3 || g.jobs.length > 0 && i < 4);
 
   // ── Stats ──
   const stats = useMemo(() => {
@@ -809,6 +849,79 @@ export default function JobTracker() {
             <StatCard label="Follow-ups Open"  value={stats.followup}  color="#a855f7" icon={<Repeat size={20}/>}        sub="Awaiting action" />
             <StatCard label="Today Reminders"  value={stats.todayRems} color="#34d399" icon={<Bell size={20}/>}          sub="Due today" />
             <StatCard label="Upcoming (7d)"    value={stats.upcoming}  color="#f472b6" icon={<CalendarDays size={20}/>}  sub="Within 7 days" />
+          </div>
+
+          {/* ── E&I weekly task list (by due date) ── */}
+          <div className="glass-card" style={{ padding: 0, overflow: 'hidden' }}>
+            <div style={{ padding: '12px 18px', borderBottom: '1px solid #E2E8F0', display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+              <CalendarDays size={16} color="#3b82f6" />
+              <span style={{ fontWeight: 800, color: '#1e293b', fontSize: 14 }}>E&amp;I Weekly Task List</span>
+              <span style={{ fontSize: 12, color: '#64748b' }}>Open jobs with Responsible “GT-E&amp;I”, grouped by due-date week (Mon – Sun)</span>
+              <span style={{ marginLeft: 'auto', fontSize: 12, fontWeight: 700, color: '#334155' }}>
+                {weekGroups.reduce((n, g) => n + g.jobs.length, 0)} open E&amp;I jobs
+              </span>
+            </div>
+            {weekGroups.map((g, i) => {
+              const openG = isWeekOpen(g, i);
+              return (
+                <div key={g.key} style={{ borderBottom: '1px solid #EEF2F7' }}>
+                  <button onClick={() => setWeekOpen(o => ({ ...o, [g.key]: !openG }))} style={{
+                    width: '100%', display: 'flex', alignItems: 'center', gap: 10, padding: '10px 18px', border: 'none', cursor: 'pointer',
+                    background: `${g.tone}0f`, borderLeft: `4px solid ${g.tone}`, textAlign: 'left',
+                  }}>
+                    {openG ? <ChevronDown size={15} color={g.tone}/> : <ChevronRight size={15} color={g.tone}/>}
+                    <span style={{ fontWeight: 800, fontSize: 13, color: g.tone }}>{g.title}</span>
+                    <span style={{ fontSize: 12, color: '#64748b' }}>{g.range}</span>
+                    <span style={{ marginLeft: 'auto', padding: '1px 10px', borderRadius: 20, fontSize: 11, fontWeight: 800, background: `${g.tone}22`, color: g.tone }}>
+                      {g.jobs.length} job{g.jobs.length === 1 ? '' : 's'}
+                    </span>
+                  </button>
+                  {openG && (g.jobs.length === 0 ? (
+                    <div style={{ padding: '10px 18px 12px 44px', fontSize: 12, color: '#94a3b8' }}>No E&amp;I jobs due in this week.</div>
+                  ) : (
+                    <div style={{ overflowX: 'auto' }}>
+                      <table className="data-table" style={{ fontSize: 12, tableLayout: 'fixed', width: '100%', minWidth: 1050 }}>
+                        {/* same widths in every week so the columns line up */}
+                        <colgroup>
+                          <col style={{ width: 130 }}/><col style={{ width: 80 }}/><col style={{ width: 130 }}/><col style={{ width: 110 }}/>
+                          <col/><col style={{ width: 90 }}/><col style={{ width: 150 }}/><col style={{ width: 120 }}/>
+                        </colgroup>
+                        <thead><tr>
+                          <th>Due Date</th><th style={{ textAlign: 'center' }}>Days</th><th>Job ID</th><th>Area</th><th>Description</th>
+                          <th>Priority</th><th>In-Charge</th><th style={{ textAlign: 'center' }}>Status</th>
+                        </tr></thead>
+                        <tbody>
+                          {g.jobs.map(j => {
+                            const pc = PRIORITY_CFG[j.priority] || PRIORITY_CFG.Medium;
+                            const sc = JOB_STATUS_CFG[j.status] || JOB_STATUS_CFG.Open;
+                            const du = daysUntil(j.dueDate);
+                            const dd = j.dueDate ? parseLocalDate(j.dueDate) : null;
+                            const daysTxt = du === null ? 'Nil' : du < 0 ? `${-du}d late` : du === 0 ? 'Today' : `${du}d`;
+                            const daysColor = du === null ? '#94a3b8' : du < 0 ? '#ef4444' : du <= 2 ? '#f59e0b' : '#16a34a';
+                            return (
+                              <tr key={j.id} style={{ background: du !== null && du < 0 ? 'rgba(239,68,68,0.04)' : du === 0 ? 'rgba(245,158,11,0.06)' : undefined }}>
+                                <td style={{ whiteSpace: 'nowrap', fontWeight: 700, color: '#1e293b' }}>
+                                  {dd ? <>{dd.toLocaleDateString('en-GB', { weekday: 'short' })} · {fmtDate(j.dueDate)}</> : 'Nil'}
+                                </td>
+                                <td style={{ textAlign: 'center', fontWeight: 800, color: daysColor, whiteSpace: 'nowrap' }}>{daysTxt}</td>
+                                <td style={{ fontFamily: 'monospace', color: '#60a5fa', fontWeight: 700 }}>{j.jobId || 'Nil'}</td>
+                                <td style={{ color: '#475569', whiteSpace: 'nowrap' }}>{j.asset || 'Nil'}</td>
+                                <td style={{ fontWeight: 500, color: '#374151', whiteSpace: 'normal', wordBreak: 'break-word' }}>{j.description}</td>
+                                <td><Badge label={j.priority} cfg={pc} /></td>
+                                <td style={{ color: '#64748b', whiteSpace: 'nowrap' }}>{j.completedBy || 'Nil'}</td>
+                                <td style={{ textAlign: 'center' }}>
+                                  <StatusSelect value={j.status} options={JOB_STATUSES} cfg={sc} onChange={(v: string) => updateStatus(j, v)} />
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  ))}
+                </div>
+              );
+            })}
           </div>
           {stats.overdueList.length > 0 && (
             <div className="glass-card" style={{ padding: 0, overflow: 'hidden' }}>
