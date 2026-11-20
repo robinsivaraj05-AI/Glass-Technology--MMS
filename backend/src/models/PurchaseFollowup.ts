@@ -11,6 +11,7 @@ const StatusChangeSchema = new Schema({
   status: { type: String, default: '' },
   from:   { type: String, default: '' },
   at:     { type: Date, default: Date.now },
+  edited: { type: Boolean, default: false },   // date entered / corrected by a user
 }, { _id: false });
 
 const PurchaseFollowupSchema = new Schema({
