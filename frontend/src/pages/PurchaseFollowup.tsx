@@ -356,6 +356,9 @@ export default function PurchaseFollowup() {
   // Inline "add paid amount + date" row in the Completed table
   const [payInline, setPayInline] = useState<{ id: string; amount: string; date: string; remarks: string } | null>(null);
   const [payInlineBusy, setPayInlineBusy] = useState(false);
+  // Completed tab: payment lines (P1, P2…) are hidden until the row is expanded
+  const [payOpen, setPayOpen] = useState<Set<string>>(new Set());
+  const togglePayOpen = (id: string) => setPayOpen(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
   const saveInlinePayment = async () => {
     if (!payInline) return;
     const amt = parseFloat(payInline.amount);
@@ -825,6 +828,7 @@ export default function PurchaseFollowup() {
         compRecs.forEach((r, idx) => {
           if (isRejected(r.currentStatus)) { rows.push({ kind:'rejected', rec:r, idx }); return; }
           rows.push({ kind:'po', rec:r, idx });
+          if (!payOpen.has(r.id)) return;          // payment lines only when expanded
           let cum = 0;
           (r.paymentHistory || []).forEach((tx, ti) => {
             cum += tx.amount;
@@ -877,8 +881,21 @@ export default function PurchaseFollowup() {
                     return (
                       <React.Fragment key={`po-${row.rec.id}`}>
                       <tr style={{ background: full ? 'rgba(34,197,94,0.08)' : 'rgba(245,158,11,0.05)', borderLeft: full ? '3px solid rgba(34,197,94,0.6)' : '3px solid rgba(245,158,11,0.5)' }}>
-                        <td style={{ textAlign:'center', fontSize:12, color:'#64748b', fontWeight:700 }}>{row.idx+1}</td>
-                        <td style={{ fontSize:13, fontWeight:700, color:'#1e293b', wordBreak:'break-word' }}>{row.rec.itemDescription}</td>
+                        <td style={{ textAlign:'center', fontSize:12, color:'#64748b', fontWeight:700, whiteSpace:'nowrap' }}>
+                          {nPay > 0 ? (
+                            <button onClick={() => togglePayOpen(row.rec.id)} title={payOpen.has(row.rec.id) ? 'Hide payments' : 'Show payment history'}
+                              style={{ display:'inline-flex', alignItems:'center', gap:2, border:'none', background:'transparent', cursor:'pointer', color:'#64748b', fontWeight:700, fontSize:12, padding:0 }}>
+                              <span style={{ display:'inline-block', transition:'transform .15s', transform: payOpen.has(row.rec.id) ? 'rotate(90deg)' : 'none', color:'#7c3aed' }}>▸</span>{row.idx+1}
+                            </button>
+                          ) : row.idx+1}
+                        </td>
+                        <td style={{ fontSize:13, fontWeight:700, color:'#1e293b', wordBreak:'break-word' }}>
+                          {row.rec.itemDescription}
+                          {nPay > 0 && (() => { const last = [...(row.rec.paymentHistory||[])].map(t => t.date).filter(Boolean).sort().pop();
+                            return <div onClick={() => togglePayOpen(row.rec.id)} style={{ fontSize:10, fontWeight:600, color:'#7c3aed', cursor:'pointer', marginTop:2 }}>
+                              {nPay} payment{nPay!==1?'s':''}{last ? ` · last paid ${fmtDate(last)}` : ''} {payOpen.has(row.rec.id) ? '▴' : '▾'}
+                            </div>; })()}
+                        </td>
                         <td style={{ fontSize:12, color:'#60a5fa', fontFamily:'monospace', fontWeight:700 }}>{row.rec.prNumber||'—'}</td>
                         <td style={{ padding:'4px 6px' }}>
                           <input type="date" disabled={readOnly} className="input-dark"
@@ -951,7 +968,7 @@ export default function PurchaseFollowup() {
                   const { rec, tx, txIdx, remaining } = row;
                   const isLast = remaining <= 0;
                   return (
-                    <tr key={`tx-${tx.id}`} style={{ background: isLast ? 'rgba(34,197,94,0.04)' : 'rgba(168,85,247,0.04)', borderLeft:'3px solid '+(isLast?'rgba(34,197,94,0.3)':'rgba(168,85,247,0.3)') }}>
+                    <tr key={`tx-${rec.id}-${txIdx}`} style={{ background: isLast ? 'rgba(34,197,94,0.04)' : 'rgba(168,85,247,0.04)', borderLeft:'3px solid '+(isLast?'rgba(34,197,94,0.3)':'rgba(168,85,247,0.3)') }}>
                       <td style={{ textAlign:'center' }}>
                         <span style={{ fontSize:10, color:isLast?'#22c55e':'#a855f7', fontWeight:700, background:isLast?'rgba(34,197,94,0.15)':'rgba(168,85,247,0.15)', padding:'1px 7px', borderRadius:10 }}>P{txIdx+1}</span>
                       </td>
