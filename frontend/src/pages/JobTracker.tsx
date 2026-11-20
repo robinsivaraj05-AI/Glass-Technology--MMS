@@ -4,11 +4,12 @@ import * as XLSX from 'xlsx';
 import {
   ClipboardList, Bell, RefreshCw, Plus, Edit2, Trash2, CheckCircle2,
   AlertTriangle, Clock, Search, Download, FileDown, Upload, FileSpreadsheet,
-  LayoutDashboard, AlarmClock, Repeat, X, User, Users, CalendarDays, Zap, ChevronDown, ChevronRight,
+  LayoutDashboard, AlarmClock, Repeat, X, User, Users, CalendarDays, Zap, ChevronDown, ChevronRight, Check, Pencil,
 } from 'lucide-react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { apiFetch } from '../utils/api';
+import { useAuth } from '../context/AuthContext';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 interface PendingJob {
@@ -113,6 +114,10 @@ const isEIJob = (j: PendingJob) => /E\s*&\s*I/i.test(j.assignedTo || '');
 const isOpenJob = (j: PendingJob) => j.status !== 'Completed' && j.status !== 'Cancelled';
 // Weeks run Monday → Sunday
 function weekStart(d: Date) { const x = new Date(d.getFullYear(), d.getMonth(), d.getDate()); x.setDate(x.getDate() - ((x.getDay() + 6) % 7)); return x; }
+const isoOf = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+const addDays = (iso: string, n: number) => { const d = parseLocalDate(iso) ?? new Date(); d.setDate(d.getDate() + n); return isoOf(d); };
+// Monday of next week
+const nextMonday = () => { const d = weekStart(parseLocalDate(today)!); d.setDate(d.getDate() + 7); return isoOf(d); };
 const wkFmt = (d: Date) => d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
 interface WeekGroup { key: string; title: string; range: string; tone: string; jobs: PendingJob[]; }
 function weeklyGroups(jobs: PendingJob[]): WeekGroup[] {
@@ -389,6 +394,20 @@ export default function JobTracker() {
   // ── Weekly E&I task list ──
   const weekGroups = useMemo(() => weeklyGroups(pendingJobs), [pendingJobs]);
   const [weekOpen, setWeekOpen] = useState<Record<string, boolean>>({});
+  // Inline due-date editing in the weekly list (not for guests)
+  const { user: authUser } = useAuth();
+  const canPlan = !!authUser && authUser.role !== 'guest';
+  const [dueEdit, setDueEdit] = useState<{ id: string; value: string } | null>(null);
+  const [dueSaving, setDueSaving] = useState(false);
+  const saveDue = async (j: PendingJob, value: string) => {
+    setDueSaving(true);
+    try {
+      const up = await apiFetch(`/api/pending-jobs/${j.id}`, { method: 'PUT', body: JSON.stringify({ dueDate: value }) });
+      setPendingJobs(p => p.map(x => x.id === j.id ? { ...x, ...up, id: x.id } : x));
+      setDueEdit(null);
+    } catch (e: any) { alert(e?.message || 'Could not update the due date'); }
+    finally { setDueSaving(false); }
+  };
   const isWeekOpen = (g: WeekGroup, i: number) => weekOpen[g.key] ?? (g.key === 'overdue' || i < 3 || g.jobs.length > 0 && i < 4);
 
   // ── Stats ──
@@ -856,7 +875,7 @@ export default function JobTracker() {
             <div style={{ padding: '12px 18px', borderBottom: '1px solid #E2E8F0', display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
               <CalendarDays size={16} color="#3b82f6" />
               <span style={{ fontWeight: 800, color: '#1e293b', fontSize: 14 }}>E&amp;I Weekly Task List</span>
-              <span style={{ fontSize: 12, color: '#64748b' }}>Open jobs with Responsible “GT-E&amp;I”, grouped by due-date week (Mon – Sun)</span>
+              <span style={{ fontSize: 12, color: '#64748b' }}>Open jobs with Responsible “GT-E&amp;I”, grouped by due-date week (Mon – Sun){canPlan ? ' · click a due date to change it' : ''}</span>
               <span style={{ marginLeft: 'auto', fontSize: 12, fontWeight: 700, color: '#334155' }}>
                 {weekGroups.reduce((n, g) => n + g.jobs.length, 0)} open E&amp;I jobs
               </span>
@@ -883,7 +902,7 @@ export default function JobTracker() {
                       <table className="data-table" style={{ fontSize: 12, tableLayout: 'fixed', width: '100%', minWidth: 1050 }}>
                         {/* same widths in every week so the columns line up */}
                         <colgroup>
-                          <col style={{ width: 130 }}/><col style={{ width: 80 }}/><col style={{ width: 130 }}/><col style={{ width: 110 }}/>
+                          <col style={{ width: 175 }}/><col style={{ width: 75 }}/><col style={{ width: 125 }}/><col style={{ width: 105 }}/>
                           <col/><col style={{ width: 90 }}/><col style={{ width: 150 }}/><col style={{ width: 120 }}/>
                         </colgroup>
                         <thead><tr>
@@ -901,14 +920,51 @@ export default function JobTracker() {
                             return (
                               <tr key={j.id} style={{ background: du !== null && du < 0 ? 'rgba(239,68,68,0.04)' : du === 0 ? 'rgba(245,158,11,0.06)' : undefined }}>
                                 <td style={{ whiteSpace: 'nowrap', fontWeight: 700, color: '#1e293b' }}>
-                                  {dd ? <>{dd.toLocaleDateString('en-GB', { weekday: 'short' })} · {fmtDate(j.dueDate)}</> : 'Nil'}
+                                  {dueEdit?.id === j.id ? (
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                                      <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
+                                        <input type="date" autoFocus value={dueEdit.value}
+                                          onChange={e => setDueEdit({ id: j.id, value: e.target.value })}
+                                          onKeyDown={e => { if (e.key === 'Enter') saveDue(j, dueEdit.value); if (e.key === 'Escape') setDueEdit(null); }}
+                                          style={{ fontSize: 11, padding: '3px 4px', border: '1.5px solid #3b82f6', borderRadius: 4, width: 118 }}/>
+                                        <button title="Save" disabled={dueSaving} onClick={() => saveDue(j, dueEdit.value)}
+                                          style={{ width: 24, height: 22, border: 'none', borderRadius: 4, background: '#16a34a', color: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 }}><Check size={13}/></button>
+                                        <button title="Cancel" disabled={dueSaving} onClick={() => setDueEdit(null)}
+                                          style={{ width: 24, height: 22, border: 'none', borderRadius: 4, background: '#94a3b8', color: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 }}><X size={13}/></button>
+                                      </div>
+                                      {/* quick picks for weekly planning */}
+                                      <div style={{ display: 'flex', gap: 3, flexWrap: 'wrap' }}>
+                                        {[
+                                          { label: 'Today',    v: today },
+                                          { label: 'Next Mon', v: nextMonday() },
+                                          { label: '+7 days',  v: addDays(dueEdit.value || today, 7) },
+                                          { label: 'Clear',    v: '' },
+                                        ].map(q => (
+                                          <button key={q.label} type="button" onClick={() => setDueEdit({ id: j.id, value: q.v })}
+                                            style={{ padding: '1px 6px', fontSize: 10, fontWeight: 600, borderRadius: 4, cursor: 'pointer', border: '1px solid #cbd5e1', background: '#f8fafc', color: q.v === '' ? '#64748b' : '#1d4ed8' }}>
+                                            {q.label}
+                                          </button>
+                                        ))}
+                                      </div>
+                                    </div>
+                                  ) : canPlan ? (
+                                    <button title="Change due date" onClick={() => setDueEdit({ id: j.id, value: j.dueDate || '' })}
+                                      style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '3px 6px', marginLeft: -6, border: '1px dashed transparent', borderRadius: 4, background: 'transparent', cursor: 'pointer', fontWeight: 700, fontSize: 12, color: dd ? '#1e293b' : '#2563eb' }}
+                                      onMouseEnter={e => (e.currentTarget.style.borderColor = '#93c5fd')}
+                                      onMouseLeave={e => (e.currentTarget.style.borderColor = 'transparent')}>
+                                      {dd ? <>{dd.toLocaleDateString('en-GB', { weekday: 'short' })} · {fmtDate(j.dueDate)}</> : 'Set date'}
+                                      <Pencil size={11} color="#94a3b8"/>
+                                    </button>
+                                  ) : (
+                                    dd ? <>{dd.toLocaleDateString('en-GB', { weekday: 'short' })} · {fmtDate(j.dueDate)}</> : 'Nil'
+                                  )}
                                 </td>
                                 <td style={{ textAlign: 'center', fontWeight: 800, color: daysColor, whiteSpace: 'nowrap' }}>{daysTxt}</td>
                                 <td style={{ fontFamily: 'monospace', color: '#60a5fa', fontWeight: 700 }}>{j.jobId || 'Nil'}</td>
                                 <td style={{ color: '#475569', whiteSpace: 'nowrap' }}>{j.asset || 'Nil'}</td>
                                 <td style={{ fontWeight: 500, color: '#374151', whiteSpace: 'normal', wordBreak: 'break-word' }}>{j.description}</td>
                                 <td><Badge label={j.priority} cfg={pc} /></td>
-                                <td style={{ color: '#64748b', whiteSpace: 'nowrap' }}>{j.completedBy || 'Nil'}</td>
+                                <td title={j.completedBy} style={{ color: '#64748b', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{j.completedBy || 'Nil'}</td>
                                 <td style={{ textAlign: 'center' }}>
                                   <StatusSelect value={j.status} options={JOB_STATUSES} cfg={sc} onChange={(v: string) => updateStatus(j, v)} />
                                 </td>
