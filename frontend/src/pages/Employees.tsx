@@ -3,7 +3,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import {
   Users, UserCheck, UserX, UserPlus, AlertTriangle, Search, Download,
-  Eye, CheckCircle, XCircle, Clock, FileText, X, Shield, Plus, Trash2, Upload,
+  Eye, CheckCircle, XCircle, Clock, FileText, X, Shield, Plus, Trash2, Upload, Edit2, Save,
 } from 'lucide-react';
 import EmployeeBulkUpload from './EmployeeBulkUpload';
 import {
@@ -34,6 +34,19 @@ const BLANK_EMP_FORM = {
   currentAddress: '', permanentAddress: '',
   emergencyContactPerson: '', emergencyContactNumber: '',
   emiratesId: '', passportNo: '', visaExpiry: '', passportExpiry: '',
+};
+
+const RESIGN_REASONS = ['Family Relocation', 'Better Opportunity', 'Personal Reasons', 'Contract End', 'Higher Studies', 'Health Issues', 'Salary Dispute', 'Other'];
+const CLEARANCE_ITEMS = [
+  'Company ID Card Returned', 'Laptop Returned', 'Mobile Phone Returned',
+  'Uniform Returned', 'PPE Returned', 'Office Keys Returned', 'Documents Submitted',
+  'Handover Completed', 'Knowledge Transfer Completed', 'Finance Clearance',
+  'IT Clearance', 'HR Clearance', 'Administration Clearance',
+];
+const EMPTY_RESIGNATION: ResignationDetails = {
+  resignationDate: '', noticePeriod: '30 Days', lastWorkingDate: '', submittedTo: '', approvedBy: '', approvalDate: '',
+  exitInterviewDate: '', exitInterviewNotes: '', reason: '', employeeRemarks: '', managerComments: '', hrComments: '',
+  rootCause: '', lessonsLearned: '', retentionActions: '', clearance: [],
 };
 
 const BLANK_RESIGN_FORM = {
@@ -126,6 +139,11 @@ export default function Employees() {
   const [resignForm, setResignForm] = useState({ ...BLANK_RESIGN_FORM });
   const setRF = (f: string, v: string) => setResignForm(p => ({ ...p, [f]: v }));
   const [resignedDetailTab, setResignedDetailTab] = useState<'overview' | 'attendance' | 'training' | 'skills'>('overview');
+  // Editing the resignation details of a resigned employee (Manager / Deputy Manager)
+  const [resEdit, setResEdit] = useState<ResignationDetails | null>(null);
+  const [resSaving, setResSaving] = useState(false);
+  useEffect(() => { setResEdit(null); }, [selectedResignedId]);
+  const setRE = (k: keyof ResignationDetails, v: any) => setResEdit(r => r ? { ...r, [k]: v } : r);
   const [resignedAttRecords, setResignedAttRecords] = useState<any[]>([]);
   const [loadingResignedAtt, setLoadingResignedAtt] = useState(false);
 
@@ -267,12 +285,7 @@ export default function Employees() {
   // Add Resignation handler
   const handleAddResignation = () => {
     if (!resignForm.empId || !resignForm.resignationDate || !resignForm.lastWorkingDate) return;
-    const clearance = [
-      'Company ID Card Returned', 'Laptop Returned', 'Mobile Phone Returned',
-      'Uniform Returned', 'PPE Returned', 'Office Keys Returned', 'Documents Submitted',
-      'Handover Completed', 'Knowledge Transfer Completed', 'Finance Clearance',
-      'IT Clearance', 'HR Clearance', 'Administration Clearance',
-    ].map(item => ({ item, completed: false }));
+    const clearance = CLEARANCE_ITEMS.map(item => ({ item, completed: false }));
 
     const resigningEmp = employees.find(e => e.id === resignForm.empId);
     updateEmployee(resignForm.empId, {
@@ -582,8 +595,18 @@ export default function Employees() {
           </div>
 
           {/* Resignation Detail Modal */}
-          {selectedResigned && selectedResigned.resignation && (() => {
-            const res = selectedResigned.resignation;
+          {selectedResigned && (() => {
+            const res: ResignationDetails = { ...EMPTY_RESIGNATION, ...(selectedResigned.resignation || {}), clearance: selectedResigned.resignation?.clearance || [] };
+            const startEdit = () => {
+              setResignedDetailTab('overview');
+              setResEdit({ ...res, clearance: res.clearance.length ? res.clearance.map(c => ({ ...c })) : CLEARANCE_ITEMS.map(item => ({ item, completed: false })) });
+            };
+            const saveEdit = async () => {
+              if (!resEdit) return;
+              setResSaving(true);
+              try { await updateEmployee(selectedResigned.id, { resignation: resEdit }); setResEdit(null); }
+              finally { setResSaving(false); }
+            };
             const done  = res.clearance.filter(c => c.completed).length;
             const total = res.clearance.length || 1;
             const pct   = Math.round((done / total) * 100);
@@ -609,20 +632,36 @@ export default function Employees() {
                       <div style={{ fontSize: 12, color: '#64748b' }}>{selectedResigned.designation} · {selectedResigned.empId}</div>
                       <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 2 }}>Last Working Day: {res.lastWorkingDate || '—'}</div>
                     </div>
-                    <button onClick={() => { setSelectedResignedId(null); navigate(`/employees/${selectedResigned.id}`); }}
+                    {isAdmin && !resEdit && (
+                      <button onClick={startEdit}
+                        style={{ padding: '6px 12px', fontSize: 12, background: '#eef2ff', border: '1px solid #c7d2fe', borderRadius: 7, color: '#4f46e5', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0, fontWeight: 600 }}>
+                        <Edit2 size={13} /> Edit
+                      </button>
+                    )}
+                    {resEdit && <>
+                      <button onClick={saveEdit} disabled={resSaving}
+                        style={{ padding: '6px 14px', fontSize: 12, background: '#16a34a', border: 'none', borderRadius: 7, color: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0, fontWeight: 700 }}>
+                        <Save size={13} /> {resSaving ? 'Saving…' : 'Save'}
+                      </button>
+                      <button onClick={() => setResEdit(null)} disabled={resSaving}
+                        style={{ padding: '6px 12px', fontSize: 12, background: '#f1f5f9', border: '1px solid #e2e8f0', borderRadius: 7, color: '#475569', cursor: 'pointer', flexShrink: 0 }}>
+                        Cancel
+                      </button>
+                    </>}
+                    {!resEdit && <button onClick={() => { setSelectedResignedId(null); navigate(`/employees/${selectedResigned.id}`); }}
                       style={{ padding: '6px 12px', fontSize: 12, background: 'rgba(59,130,246,0.15)', border: '1px solid rgba(59,130,246,0.3)', borderRadius: 7, color: '#60a5fa', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
                       <Eye size={13} /> Full Profile
-                    </button>
-                    <button onClick={() => { if (window.confirm(`Delete ${selectedResigned.name}'s record permanently?`)) handleDeleteResigned(selectedResigned.id); }}
+                    </button>}
+                    {!resEdit && isAdmin && <button onClick={() => { if (window.confirm(`Delete ${selectedResigned.name}'s record permanently?`)) handleDeleteResigned(selectedResigned.id); }}
                       style={{ padding: '6px 12px', fontSize: 12, background: 'rgba(239,68,68,0.15)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: 7, color: '#ef4444', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
                       <Trash2 size={13} /> Delete
-                    </button>
+                    </button>}
                   </div>
 
                   {/* Tab bar */}
                   <div style={{ display: 'flex', gap: 4, marginBottom: 16, borderBottom: '1px solid rgba(255,255,255,0.08)', paddingBottom: 8 }}>
                     {DETAIL_TABS.map(t => (
-                      <button key={t.key} onClick={() => setResignedDetailTab(t.key as any)} style={{
+                      <button key={t.key} disabled={!!resEdit && t.key !== 'overview'} onClick={() => setResignedDetailTab(t.key as any)} style={{ opacity: resEdit && t.key !== 'overview' ? 0.4 : 1,
                         padding: '6px 16px', borderRadius: 7, border: 'none', cursor: 'pointer', fontSize: 12, fontWeight: 500,
                         background: resignedDetailTab === t.key ? '#3b82f6' : 'rgba(255,255,255,0.05)',
                         color: resignedDetailTab === t.key ? 'white' : '#94a3b8',
@@ -631,7 +670,69 @@ export default function Employees() {
                   </div>
 
                   {/* ── OVERVIEW TAB ── */}
-                  {resignedDetailTab === 'overview' && <>
+                  {resignedDetailTab === 'overview' && resEdit && (() => {
+                    const inp: React.CSSProperties = { width: '100%', boxSizing: 'border-box', padding: '7px 10px', fontSize: 13, border: '1px solid #cbd5e1', borderRadius: 7, background: '#fff', color: '#1e293b' };
+                    const lbl: React.CSSProperties = { fontSize: 11, color: '#475569', fontWeight: 600, marginBottom: 4, display: 'block' };
+                    const F = ({ label, k, type = 'text', list }: { label: string; k: keyof ResignationDetails; type?: string; list?: string }) => (
+                      <label key={k} style={{ display: 'block' }}><span style={lbl}>{label}</span>
+                        <input type={type} list={list} style={inp} value={(resEdit[k] as string) || ''} onChange={e => setRE(k, e.target.value)}/>
+                      </label>
+                    );
+                    const T = ({ label, k }: { label: string; k: keyof ResignationDetails }) => (
+                      <label key={k} style={{ display: 'block', marginBottom: 10 }}><span style={lbl}>{label}</span>
+                        <textarea rows={2} style={{ ...inp, resize: 'vertical', fontFamily: 'inherit' }} value={(resEdit[k] as string) || ''} onChange={e => setRE(k, e.target.value)}/>
+                      </label>
+                    );
+                    const doneN = resEdit.clearance.filter(c => c.completed).length;
+                    return <>
+                      <datalist id="res-people">{employees.map(e => <option key={e.id} value={e.name}/>)}</datalist>
+                      <datalist id="res-notice">{['7 Days', '15 Days', '30 Days', '60 Days', '90 Days'].map(o => <option key={o} value={o}/>)}</datalist>
+                      <div style={{ fontSize: 11, color: '#4f46e5', fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 10 }}>Edit Resignation Information</div>
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 14 }}>
+                        {F({ label: 'Resignation Date', k: 'resignationDate', type: 'date' })}
+                        {F({ label: 'Notice Period', k: 'noticePeriod', list: 'res-notice' })}
+                        {F({ label: 'Last Working Date', k: 'lastWorkingDate', type: 'date' })}
+                        {F({ label: 'Submitted To', k: 'submittedTo', list: 'res-people' })}
+                        {F({ label: 'Approved By', k: 'approvedBy', list: 'res-people' })}
+                        {F({ label: 'Approval Date', k: 'approvalDate', type: 'date' })}
+                        {F({ label: 'Exit Interview Date', k: 'exitInterviewDate', type: 'date' })}
+                        <label style={{ display: 'block' }}><span style={lbl}>Reason</span>
+                          <select style={inp} value={resEdit.reason || ''} onChange={e => setRE('reason', e.target.value)}>
+                            <option value="">Select reason</option>
+                            {[...new Set([...RESIGN_REASONS, ...(resEdit.reason ? [resEdit.reason] : [])])].map(r => <option key={r} value={r}>{r}</option>)}
+                          </select>
+                        </label>
+                      </div>
+                      {T({ label: 'Employee Remarks', k: 'employeeRemarks' })}
+                      {T({ label: 'Manager Comments', k: 'managerComments' })}
+                      {T({ label: 'HR Comments', k: 'hrComments' })}
+                      {T({ label: 'Exit Interview Notes', k: 'exitInterviewNotes' })}
+                      {T({ label: 'Root Cause Analysis', k: 'rootCause' })}
+                      {T({ label: 'Lessons Learned', k: 'lessonsLearned' })}
+                      {T({ label: 'Retention Actions', k: 'retentionActions' })}
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 6, marginBottom: 8 }}>
+                        <span style={{ fontSize: 11, color: '#4f46e5', fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1 }}>Final Clearance — {doneN}/{resEdit.clearance.length} done</span>
+                        <button type="button" onClick={() => setRE('clearance', resEdit.clearance.map(c => ({ ...c, completed: true })))}
+                          style={{ marginLeft: 'auto', fontSize: 11, padding: '3px 10px', borderRadius: 6, border: '1px solid #bbf7d0', background: '#f0fdf4', color: '#16a34a', cursor: 'pointer' }}>Mark all done</button>
+                        <button type="button" onClick={() => setRE('clearance', resEdit.clearance.map(c => ({ ...c, completed: false })))}
+                          style={{ fontSize: 11, padding: '3px 10px', borderRadius: 6, border: '1px solid #e2e8f0', background: '#fff', color: '#64748b', cursor: 'pointer' }}>Clear all</button>
+                      </div>
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
+                        {resEdit.clearance.map((c, i) => (
+                          <label key={c.item} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px', background: c.completed ? '#f0fdf4' : '#f8fafc', border: `1px solid ${c.completed ? '#bbf7d0' : '#e2e8f0'}`, borderRadius: 8, cursor: 'pointer' }}>
+                            <input type="checkbox" checked={c.completed} onChange={e => setRE('clearance', resEdit.clearance.map((x, j) => j === i ? { ...x, completed: e.target.checked } : x))}/>
+                            <span style={{ fontSize: 12, color: '#1e293b' }}>{c.item}</span>
+                          </label>
+                        ))}
+                      </div>
+                      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 16 }}>
+                        <button onClick={() => setResEdit(null)} disabled={resSaving} className="btn-secondary" style={{ fontSize: 12 }}>Cancel</button>
+                        <button onClick={saveEdit} disabled={resSaving} className="btn-primary" style={{ fontSize: 12, display: 'flex', alignItems: 'center', gap: 6 }}><Save size={13}/> {resSaving ? 'Saving…' : 'Save changes'}</button>
+                      </div>
+                    </>;
+                  })()}
+
+                  {resignedDetailTab === 'overview' && !resEdit && <>
                     <div style={{ fontSize: 11, color: '#3b82f6', fontWeight: 600, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 10 }}>Resignation Information</div>
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 16 }}>
                       {([
@@ -640,9 +741,9 @@ export default function Employees() {
                         ['Approved By', res.approvedBy], ['Approval Date', res.approvalDate],
                         ['Exit Interview Date', res.exitInterviewDate], ['Reason', res.reason],
                       ] as [string, string][]).map(([l, v]) => (
-                        <div key={l} style={{ background: 'rgba(255,255,255,0.03)', borderRadius: 8, padding: '10px 14px' }}>
+                        <div key={l} style={{ background: '#f8fafc', borderRadius: 8, padding: '10px 14px' }}>
                           <div style={{ fontSize: 10, color: '#64748b', marginBottom: 2 }}>{l}</div>
-                          <div style={{ fontSize: 13, color: '#374151', fontWeight: 500 }}>{v || '—'}</div>
+                          <div style={{ fontSize: 13, color: v ? '#1e293b' : '#94a3b8', fontWeight: 500 }}>{v || 'Not entered'}</div>
                         </div>
                       ))}
                     </div>
@@ -650,27 +751,30 @@ export default function Employees() {
                       ['Employee Remarks', res.employeeRemarks],
                       ['Manager Comments', res.managerComments],
                       ['HR Comments', res.hrComments],
+                      ['Exit Interview Notes', res.exitInterviewNotes],
                       ['Root Cause Analysis', res.rootCause],
                       ['Lessons Learned', res.lessonsLearned],
+                      ['Retention Actions', res.retentionActions],
                     ] as [string, string][]).map(([l, v]) => (
-                      <div key={l} style={{ background: 'rgba(255,255,255,0.03)', borderRadius: 8, padding: '10px 14px', marginBottom: 8 }}>
+                      <div key={l} style={{ background: '#f8fafc', borderRadius: 8, padding: '10px 14px', marginBottom: 8 }}>
                         <div style={{ fontSize: 10, color: '#64748b', marginBottom: 4 }}>{l}</div>
-                        <div style={{ fontSize: 12, color: '#94a3b8', lineHeight: 1.6 }}>{v || '—'}</div>
+                        <div style={{ fontSize: 12, color: v ? '#334155' : '#94a3b8', lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>{v || 'Not entered'}</div>
                       </div>
                     ))}
                     <div style={{ fontSize: 11, color: '#3b82f6', fontWeight: 600, textTransform: 'uppercase', letterSpacing: 1, marginTop: 16, marginBottom: 10 }}>
                       Final Clearance — {pct}% Complete
                     </div>
-                    <div style={{ height: 6, background: 'rgba(255,255,255,0.08)', borderRadius: 3, marginBottom: 12 }}>
+                    <div style={{ height: 6, background: '#e2e8f0', borderRadius: 3, marginBottom: 12 }}>
                       <div style={{ width: `${pct}%`, height: '100%', background: pct === 100 ? '#22c55e' : '#f59e0b', borderRadius: 3, transition: 'width 0.4s' }} />
                     </div>
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
                       {res.clearance.map((c, i) => (
-                        <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px', background: 'rgba(255,255,255,0.03)', borderRadius: 8 }}>
+                        <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px', background: c.completed ? '#f0fdf4' : '#f8fafc', borderRadius: 8 }}>
                           {c.completed ? <CheckCircle size={14} color="#22c55e" /> : <XCircle size={14} color="#ef4444" />}
-                          <span style={{ fontSize: 12, color: c.completed ? '#94a3b8' : '#f1f5f9' }}>{c.item}</span>
+                          <span style={{ fontSize: 12, color: c.completed ? '#15803d' : '#334155' }}>{c.item}</span>
                         </div>
                       ))}
+                      {res.clearance.length === 0 && <div style={{ fontSize: 12, color: '#94a3b8' }}>No clearance checklist yet — click Edit to add it.</div>}
                     </div>
                   </>}
 
