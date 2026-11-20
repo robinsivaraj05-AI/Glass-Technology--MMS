@@ -1,5 +1,6 @@
 import { useMemo, useState, Fragment } from 'react';
-import { ChevronDown, ChevronRight, History } from 'lucide-react';
+import { ChevronDown, ChevronRight, History, Check, X } from 'lucide-react';
+import { apiFetch } from '../utils/api';
 import { STATUS_FLOW, REJECTED, STATUS_WEB, normaliseStatus, isRejected, stepOf, statusLabel, type StatusChange } from '../config/purchaseStatus';
 
 // Purchase History: for every item, the date it reached each workflow stage,
@@ -26,11 +27,12 @@ const SHORT: Record<string, string> = {
 
 export function analyse(r: Rec) {
   const log = (r.statusHistory || [])
-    .map(h => ({ status: normaliseStatus(h.status), from: normaliseStatus(h.from || ''), at: new Date(h.at) }))
+    .map(h => ({ status: normaliseStatus(h.status), from: normaliseStatus(h.from || ''), at: new Date(h.at), edited: !!h.edited }))
     .filter(h => !isNaN(h.at.getTime()))
     .sort((a, b) => a.at.getTime() - b.at.getTime());
   const reached = new Map<string, Date>();
-  for (const h of log) if (!reached.has(h.status)) reached.set(h.status, h.at);
+  const editedSteps = new Set<string>();
+  for (const h of log) if (!reached.has(h.status)) { reached.set(h.status, h.at); if (h.edited) editedSteps.add(h.status); }
   const current = normaliseStatus(r.currentStatus || '');
   const curStep = stepOf(current);
   const rejectedAt = [...log].reverse().find(h => h.status === REJECTED)?.at;
@@ -40,12 +42,12 @@ export function analyse(r: Rec) {
   const doneAt = reached.get('Material Received');
   const completed = current === 'Material Received' || current === REJECTED;
   const endAt = doneAt ?? rejectedAt;          // when it was completed / rejected (if logged)
-  return { log, reached, current, curStep, rejectedAt, lastChange, start, doneAt, completed, endAt };
+  return { log, reached, editedSteps, current, curStep, rejectedAt, lastChange, start, doneAt, completed, endAt };
 }
 
 // What each of the 7 step cells shows — shared by the page and the PDF report
 export type Cell =
-  | { kind: 'date'; date: Date; gap: number | null; current: boolean }   // reached on a recorded date
+  | { kind: 'date'; date: Date; gap: number | null; current: boolean; edited?: boolean }   // reached on a recorded date
   | { kind: 'current' }                                                  // current step, reached before tracking
   | { kind: 'done' }                                                     // passed, no date recorded
   | { kind: 'nil' };                                                     // not reached
@@ -57,7 +59,7 @@ export function stageCells(a: ReturnType<typeof analyse>): Cell[] {
   let prev: Date | undefined = a.start;
   STATUS_FLOW.slice(1).forEach((st, j) => {
     const step = j + 2, d = a.reached.get(st);
-    if (d) { cells.push({ kind: 'date', date: d, gap: prev ? days(prev, d) : null, current: a.current === st }); prev = d; }
+    if (d) { cells.push({ kind: 'date', date: d, gap: prev ? days(prev, d) : null, current: a.current === st, edited: a.editedSteps.has(st) }); prev = d; }
     else if (a.current === st) cells.push({ kind: 'current' });
     else if (a.curStep > step) cells.push({ kind: 'done' });
     else cells.push({ kind: 'nil' });
@@ -66,16 +68,25 @@ export function stageCells(a: ReturnType<typeof analyse>): Cell[] {
 }
 
 // Uniform square-cornered box used for every step cell
-function StageBox({ cell, color, title }: { cell: Cell; color: string; title: string }) {
+function StageBox({ cell, color, title, onEdit }: { cell: Cell; color: string; title: string; onEdit?: () => void }) {
   const base: React.CSSProperties = {
-    width: 92, height: 42, margin: '0 auto', boxSizing: 'border-box', borderRadius: 3,
+    width: 92, height: 42, margin: '0 auto', boxSizing: 'border-box', borderRadius: 3, position: 'relative',
     display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
     fontSize: 11, fontWeight: 700, lineHeight: 1.25,
   };
+  if (onEdit && cell.kind !== 'nil') {
+    // Editable: click opens the date editor
+    return (
+      <div onClick={e => { e.stopPropagation(); onEdit(); }} title={`${title}\nClick to set the actual date`} style={{ cursor: 'pointer' }} className="stage-box-edit">
+        <StageBox cell={cell} color={color} title=""/>
+      </div>
+    );
+  }
   if (cell.kind === 'date') return (
     <div title={title} style={{ ...base, border: `1.5px solid ${color}`, background: cell.current ? color : '#fff', color: cell.current ? '#fff' : '#1e293b' }}>
       {fmt(cell.date)}
       {cell.gap !== null && <span style={{ fontSize: 10, fontWeight: 600, opacity: 0.85 }}>+{cell.gap} day{cell.gap === 1 ? '' : 's'}</span>}
+      {cell.edited && <span title="Date entered manually" style={{ position: 'absolute', top: 1, right: 3, fontSize: 9, opacity: 0.8 }}>✎</span>}
     </div>
   );
   if (cell.kind === 'current') return (
@@ -91,8 +102,49 @@ function StageBox({ cell, color, title }: { cell: Cell; color: string; title: st
   return <div title="Not reached yet" style={{ ...base, border: '1.5px dashed #e2e8f0', background: '#fff', color: '#cbd5e1', fontWeight: 600 }}>Nil</div>;
 }
 
-export default function PurchaseStatusHistory({ records }: { records: Rec[] }) {
+// Inline editor shown in place of a step box
+const ymd = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+function DateEditor({ initial, onSave, onCancel }: { initial: Date | null; onSave: (v: string) => Promise<void>; onCancel: () => void }) {
+  const [v, setV] = useState(initial ? ymd(initial) : ymd(new Date()));
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState('');
+  const save = async () => {
+    if (!v) return;
+    setBusy(true); setErr('');
+    try { await onSave(v); } catch (e: any) { setErr(e?.message || 'Could not save'); setBusy(false); }
+  };
+  const btn = (bg: string): React.CSSProperties => ({ width: 24, height: 22, border: 'none', borderRadius: 3, background: bg, color: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 });
+  return (
+    <div onClick={e => e.stopPropagation()} style={{ width: 120, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: 3 }}>
+      <input type="date" value={v} max={ymd(new Date())} autoFocus onChange={e => setV(e.target.value)}
+        onKeyDown={e => { if (e.key === 'Enter') save(); if (e.key === 'Escape') onCancel(); }}
+        style={{ width: '100%', boxSizing: 'border-box', fontSize: 11, padding: '3px 4px', border: '1.5px solid #6366f1', borderRadius: 3 }}/>
+      <div style={{ display: 'flex', gap: 4, justifyContent: 'center' }}>
+        <button type="button" title="Save" disabled={busy} onClick={save} style={btn('#16a34a')}><Check size={13}/></button>
+        <button type="button" title="Cancel" disabled={busy} onClick={onCancel} style={btn('#94a3b8')}><X size={13}/></button>
+      </div>
+      {err && <div style={{ fontSize: 10, color: '#dc2626' }}>{err}</div>}
+    </div>
+  );
+}
+
+export default function PurchaseStatusHistory({ records, canEdit = false, onUpdated }: {
+  records: Rec[];
+  canEdit?: boolean;                       // show the date editor (not for guests)
+  onUpdated?: (updated: any) => void;      // record returned by the server after an edit
+}) {
   const [open, setOpen] = useState<string | null>(null);
+  const [editing, setEditing] = useState<{ id: string; k: number } | null>(null);
+  // Step 1 is the request date; other steps are entries in the status history
+  const saveDate = async (r: Rec, k: number, value: string) => {
+    const [Y, Mo, D] = value.split('-').map(Number);
+    const updated = k === 0
+      ? await apiFetch(`/api/purchase-followup/${r.id}`, { method: 'PUT', body: JSON.stringify({ requestDate: value }) })
+      : await apiFetch(`/api/purchase-followup/${r.id}/stage-date`, { method: 'PATCH',
+          body: JSON.stringify({ status: STATUS_FLOW[k], date: new Date(Y, Mo - 1, D, 12).toISOString() }) });
+    onUpdated?.(updated);
+    setEditing(null);
+  };
   const [view, setView] = useState<'pending' | 'completed'>('pending');
   const all = useMemo(() => records.map(r => ({ r, a: analyse(r) })), [records]);
   const pendingRows   = useMemo(() => all.filter(x => !x.a.completed)
@@ -177,8 +229,14 @@ export default function PurchaseStatusHistory({ records }: { records: Rec[] }) {
                       const st = STATUS_FLOW[k];
                       return (
                         <td key={st} style={{ textAlign: 'center', padding: '6px 4px' }}>
-                          <StageBox cell={cell} color={STATUS_WEB[st].bg}
-                            title={cell.kind === 'date' ? `${k === 0 ? 'Requested / RFQ created' : st}: ${fmtTime(cell.date)}` : st}/>
+                          {editing?.id === r.id && editing.k === k ? (
+                            <DateEditor initial={cell.kind === 'date' ? cell.date : null}
+                              onSave={v => saveDate(r, k, v)} onCancel={() => setEditing(null)}/>
+                          ) : (
+                            <StageBox cell={cell} color={STATUS_WEB[st].bg}
+                              title={cell.kind === 'date' ? `${k === 0 ? 'Requested / RFQ created' : st}: ${fmtTime(cell.date)}` : st}
+                              onEdit={canEdit ? () => setEditing({ id: r.id, k }) : undefined}/>
+                          )}
                         </td>
                       );
                     })}
@@ -213,6 +271,7 @@ export default function PurchaseStatusHistory({ records }: { records: Rec[] }) {
                                   <td style={{ padding: '3px 6px' }}>
                                     <span style={{ padding: '1px 8px', borderRadius: 6, fontWeight: 700, color: '#fff', background: STATUS_WEB[h.status]?.bg || '#94a3b8' }}>{statusLabel(h.status) || 'Nil'}</span>
                                     {h.from && stepOf(h.status) && stepOf(h.from) > stepOf(h.status) && <span style={{ marginLeft: 6, color: '#dc2626', fontWeight: 600 }}>moved back</span>}
+                                    {h.edited && <span style={{ marginLeft: 6, color: '#6366f1', fontWeight: 600 }}>✎ date entered manually</span>}
                                   </td>
                                 </tr>
                               ))}
@@ -233,7 +292,7 @@ export default function PurchaseStatusHistory({ records }: { records: Rec[] }) {
       </div>
       <div style={{ fontSize: 11, color: '#94a3b8' }}>
         Dates are recorded automatically each time the Current Status changes. "+N days" = days since the previous stage (or since the request date).
-        Items whose status was set before this history existed show "Current / No date" until their next change. "Nil" = step not reached yet.
+        Click any Done, Current or dated box to enter the actual date the step happened (✎ = date entered manually). "Nil" = step not reached yet.
       </div>
     </div>
   );

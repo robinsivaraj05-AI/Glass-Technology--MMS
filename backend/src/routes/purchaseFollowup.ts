@@ -67,6 +67,35 @@ router.put('/:id', async (req, res) => {
   }
 });
 
+// PATCH /:id/stage-date { status, date } — set the date a workflow step was reached.
+// Corrects an existing entry, or adds one for a step passed before history tracking.
+const FLOW = ['RFQ created', 'Quotation Received', 'Technical Review Under Progress', 'Technical Review Done',
+              'PO done', 'Partially Received', 'Material Received', 'Rejected Material / PO'];
+router.patch('/:id/stage-date', async (req, res) => {
+  try {
+    const status = normalise(req.body?.status) as string;
+    if (!FLOW.includes(status)) return res.status(400).json({ message: 'Unknown status' });
+    const at = new Date(req.body?.date);
+    if (isNaN(at.getTime())) return res.status(400).json({ message: 'Invalid date' });
+    if (at.getTime() > Date.now() + 86400000) return res.status(400).json({ message: 'Date cannot be in the future' });
+    const existing: any = await PurchaseFollowup.findById(req.params.id).lean();
+    if (!existing) return res.status(404).json({ message: 'Record not found' });
+    const hist: any[] = (existing.statusHistory || []).map((h: any) => ({ ...h, status: normalise(h.status), from: normalise(h.from || '') }));
+    // the step's date = its earliest entry
+    const idx = hist.reduce((best: number, h: any, i: number) =>
+      h.status === status && (best < 0 || new Date(h.at) < new Date(hist[best].at)) ? i : best, -1);
+    if (idx >= 0) { hist[idx].at = at; hist[idx].edited = true; }
+    else hist.push({ status, from: '', at, edited: true });
+    hist.sort((a, b) => new Date(a.at).getTime() - new Date(b.at).getTime());
+    const doc = await PurchaseFollowup.findByIdAndUpdate(req.params.id, { $set: { statusHistory: hist } }, { new: true });
+    if (!doc) return res.status(404).json({ message: 'Record not found' });
+    const obj = doc.toObject() as any;
+    res.json({ ...obj, id: obj._id.toString() });
+  } catch (err: any) {
+    res.status(400).json({ message: err.message });
+  }
+});
+
 router.delete('/:id', async (req, res) => {
   try {
     const doc = await PurchaseFollowup.findByIdAndDelete(req.params.id);

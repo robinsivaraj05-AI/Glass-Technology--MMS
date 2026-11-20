@@ -49,4 +49,4 @@ export const STATUS_XLS: Record<string, string> = {
   [REJECTED]:                        '#808080',
 };
 
-export interface StatusChange { status: string; from: string; at: string; }
+export interface StatusChange { status: string; from: string; at: string; edited?: boolean; }

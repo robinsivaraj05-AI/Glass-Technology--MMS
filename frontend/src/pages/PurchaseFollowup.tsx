@@ -2,6 +2,7 @@
 import React, { useState, useCallback, useEffect, useMemo } from 'react';
 import { Plus, Search, Download, Edit2, Trash2, RefreshCw, X, Check, Maximize2, FileText } from 'lucide-react';
 import { exportPurchaseReportPDF } from '../utils/purchaseReportPDF';
+import { useAuth } from '../context/AuthContext';
 import { apiFetch } from '../utils/api';
 import { STATUS_FLOW, REJECTED, STATUS_WEB, STATUS_XLS, normaliseStatus, isRejected, statusLabel, type StatusChange } from '../config/purchaseStatus';
 import PurchaseStatusHistory from '../components/PurchaseStatusHistory';
@@ -205,6 +206,8 @@ export default function PurchaseFollowup() {
   const [form, setForm]           = useState<Omit<FollowupRecord,'id'>>(BLANK());
   const [syncMsg, setSyncMsg]     = useState('');
   const [pdfBusy, setPdfBusy]     = useState(false);
+  const { user } = useAuth();
+  const canEditDates = !!user && user.role !== 'guest';   // guests are read-only
   const handlePdfReport = async () => {
     setPdfBusy(true);
     try { await exportPurchaseReportPDF(records); }
@@ -888,7 +891,10 @@ export default function PurchaseFollowup() {
       })()}
 
       {/* ── PURCHASE HISTORY (stage dates from the status change log) ─────── */}
-      {listTab === 'history' && <PurchaseStatusHistory records={filtered}/>}
+      {listTab === 'history' && (
+        <PurchaseStatusHistory records={filtered} canEdit={canEditDates}
+          onUpdated={u => setRecords(rs => rs.map(r => r.id === u.id ? { ...u, currentStatus: normaliseStatus(u.currentStatus || '') } : r))}/>
+      )}
 
       {/* ── Add Payment Modal ─────────────────────────────────────────────── */}
       {payModal && (
