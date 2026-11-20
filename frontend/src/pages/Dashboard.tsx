@@ -137,7 +137,14 @@ export default function Dashboard() {
   const D = useMemo(() => {
     const open = jobs.filter(isOpenJob);
     const map = new Map<string, any[]>();
-    open.forEach(j => { const k = (j.assignedTo || '').trim() || 'Not assigned'; map.set(k, [...(map.get(k) || []), j]); });
+    // "GT- PUR", "gt-pur" → "GT-PUR": match spelling variants to the standard list
+    const canon = (raw: string) => {
+      const t = (raw || '').trim().replace(/\s+/g, ' ');
+      if (!t) return 'Not assigned';
+      const key = t.replace(/\s+/g, '').toUpperCase();
+      return DEPT_ORDER.find(d => d.replace(/\s+/g, '').toUpperCase() === key) || t;
+    };
+    open.forEach(j => { const k = canon(j.assignedTo); map.set(k, [...(map.get(k) || []), j]); });
     const rank = (k: string) => { const i = DEPT_ORDER.indexOf(k); return k === 'Not assigned' ? 999 : i < 0 ? 500 : i; };
     const rows = [...map.entries()].map(([dept, list]) => {
       const d = (j: any) => parseDay(j.dueDate);
@@ -285,58 +292,6 @@ export default function Dashboard() {
             <div style={{ fontSize: 11, color: '#64748B', marginTop: 4 }}>{k.sub}</div>
           </div>
         ))}
-      </div>
-
-      {/* ══ PENDING JOBS BY DEPARTMENT ══ */}
-      <div style={{ marginBottom: 14 }}>
-        <Section icon={<Users size={15}/>} title="Pending Jobs by Department"
-          right={<span style={{ fontSize: 11, color: '#9CA3AF' }}>{D.total} open across {D.rows.length} department{D.rows.length === 1 ? '' : 's'} · <b style={{ color: D.overdue ? '#DC2626' : '#16A34A' }}>{D.overdue} overdue</b></span>}
-          link={canGo('/job-tracker') ? 'Job Tracker' : undefined} onLink={() => go('/job-tracker')}>
-          {D.rows.length === 0 ? <Empty text={loading ? 'Loading…' : 'No open jobs in the Job Tracker.'}/> : (
-            <div style={{ overflowX: 'auto' }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 760 }}>
-                <thead><tr>
-                  {['Department', 'Open', 'Overdue', 'Due this week', 'No due date', 'High / Critical', 'Status'].map((h, i) => (
-                    <th key={h} style={{ ...th, textAlign: i === 0 || i === 6 ? 'left' : 'center', width: i === 6 ? '34%' : undefined }}>{h}</th>
-                  ))}
-                </tr></thead>
-                <tbody>
-                  {D.rows.map(r => {
-                    const ei = /E\s*&\s*I/i.test(r.dept);
-                    const num = (n: number, c: string) => <span style={{ fontWeight: 800, color: n ? c : '#CBD5E1' }}>{n}</span>;
-                    return (
-                      <tr key={r.dept} style={{ background: ei ? '#EFF6FF' : undefined }}>
-                        <td style={{ ...td, fontWeight: 700, color: '#1E293B', whiteSpace: 'nowrap' }}>{r.dept}{ei && <span style={{ marginLeft: 6, fontSize: 9, fontWeight: 800, color: '#2563EB', background: '#DBEAFE', padding: '1px 6px', borderRadius: 8 }}>OUR DEPT</span>}</td>
-                        <td style={{ ...td, textAlign: 'center' }}><span style={{ fontSize: 15, fontWeight: 900, color: '#1E293B' }}>{r.total}</span></td>
-                        <td style={{ ...td, textAlign: 'center' }}>{num(r.overdue, '#DC2626')}</td>
-                        <td style={{ ...td, textAlign: 'center' }}>{num(r.week, '#D97706')}</td>
-                        <td style={{ ...td, textAlign: 'center' }}>{num(r.noDate, '#64748B')}</td>
-                        <td style={{ ...td, textAlign: 'center' }}>{num(r.high, '#EA580C')}</td>
-                        <td style={td}>
-                          <div title={r.status.filter(x => x.n).map(x => `${x.st}: ${x.n}`).join(' · ')} style={{ display: 'flex', height: 12, borderRadius: 6, overflow: 'hidden', background: '#F1F5F9', width: `${Math.max(8, (r.total / D.max) * 100)}%` }}>
-                            {r.status.filter(x => x.n).map(x => <div key={x.st} style={{ width: `${(x.n / r.total) * 100}%`, background: JOB_STATUS_COLOR[x.st] || '#94A3B8' }}/>)}
-                          </div>
-                          <div style={{ fontSize: 10, color: '#64748B', marginTop: 3 }}>{r.status.filter(x => x.n).map(x => `${x.st} ${x.n}`).join(' · ')}</div>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                  <tr style={{ background: '#F8FAFC' }}>
-                    <td style={{ ...td, fontWeight: 800 }}>Total</td>
-                    <td style={{ ...td, textAlign: 'center', fontWeight: 900 }}>{D.total}</td>
-                    <td style={{ ...td, textAlign: 'center', fontWeight: 800, color: '#DC2626' }}>{D.overdue}</td>
-                    <td style={{ ...td, textAlign: 'center', fontWeight: 800 }}>{D.rows.reduce((s, r) => s + r.week, 0)}</td>
-                    <td style={{ ...td, textAlign: 'center', fontWeight: 800 }}>{D.rows.reduce((s, r) => s + r.noDate, 0)}</td>
-                    <td style={{ ...td, textAlign: 'center', fontWeight: 800 }}>{D.rows.reduce((s, r) => s + r.high, 0)}</td>
-                    <td style={{ ...td, fontSize: 10, color: '#64748B' }}>
-                      {STATUS_ORDER.map(st => <span key={st} style={{ marginRight: 10, whiteSpace: 'nowrap' }}><span style={{ display: 'inline-block', width: 8, height: 8, borderRadius: 2, background: JOB_STATUS_COLOR[st], marginRight: 4 }}/>{st}</span>)}
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-          )}
-        </Section>
       </div>
 
       {/* ══ E&I JOBS ══ */}
@@ -521,6 +476,58 @@ export default function Dashboard() {
             </div>
           </div>
         ))}
+      </div>
+
+      {/* ══ PENDING JOBS BY DEPARTMENT ══ */}
+      <div style={{ marginBottom: 14 }}>
+        <Section icon={<Users size={15}/>} title="Pending Jobs by Department"
+          right={<span style={{ fontSize: 11, color: '#9CA3AF' }}>{D.total} open across {D.rows.length} department{D.rows.length === 1 ? '' : 's'} · <b style={{ color: D.overdue ? '#DC2626' : '#16A34A' }}>{D.overdue} overdue</b></span>}
+          link={canGo('/job-tracker') ? 'Job Tracker' : undefined} onLink={() => go('/job-tracker')}>
+          {D.rows.length === 0 ? <Empty text={loading ? 'Loading…' : 'No open jobs in the Job Tracker.'}/> : (
+            <div style={{ overflowX: 'auto' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 760 }}>
+                <thead><tr>
+                  {['Department', 'Open', 'Overdue', 'Due this week', 'No due date', 'High / Critical', 'Status'].map((h, i) => (
+                    <th key={h} style={{ ...th, textAlign: i === 0 || i === 6 ? 'left' : 'center', width: i === 6 ? '34%' : undefined }}>{h}</th>
+                  ))}
+                </tr></thead>
+                <tbody>
+                  {D.rows.map(r => {
+                    const ei = /E\s*&\s*I/i.test(r.dept);
+                    const num = (n: number, c: string) => <span style={{ fontWeight: 800, color: n ? c : '#CBD5E1' }}>{n}</span>;
+                    return (
+                      <tr key={r.dept} style={{ background: ei ? '#EFF6FF' : undefined }}>
+                        <td style={{ ...td, fontWeight: 700, color: '#1E293B', whiteSpace: 'nowrap' }}>{r.dept}{ei && <span style={{ marginLeft: 6, fontSize: 9, fontWeight: 800, color: '#2563EB', background: '#DBEAFE', padding: '1px 6px', borderRadius: 8 }}>OUR DEPT</span>}</td>
+                        <td style={{ ...td, textAlign: 'center' }}><span style={{ fontSize: 15, fontWeight: 900, color: '#1E293B' }}>{r.total}</span></td>
+                        <td style={{ ...td, textAlign: 'center' }}>{num(r.overdue, '#DC2626')}</td>
+                        <td style={{ ...td, textAlign: 'center' }}>{num(r.week, '#D97706')}</td>
+                        <td style={{ ...td, textAlign: 'center' }}>{num(r.noDate, '#64748B')}</td>
+                        <td style={{ ...td, textAlign: 'center' }}>{num(r.high, '#EA580C')}</td>
+                        <td style={td}>
+                          <div title={r.status.filter(x => x.n).map(x => `${x.st}: ${x.n}`).join(' · ')} style={{ display: 'flex', height: 12, borderRadius: 6, overflow: 'hidden', background: '#F1F5F9', width: `${Math.max(8, (r.total / D.max) * 100)}%` }}>
+                            {r.status.filter(x => x.n).map(x => <div key={x.st} style={{ width: `${(x.n / r.total) * 100}%`, background: JOB_STATUS_COLOR[x.st] || '#94A3B8' }}/>)}
+                          </div>
+                          <div style={{ fontSize: 10, color: '#64748B', marginTop: 3 }}>{r.status.filter(x => x.n).map(x => `${x.st} ${x.n}`).join(' · ')}</div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                  <tr style={{ background: '#F8FAFC' }}>
+                    <td style={{ ...td, fontWeight: 800 }}>Total</td>
+                    <td style={{ ...td, textAlign: 'center', fontWeight: 900 }}>{D.total}</td>
+                    <td style={{ ...td, textAlign: 'center', fontWeight: 800, color: '#DC2626' }}>{D.overdue}</td>
+                    <td style={{ ...td, textAlign: 'center', fontWeight: 800 }}>{D.rows.reduce((s, r) => s + r.week, 0)}</td>
+                    <td style={{ ...td, textAlign: 'center', fontWeight: 800 }}>{D.rows.reduce((s, r) => s + r.noDate, 0)}</td>
+                    <td style={{ ...td, textAlign: 'center', fontWeight: 800 }}>{D.rows.reduce((s, r) => s + r.high, 0)}</td>
+                    <td style={{ ...td, fontSize: 10, color: '#64748B' }}>
+                      {STATUS_ORDER.map(st => <span key={st} style={{ marginRight: 10, whiteSpace: 'nowrap' }}><span style={{ display: 'inline-block', width: 8, height: 8, borderRadius: 2, background: JOB_STATUS_COLOR[st], marginRight: 4 }}/>{st}</span>)}
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          )}
+        </Section>
       </div>
 
       <div style={{ textAlign: 'center', fontSize: 11, color: '#94A3B8' }}>
