@@ -75,8 +75,8 @@ router.post('/change-password', async (req: Request, res: Response) => {
   res.json({ message: 'Password changed', user: publicUser(user) });
 });
 
-// POST /api/auth/register — managers only (was open to anyone)
-router.post('/register', authorize('manager'), async (req: Request, res: Response) => {
+// POST /api/auth/register — Manager and Deputy Manager only (was open to anyone)
+router.post('/register', authorize('manager', 'deputy_manager'), async (req: Request, res: Response) => {
   try {
     const { name, email, password, role, department, employeeId } = req.body;
     const existing = await User.findOne({ email: String(email || '').toLowerCase().trim() });

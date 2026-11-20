@@ -106,7 +106,7 @@ export default function EmployeeProfile() {
 
   const { employees, loading, updateEmployee } = useEmployees();
   const { user } = useAuth();
-  const isAdmin = user?.role === 'manager';
+  const isAdmin = user?.role === 'manager' || user?.role === 'deputy_manager';   // Deputy Manager has full access
 
   // ── ALL STATE MUST BE BEFORE ANY CONDITIONAL RETURN ──
 

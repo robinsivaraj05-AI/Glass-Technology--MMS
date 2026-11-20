@@ -101,7 +101,7 @@ export default function Employees() {
   const navigate = useNavigate();
   const { employees, loading, addEmployee, updateEmployee, deleteEmployee } = useEmployees();
   const { user } = useAuth();
-  const isAdmin = user?.role === 'manager';
+  const isAdmin = user?.role === 'manager' || user?.role === 'deputy_manager';   // Deputy Manager has full access
 
   const location = useLocation();
   const [tab, setTab]               = useState<'directory' | 'resigned'>(
