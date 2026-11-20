@@ -9,6 +9,7 @@ import {
   Briefcase, Truck, Fuel, ShoppingCart,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
+import { canSeePage } from '../../config/access';
 import { DEPT_ABBR, DEPT_NAME } from '../../config/dept';
 
 interface NavItem {
@@ -116,6 +117,10 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
   const [openGroups, setOpenGroups] = useState<string[]>(['Maintenance']);
   const location = useLocation();
   const { user } = useAuth();
+  // Hide pages this role can't open (groups with no allowed pages disappear)
+  const visibleItems = navItems
+    .map(item => item.children ? { ...item, children: item.children.filter(c => canSeePage(user?.role, c.path)) } : item)
+    .filter(item => item.children ? item.children.length > 0 : canSeePage(user?.role, item.path || ''));
 
   const toggleGroup = (label: string) => {
     setOpenGroups(prev => prev.includes(label) ? prev.filter(g => g !== label) : [...prev, label]);
@@ -188,7 +193,7 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
 
       {/* Navigation */}
       <nav style={{ flex: 1, overflowY: 'auto', padding: '8px 8px', display: 'flex', flexDirection: 'column', gap: 2 }}>
-        {navItems.map(item => {
+        {visibleItems.map(item => {
           if (item.path) {
             return (
               <NavLink

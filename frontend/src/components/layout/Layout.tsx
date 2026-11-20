@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { Outlet, Navigate, useNavigate } from 'react-router-dom';
+import { Outlet, Navigate, useNavigate, useLocation } from 'react-router-dom';
+import { canSeePage } from '../../config/access';
 import Sidebar from './Sidebar';
 import Header from './Header';
 import { useAuth } from '../../context/AuthContext';
@@ -7,6 +8,7 @@ import { useAuth } from '../../context/AuthContext';
 export default function Layout() {
   const { isAuthenticated, loading, user } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
   if (loading) {
@@ -48,7 +50,14 @@ export default function Layout() {
           padding: '20px 24px',
           background: '#F0F4F8',
         }}>
-          <Outlet />
+          {canSeePage(user?.role, location.pathname) ? <Outlet /> : (
+            <div className="glass-card" style={{ maxWidth: 520, margin: '60px auto', padding: 32, textAlign: 'center' }}>
+              <div style={{ fontSize: 34, marginBottom: 8 }}>🔒</div>
+              <div style={{ fontSize: 16, fontWeight: 700, color: '#1e293b', marginBottom: 6 }}>This page is not available for your role</div>
+              <div style={{ fontSize: 13, color: '#64748b', marginBottom: 18 }}>Ask your manager if you need access.</div>
+              <button className="btn-primary" onClick={() => navigate('/dashboard')} style={{ fontSize: 13 }}>Go to Dashboard</button>
+            </div>
+          )}
         </main>
       </div>
     </div>

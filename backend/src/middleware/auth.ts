@@ -53,3 +53,20 @@ export function readOnlyForGuests(req: Request, res: Response, next: NextFunctio
   }
   next();
 }
+
+// Engineers may read, but only change the modules they work in.
+// Paths are relative to /api. Keep in line with frontend/src/config/access.ts.
+const ENGINEER_WRITE_PREFIXES = [
+  '/outsource',            // Outsource work entry
+  '/equipment-entries',    // Rental equipment work entry
+  '/accessories',          // Rental accessories
+  '/accessory-invoices',   // accessory invoice scan (used by the Accessories page)
+  '/purchase-rfq',         // RFQ creation
+];
+export function engineerWriteScope(req: Request, res: Response, next: NextFunction) {
+  const user = (req as any).user;
+  if (user?.role !== 'shift_engineer' || ['GET', 'HEAD', 'OPTIONS'].includes(req.method)) return next();
+  const allowed = ENGINEER_WRITE_PREFIXES.some(p => req.path === p || req.path.startsWith(p + '/'));
+  if (!allowed) return res.status(403).json({ message: 'Engineers can view this, but not change it.' });
+  next();
+}
