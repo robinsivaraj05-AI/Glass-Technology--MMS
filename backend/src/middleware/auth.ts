@@ -62,6 +62,9 @@ const ENGINEER_WRITE_PREFIXES = [
   '/accessories',          // Rental accessories
   '/accessory-invoices',   // accessory invoice scan (used by the Accessories page)
   '/purchase-rfq',         // RFQ creation
+  '/pending-jobs',         // Job Tracker: jobs
+  '/followup-jobs',        // Job Tracker: follow-ups
+  '/reminders',            // Job Tracker: reminders
 ];
 export function engineerWriteScope(req: Request, res: Response, next: NextFunction) {
   const user = (req as any).user;

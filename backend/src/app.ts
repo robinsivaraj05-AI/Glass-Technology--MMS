@@ -4,7 +4,9 @@ import express, { Request, Response, NextFunction } from 'express';
 import 'express-async-errors';
 import cors from 'cors';
 import authRoutes from './routes/auth';
-import { authenticate, readOnlyForGuests, engineerWriteScope } from './middleware/auth';
+import { authenticate, authorize, readOnlyForGuests, engineerWriteScope } from './middleware/auth';
+import { recordActivity } from './middleware/activityLog';
+import activityLogRoutes from './routes/activityLog';
 import breakdownRoutes from './routes/breakdowns';
 import employeeRoutes from './routes/employees';
 import orgPositionRoutes from './routes/orgPositions';
@@ -38,7 +40,8 @@ app.use(express.urlencoded({ extended: true }));
 app.get('/api/health', (_,res)=>res.json({status:'ok',service:'MMS API',version:'2.0.0'}));
 app.use('/api/auth',authRoutes);            // login is public; the rest of /api/auth checks the token itself
 // ── Everything below requires a valid login; guests are read-only ──
-app.use('/api', authenticate, readOnlyForGuests, engineerWriteScope);
+app.use('/api', authenticate, readOnlyForGuests, engineerWriteScope, recordActivity);   // every change is written to the activity log
+app.use('/api/activity-log', authorize('manager', 'deputy_manager'), activityLogRoutes);
 app.use('/api/breakdowns',breakdownRoutes);
 app.use('/api/employees',employeeRoutes);
 app.use('/api/org-positions',orgPositionRoutes);

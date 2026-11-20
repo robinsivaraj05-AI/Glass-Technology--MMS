@@ -27,6 +27,7 @@ import OrgChartSummary from './pages/OrgChartSummary';
 import Attendance from './pages/Attendance';
 import Reports from './pages/Reports';
 import Settings from './pages/Settings';
+import ActivityLog from './pages/ActivityLog';
 import Placeholder from './pages/Placeholder';
 import ContractorDashboard from './pages/ContractorDashboard';
 import ContractMaster from './pages/ContractMaster';
@@ -136,6 +137,7 @@ export default function App() {
             <Route path="/reports" element={<Reports />} />
             <Route path="/notifications" element={<Placeholder title="Notifications Center" description="All system notifications, email alerts, escalation matrix, and notification history." />} />
             <Route path="/settings" element={<Settings />} />
+            <Route path="/activity-log" element={<ActivityLog />} />
           </Route>
           <Route path="*" element={<Navigate to="/dashboard" replace />} />
         </Routes>
