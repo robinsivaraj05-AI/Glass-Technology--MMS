@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
 import {
   LayoutDashboard, Wrench, AlertTriangle, ClipboardList, Package,
-  Zap, BarChart3, Users, Settings, Shield, BookOpen, Database,
+  Zap, BarChart3, Users, Settings, Shield, BookOpen, Database, History,
   TrendingUp, Calendar, Bell, ChevronRight,
   Cpu, FlaskConical, HardDrive, Activity, FileText, DollarSign,
   GraduationCap, Building, Gauge, Menu, X, Network, CalendarCheck,
@@ -109,6 +109,7 @@ const navItems: NavItem[] = [
   { label: 'Reports',       icon: <BarChart3 size={16} />, path: '/reports' },
   { label: 'Notifications', icon: <Bell size={16} />,      path: '/notifications' },
   { label: 'Settings',      icon: <Settings size={16} />,  path: '/settings' },
+  { label: 'Activity Log',  icon: <History size={16} />,   path: '/activity-log' },   // Manager / Deputy Manager only
 ];
 
 interface SidebarProps { collapsed: boolean; onToggle: () => void; }

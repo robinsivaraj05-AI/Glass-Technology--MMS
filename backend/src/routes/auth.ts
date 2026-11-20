@@ -2,11 +2,13 @@ import { Router, Request, Response } from 'express';
 import jwt from 'jsonwebtoken';
 import User, { IUser } from '../models/User';
 import { authenticate, authorize, jwtSecret } from '../middleware/auth';
+import { logActivity } from '../middleware/activityLog';
 
 const router = Router();
 const JWT_EXPIRES = '12h';
 
-const sign = (u: IUser) => jwt.sign({ id: String(u._id), role: u.role }, jwtSecret(), { expiresIn: JWT_EXPIRES });
+// name/email ride along so the activity log can say who made a change
+const sign = (u: IUser) => jwt.sign({ id: String(u._id), role: u.role, name: u.name, email: u.email }, jwtSecret(), { expiresIn: JWT_EXPIRES });
 const publicUser = (u: IUser) => ({
   id: String(u._id), name: u.name, email: u.email, role: u.role,
   department: u.department, employeeId: u.employeeId, shift: u.shift, phone: u.phone,
@@ -44,6 +46,7 @@ router.post('/login', async (req: Request, res: Response) => {
       return res.status(401).json({ message: 'Invalid email or password' });
     }
     failures.delete(key);
+    logActivity({ userId: String(user._id), role: user.role, userName: `${user.name} (${user.email})`, module: 'Login & Users', action: 'Login', path: '/api/auth/login', method: 'POST' });
     res.json({ token: sign(user), user: publicUser(user) });
   } catch {
     res.status(500).json({ message: 'Server error' });
@@ -72,6 +75,7 @@ router.post('/change-password', async (req: Request, res: Response) => {
   user.password = String(newPassword);
   user.mustChangePassword = false;
   await user.save();
+  logActivity({ userId: String(user._id), role: user.role, userName: `${user.name} (${user.email})`, module: 'Login & Users', action: 'Password changed', path: '/api/auth/change-password', method: 'POST' });
   res.json({ message: 'Password changed', user: publicUser(user) });
 });
 
@@ -82,6 +86,7 @@ router.post('/register', authorize('manager', 'deputy_manager'), async (req: Req
     const existing = await User.findOne({ email: String(email || '').toLowerCase().trim() });
     if (existing) return res.status(400).json({ message: 'Email already registered' });
     const user = await User.create({ name, email, password, role, department, employeeId, mustChangePassword: true });
+    logActivity({ userId: (req as any).user?.id, role: (req as any).user?.role, module: 'Login & Users', action: 'User added', item: `${name} (${email}) — ${role}`, path: '/api/auth/register', method: 'POST' });
     res.status(201).json({ user: publicUser(user) });
   } catch (err: any) {
     res.status(400).json({ message: err.message });

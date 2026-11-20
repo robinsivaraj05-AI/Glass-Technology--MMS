@@ -9,6 +9,8 @@ import { type FullEmployee } from '../data/employeeData';
 import { useEmployees } from '../context/EmployeeContext';
 import { exportOrgChartPDF } from '../utils/exportOrgPDF';
 import { apiFetch } from '../utils/api';
+import { useAuth } from '../context/AuthContext';
+import { isViewOnly } from '../config/access';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 interface OrgPos {
@@ -190,7 +192,7 @@ function cardBorder(pos: OrgPos) {
 // ── PosCard ───────────────────────────────────────────────────────────────────
 function PosCard({ node, selected, searchMatch, onSelect, onEdit }: {
   node: OrgNode; selected: boolean; searchMatch: boolean;
-  onSelect: () => void; onEdit: (e: React.MouseEvent) => void;
+  onSelect: () => void; onEdit?: (e: React.MouseEvent) => void;   // no edit button when view-only
 }) {
   const { pos, emp } = node;
   const accent   = cardAccent(pos);
@@ -208,11 +210,11 @@ function PosCard({ node, selected, searchMatch, onSelect, onEdit }: {
       boxShadow: selected ? '0 0 0 3px rgba(59,130,246,0.15),0 4px 16px rgba(59,130,246,0.12)' : '0 2px 8px rgba(0,0,0,0.08)',
       position: 'relative',
     }}>
-      <button onClick={onEdit} title="Edit position" style={{
+      {onEdit && <button onClick={onEdit} title="Edit position" style={{
         position: 'absolute', top: 6, right: 6, width: 20, height: 20, borderRadius: 5,
         background: 'rgba(0,0,0,0.04)', border: '1px solid rgba(0,0,0,0.09)',
         color: '#94a3b8', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0,
-      }}><Edit2 size={10}/></button>
+      }}><Edit2 size={10}/></button>}
 
       {/* Top section: team label + role */}
       <div>
@@ -601,6 +603,8 @@ function ProfilePanel({ node, onClose, onViewFull }: { node: OrgNode; onClose: (
 
 // ── OrgChart page ─────────────────────────────────────────────────────────────
 export default function OrgChart() {
+  const { user } = useAuth();
+  const readOnly = isViewOnly(user?.role, '/org-chart');
   const navigate = useNavigate();
   const { employees } = useEmployees();
 
@@ -621,6 +625,8 @@ export default function OrgChart() {
     (async () => {
       try {
         let data: OrgPos[] = await apiFetch(API);
+        // The automatic set-up / fix-ups below change data — skip them for view-only users
+        if (readOnly) { setPositions(data); return; }
         if (!data.length) { await apiFetch(`${API}/seed`, { method:'POST' }); data = await apiFetch(API); }
         // Auto-fix any Team Member accidentally re-added with urgent=true
         if (data.some(p => p.role === 'Team Member' && p.urgent && !p.personName)) {
@@ -809,11 +815,11 @@ export default function OrgChart() {
         </button>
 
         {/* Reset Structure */}
-        <button onClick={() => setResetConfirm(true)} style={{
+        {!readOnly && <button onClick={() => setResetConfirm(true)} style={{
           ...ctrlBtn, background:'#fff7ed', border:'1px solid #fed7aa', color:'#c2410c', fontWeight:600,
         }}>
           <RotateCcw size={12}/> Reset Structure
-        </button>
+        </button>}
 
         {/* Stat counters */}
         <div style={{ marginLeft:'auto', display:'flex', gap:16, flexShrink:0 }}>
@@ -891,7 +897,7 @@ export default function OrgChart() {
                       selected={selectedNode?.pos.posId === node.pos.posId}
                       searchMatch={searchMatch?.posId === node.pos.posId}
                       onSelect={() => handleSelect(node)}
-                      onEdit={e => handleEdit(node, e)}/>
+                      onEdit={readOnly ? undefined : e => handleEdit(node, e)}/>
                     {hasCh && (
                       <button onClick={e => { e.stopPropagation(); toggleCollapse(node.pos.posId); }}
                         title={isCol ? `Expand (${node.children.length})` : 'Collapse'}

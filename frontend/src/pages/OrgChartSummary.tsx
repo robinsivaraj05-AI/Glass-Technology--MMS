@@ -6,6 +6,8 @@ import {
 } from 'lucide-react';
 import { exportOrgChartPDF } from '../utils/exportOrgPDF';
 import { apiFetch } from '../utils/api';
+import { useAuth } from '../context/AuthContext';
+import { isViewOnly } from '../config/access';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 interface OrgPos {
@@ -92,6 +94,8 @@ function StatCard({ icon, label, value, sub, color, bg, border }: {
 
 // ── OrgChartSummary page ──────────────────────────────────────────────────────
 export default function OrgChartSummary() {
+  const { user } = useAuth();
+  const readOnly = isViewOnly(user?.role, '/org-chart');
   const navigate = useNavigate();
   const [positions,    setPositions]    = useState<OrgPos[]>([]);
   const [loading,      setLoading]      = useState(true);
@@ -104,7 +108,7 @@ export default function OrgChartSummary() {
     if (showRefresh) setRefreshing(true);
     try {
       let data: OrgPos[] = await apiFetch(API);
-      if (!data.length) { await apiFetch(`${API}/seed`, { method: 'POST' }); data = await apiFetch(API); }
+      if (!data.length && !readOnly) { await apiFetch(`${API}/seed`, { method: 'POST' }); data = await apiFetch(API); }
       setPositions(data);
     } catch { /**/ } finally { setLoading(false); setRefreshing(false); }
   }, []);
@@ -126,6 +130,7 @@ export default function OrgChartSummary() {
   const collapseAll = () => setExpandedCats(new Set());
 
   const handleStatusChange = async (posId: string, rs: string) => {
+    if (readOnly) return;   // view-only
     setSavingPosId(posId);
     try {
       const updated: OrgPos = await apiFetch(`${API}/${posId}`, { method: 'PATCH', body: JSON.stringify({ recruitmentStatus: rs }) });

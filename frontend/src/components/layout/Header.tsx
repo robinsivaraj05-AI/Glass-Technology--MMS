@@ -37,6 +37,7 @@ const BREADCRUMB_MAP: Record<string, string> = {
   '/reports':              'Reports & Analytics',
   '/notifications':        'Notifications',
   '/settings':             'Settings',
+  '/activity-log':         'Activity Log',
   '/contractor':           'Contractor Dashboard',
   '/contractor/contracts': 'Contract Master',
   '/contractor/entry':     'Outsource Entry',
